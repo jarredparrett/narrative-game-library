@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "narrative-game-library"
+version = "0.0.1"
+description = "Deterministic narrative game building with human-governed hill-climb lineage."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = []
+
+[project.optional-dependencies]
+forge = [
+  "verismill @ git+https://github.com/jarredparrett/verismill-lean.git@fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3",
+  "mattermill @ git+https://github.com/jarredparrett/verismill-lean.git@fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3#subdirectory=libs/mattermill",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+narrative-game-stage0 = "narrative_game.stage0_fixture:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+testpaths = ["tests"]
