@@ -14,7 +14,7 @@ experiment lineage. Polished maker and player interfaces come later.
 Version `0.x` is an experimental contract epoch. The current implementation
 includes the Stage 0 dependency boundary and Stage 1 content-addressed
 Workspace lineage, plus the Stage 2 pure Kernel and Facilitated Investigation
-profile. Public schema compatibility
+profile and Stage 3 deterministic Game Release compiler. Public schema compatibility
 is not promised before the first complete worked game climb, but hashes,
 receipts, dependency direction, and deterministic outputs are never optional.
 
@@ -112,3 +112,28 @@ evidence, fragile or premature proof, inactive Seats, and missing recovery.
 See [the domain context](CONTEXT.md) for ownership vocabulary and the
 [research evidence register](docs/research-evidence-register.md) for the source
 provenance behind Stage 2 requirements.
+
+### Freeze and compile a Release
+
+Candidate freeze accepts only a valid Game Definition, exact material bytes and
+receipts, a deterministic seed, compilation options, and the resolved Component
+Lock. Compilation is pure and produces either one self-contained Release or
+structured blockers—never partial Release bytes.
+
+```python
+from pathlib import Path
+
+from narrative_game.compiler import compile_candidate
+from narrative_game.stage3_fixture import build_micro_candidate
+
+candidate = build_micro_candidate(Path("fixtures/micro-game/game.json").read_bytes())
+result = compile_candidate(candidate)
+assert result.release is not None
+assert result.release.bundle_hash.startswith("sha256:")
+```
+
+The deterministic bundle contains its trusted canonical game, host and
+simulation views, an authorized projection for each Seat, exact materials,
+reproduction receipts, artifact attestations, Component Lock, compilation
+report, and Release manifest. Seat projections never contain trusted truth,
+proof paths, answer keys, future information, or material bytes.
