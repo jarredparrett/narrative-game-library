@@ -11,8 +11,10 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.0.x` is an experimental contract epoch. The current implementation
-starts with the Stage 0 dependency-boundary spike. Public schema compatibility
+Version `0.x` is an experimental contract epoch. The current implementation
+includes the Stage 0 dependency boundary and Stage 1 content-addressed
+Workspace lineage, plus the Stage 2 pure Kernel and Facilitated Investigation
+profile. Public schema compatibility
 is not promised before the first complete worked game climb, but hashes,
 receipts, dependency direction, and deterministic outputs are never optional.
 
@@ -61,3 +63,52 @@ uv run pytest -q
 
 See [the acceptance matrix](docs/acceptance-matrix.md) for the evidence required
 at each implementation gate.
+
+### Workspace lineage
+
+```python
+from narrative_game import Workspace
+
+workspace = Workspace.create("/path/to/user-data/game", workspace_id="my-game")
+head = workspace.commit_draft(
+    branch="main",
+    expected_head=None,
+    data={"title": "My game"},
+    reason="create the first Draft Revision",
+    actor="human:maker",
+    component_lock={"components": []},
+    operation_receipt={"operation": "draft.create", "inputs": {}, "outputs": {}},
+    idempotency_key="draft-main-1",
+)
+assert workspace.verify()["ok"]
+```
+
+Canonical history lives in immutable objects and independently verifiable
+journals. Branch Heads and `workspace.json` are projections that can be rebuilt
+after interruption. Workspace Archives are deterministic and path-independent.
+
+### Author and validate a game
+
+The canonical authoring form is explicit JSON. It contains no runtime state,
+artifact bytes, model configuration, or reviewer standing.
+
+```python
+from pathlib import Path
+
+from narrative_game import parse_game_definition, validate_facilitated_investigation
+
+game = parse_game_definition(Path("fixtures/micro-game/game.json").read_bytes())
+findings = validate_facilitated_investigation(game)
+assert findings == ()
+print(game.content_hash)
+```
+
+Findings are stable records with a requirement code, severity, precise locus,
+quoted defective value, and explanation. The committed Micro Fixture has two
+Seats and two evidence routes. Its single-delta Defect Deck proves the validator
+rejects contradictory truth, missing references, access leakage, inaccessible
+evidence, fragile or premature proof, inactive Seats, and missing recovery.
+
+See [the domain context](CONTEXT.md) for ownership vocabulary and the
+[research evidence register](docs/research-evidence-register.md) for the source
+provenance behind Stage 2 requirements.
