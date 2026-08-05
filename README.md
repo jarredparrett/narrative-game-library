@@ -11,14 +11,15 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-9 now form one
+Version `0.x` is an experimental contract epoch. Stages 0-10 now form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
 agentic hill-climb ledger exercised by a real blind model panel. Stage 9 adds
-the reusable Game Blueprint and first-party authoring adapter. Public schema
-compatibility is not promised yet, but hashes, receipts, dependency direction,
-human authorization, and reproducible outputs are never optional.
+the reusable Game Blueprint and first-party authoring adapter; Stage 10 makes
+live human play the primary acceptance evidence. Public schema compatibility
+is not promised yet, but hashes, receipts, dependency direction, human
+authorization, and reproducible outputs are never optional.
 
 ## Repository boundary
 
@@ -239,6 +240,54 @@ Blueprint, builds a full preview package, and stops at an inert Proposal. The
 same human Review and child remeasurement loop from Stage 8 then governs the
 transition. Iterative authoring is therefore the default without putting model
 behavior inside the deterministic compiler.
+
+## Human play evidence
+
+Stage 10 turns a playtest into persisted experiment evidence, not an informal
+note after the climb. A `PlaytestProtocol` is frozen before recruitment and
+binds one exact Candidate, Game Release, Physical Export, Instrument, consent
+version, cohort minimum, observation categories, and model-comparison rule.
+
+```python
+from narrative_game import PlaytestProgram
+
+playtests = PlaytestProgram(experiment)
+protocol = playtests.freeze_protocol(
+    binding_id=binding.binding_id,
+    name="two-seat facilitated play",
+    version="1.0.0",
+    consent_version="playtest-consent-v1",
+)
+
+run = playtests.record_run(
+    protocol_id=protocol.protocol_id,
+    run_key="cohort-01",
+    session_history=completed_live_session,
+    production_receipt=exact_release_and_physical_export_receipt,
+    participants=participant_authorities,
+    facilitator=facilitator_authority,
+    observers=observer_authorities,
+    consent_responses=versioned_consent_responses,
+    observations=phase_scoped_quoted_observations,
+    scores=instrument_scores,
+    idempotency_key="cohort-01",
+)
+```
+
+A Run counts only when it is a completed live Session over that exact package,
+with a fresh participant cohort and exact consent and observation receipts.
+Simulations and Blind Trial reviews are useful evidence, but they are not
+human play. Quoted Run Findings can be translated into answer-safe
+Requirements and passed to `Experiment.propose_revision_from_requirements`, so
+human feedback enters the same Proposal, Review, child-build, and fresh
+measurement loop as other tells.
+
+Blind model scores and human-play medians remain separate. An
+`EvidenceComparison` records `aligned` or `divergent`; it never averages the
+two into a synthetic voice. Accepted Standing requires the protocol's minimum
+number of passing fresh Runs, the exact comparison, and a human publisher who
+did not participate in, facilitate, or observe those Runs. Model disagreement
+remains visible but does not overrule observed human play.
 
 ## State ownership
 

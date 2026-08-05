@@ -764,6 +764,73 @@ class Experiment:
         requirements = self.translate_requirements(
             evaluation_id=evaluation_id, translator=translator
         )
+        return self._propose_revision_with_requirements(
+            adapter,
+            baseline_candidate_id=evaluation.candidate_id,
+            requirements=requirements,
+            task_key=task_key,
+            authority_id=authority_id,
+            principal=principal,
+            requested_model=requested_model,
+            driver=driver,
+            scratch_root=scratch_root,
+            human_direction=human_direction,
+            seed=seed,
+        )
+
+    def propose_revision_from_requirements(
+        self,
+        adapter: GameProfileAdapter,
+        *,
+        binding_id: str,
+        requirement_ids: tuple[str, ...],
+        task_key: str,
+        authority_id: str,
+        principal: str,
+        requested_model: str,
+        driver: ModelDriver,
+        scratch_root: str | Path,
+        human_direction: str | None = None,
+        seed: int | None = None,
+    ) -> PreparedProposal:
+        """Build from already translated human-play Requirements."""
+        self.require_profile(adapter)
+        if not requirement_ids:
+            raise ValueError("human-play proposal requires at least one Requirement")
+        binding = self.ledger.get("trial_binding", binding_id).value
+        requirements = tuple(
+            self.ledger.get("requirement", item).value for item in requirement_ids
+        )
+        return self._propose_revision_with_requirements(
+            adapter,
+            baseline_candidate_id=binding.candidate_id,
+            requirements=requirements,
+            task_key=task_key,
+            authority_id=authority_id,
+            principal=principal,
+            requested_model=requested_model,
+            driver=driver,
+            scratch_root=scratch_root,
+            human_direction=human_direction,
+            seed=seed,
+        )
+
+    def _propose_revision_with_requirements(
+        self,
+        adapter: GameProfileAdapter,
+        *,
+        baseline_candidate_id: str,
+        requirements: tuple[Requirement, ...],
+        task_key: str,
+        authority_id: str,
+        principal: str,
+        requested_model: str,
+        driver: ModelDriver,
+        scratch_root: str | Path,
+        human_direction: str | None,
+        seed: int | None,
+    ) -> PreparedProposal:
+        """Run the shared answer-safe builder path for model or human-play findings."""
         authority = Authority(authority_id, "agent", "builder", principal)
         self.ledger.register(
             authority,
@@ -796,7 +863,7 @@ class Experiment:
         task = Task(
             task_key,
             "fix",
-            evaluation.candidate_id,
+            baseline_candidate_id,
             self.instrument.instrument_id,
             authority.authority_id,
             excluded,
@@ -861,7 +928,7 @@ class Experiment:
             scratch_root=Path(scratch_root),
             instrument=self.instrument,
         )
-        if proposed.preview.candidate_id == evaluation.candidate_id:
+        if proposed.preview.candidate_id == baseline_candidate_id:
             raise ValueError("Proposal must produce a distinct Candidate")
         if set(proposed.preview.hard_gate_results) != set(
             self.instrument.hard_gate_codes

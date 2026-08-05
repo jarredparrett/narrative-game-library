@@ -103,3 +103,22 @@ An **Authoring Operation** is one typed, reviewable change to a Game Blueprint
 that names the Requirements it addresses. A set of operations remains an inert
 Proposal until exact human Review authorizes a Transition.
 _Avoid_: JSON patch, autonomous edit, rewrite.
+
+A **Playtest Protocol** is the frozen human-play contract for one exact
+Candidate, Release, Physical Export, and Instrument. It fixes consent,
+participant, observation, freshness, and standing requirements before play.
+_Avoid_: test plan, survey template, facilitator notes.
+
+A **Playtest Run** is one completed live Session with a distinct participant
+cohort, exact production receipt, consent receipts, observations, and scores.
+Reviewing a Blind Trial without playing is not a Playtest Run.
+_Avoid_: Human Receipt, model simulation, demo.
+
+A **Play Observation** is a phase-scoped human statement preserved with its
+exact response and the role from which it was observed.
+_Avoid_: model finding, retrospective summary, score.
+
+An **Evidence Comparison** records agreement or divergence between blind model
+measurement and Playtest Runs for the same Candidate and Instrument. It is
+diagnostic evidence; it does not average humans and models into one voice.
+_Avoid_: combined score, ensemble verdict.

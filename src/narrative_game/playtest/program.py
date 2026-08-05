@@ -1,0 +1,344 @@
+"""Human-triggered recording and standing for first-order play evidence."""
+
+from __future__ import annotations
+
+from statistics import median
+from typing import Any, Callable, Mapping
+
+from narrative_game.climb import (
+    Authority,
+    Evaluation,
+    Finding,
+    Requirement,
+    StandingAttestation,
+)
+from narrative_game.climb.selection import evaluation_passes
+from narrative_game.experiment import Experiment
+from narrative_game.runtime import SessionHistory
+from narrative_game.runtime.runtime import verify_history
+
+from .model import (
+    EvidenceComparison,
+    ParticipantConsent,
+    PlayObservation,
+    PlaytestProtocol,
+    PlaytestRun,
+)
+
+
+PlaytestTranslator = Callable[
+    [PlaytestRun, tuple[Finding, ...]], tuple[Requirement, ...]
+]
+
+
+class PlaytestProgram:
+    """Persist exact human play evidence inside one Experiment lineage."""
+
+    def __init__(self, experiment: Experiment):
+        self.experiment = experiment
+        self.ledger = experiment.ledger
+        self.store = experiment.workspace.store
+
+    def freeze_protocol(
+        self,
+        *,
+        binding_id: str,
+        name: str,
+        version: str,
+        consent_version: str,
+        minimum_fresh_runs: int = 2,
+        minimum_participants_per_run: int = 2,
+        required_observation_categories: tuple[str, ...] = (
+            "comprehension",
+            "agency",
+            "pacing",
+        ),
+        require_model_comparison: bool = True,
+        model_human_delta_tolerance: int = 10,
+    ) -> PlaytestProtocol:
+        """Freeze protocol and package identity before recruiting a run."""
+        binding = self.ledger.get("trial_binding", binding_id).value
+        protocol = PlaytestProtocol(
+            name,
+            version,
+            binding.binding_id,
+            self.experiment.instrument.instrument_id,
+            consent_version,
+            minimum_fresh_runs,
+            minimum_participants_per_run,
+            required_observation_categories,
+            require_model_comparison,
+            model_human_delta_tolerance,
+        )
+        return self.ledger.register(
+            protocol,
+            actor="human:playtest-operator",
+            idempotency_key=f"playtest-protocol-{protocol.protocol_id}",
+        ).value
+
+    def record_run(
+        self,
+        *,
+        protocol_id: str,
+        run_key: str,
+        session_history: SessionHistory,
+        production_receipt: Mapping[str, Any],
+        participants: tuple[Authority, ...],
+        facilitator: Authority,
+        observers: tuple[Authority, ...],
+        consent_responses: Mapping[str, Mapping[str, Any]],
+        observations: tuple[Mapping[str, Any], ...],
+        scores: Mapping[str, int],
+        idempotency_key: str,
+    ) -> PlaytestRun:
+        """Record one completed live Session without converting humans to model calls."""
+        protocol = self.ledger.get("playtest_protocol", protocol_id).value
+        binding = self.ledger.get("trial_binding", protocol.binding_id).value
+        verify_history(session_history)
+        if session_history.mode != "live" or session_history.release_id != binding.release_id:
+            raise ValueError("fresh Playtest Run requires a live Session for the exact Release")
+        if not any(
+            item.event_type == "resolution-recorded"
+            for item in session_history.ordered_events
+        ):
+            raise ValueError("Playtest Run requires a completed resolved Session")
+        if production_receipt.get("release_id") != binding.release_id or production_receipt.get(
+            "physical_export_id"
+        ) != binding.physical_export_id:
+            raise ValueError("production receipt differs from the frozen playtest package")
+        authorities = (*participants, facilitator, *observers)
+        genesis = session_history.ordered_events[0]
+        session_actor_ids = {
+            item["actor"]["id"] for item in genesis.payload["bindings"]
+        }
+        host_viewer_ids = {
+            item["viewer_id"]
+            for item in genesis.payload["viewers"]
+            if item["role"] == "host"
+        }
+        if {item.principal for item in participants} != session_actor_ids:
+            raise ValueError("participant Authorities must identify the Session Actors")
+        if facilitator.principal not in host_viewer_ids:
+            raise ValueError("facilitator Authority must identify the Session host")
+        for authority in authorities:
+            self.ledger.register(
+                authority,
+                actor="human:playtest-operator",
+                idempotency_key=f"playtest-authority-{authority.authority_id}",
+            )
+        if set(consent_responses) != {item.authority_id for item in authorities}:
+            raise ValueError("every Playtest Run human requires one consent response")
+        consents = []
+        for authority in authorities:
+            response = consent_responses[authority.authority_id]
+            if response.get("decision") != "consented":
+                raise ValueError(f"Playtest consent is not affirmative: {authority.authority_id}")
+            response_ref = self.store.put_json(response)
+            consents.append(
+                ParticipantConsent(
+                    authority.authority_id,
+                    str(response["consent_version"]),
+                    tuple(str(item) for item in response["scopes"]),
+                    response_ref,
+                )
+            )
+        session_ref = self.store.put_bytes(session_history.to_bytes())
+        production_ref = self.store.put_json(production_receipt)
+        phase_ids = {item.represented_phase_id for item in session_history.ordered_events}
+        play_observations = []
+        finding_ids = []
+        for index, raw in enumerate(observations):
+            if str(raw["phase_id"]) not in phase_ids:
+                raise ValueError(f"Play Observation names a Phase absent from the Session: {raw['phase_id']}")
+            response_ref = self.store.put_json(raw)
+            observation = PlayObservation(
+                str(raw["authority_id"]),
+                str(raw["observer_role"]),
+                str(raw["phase_id"]),
+                str(raw["category"]),
+                str(raw["quote"]),
+                str(raw["note"]),
+                response_ref,
+            )
+            play_observations.append(observation)
+            if raw.get("finding") is not None:
+                value = raw["finding"]
+                finding = Finding(
+                    str(value["requirement_code"]),
+                    str(value["severity"]),
+                    str(value["resource_path"]),
+                    str(value["locus"]),
+                    str(value["quote"]),
+                    str(value["message"]),
+                )
+                existing = {
+                    item.finding_id for item in self.ledger.snapshot()["findings"]
+                }
+                if finding.finding_id not in existing:
+                    self.ledger.register(
+                        finding,
+                        actor=f"human:{observation.authority_id}",
+                        idempotency_key=f"playtest-finding-{idempotency_key}-{index}",
+                    )
+                finding_ids.append(finding.finding_id)
+        hard_gates = dict(binding.hard_gate_results)
+        synthetic = Evaluation(
+            "playtest",
+            binding.candidate_id,
+            protocol.instrument_id,
+            "blind",
+            (),
+            (),
+            scores,
+            (),
+            hard_gates,
+            "pending",
+        )
+        outcome = (
+            "pass"
+            if evaluation_passes(self.experiment.instrument, synthetic)
+            else "fail"
+        )
+        run = PlaytestRun(
+            protocol.protocol_id,
+            run_key,
+            binding.release_id,
+            binding.physical_export_id,
+            session_ref,
+            production_ref,
+            tuple(item.authority_id for item in participants),
+            facilitator.authority_id,
+            tuple(item.authority_id for item in observers),
+            tuple(consents),
+            tuple(play_observations),
+            scores,
+            tuple(finding_ids),
+            hard_gates,
+            outcome,
+        )
+        return self.ledger.register(
+            run,
+            actor="human:playtest-facilitator",
+            idempotency_key=idempotency_key,
+        ).value
+
+    def translate_requirements(
+        self,
+        *,
+        run_id: str,
+        translator: PlaytestTranslator,
+    ) -> tuple[Requirement, ...]:
+        """Translate quoted play Findings to answer-safe builder Requirements."""
+        run = self.ledger.get("playtest_run", run_id).value
+        finding_by_id = {
+            item.finding_id: item for item in self.ledger.snapshot()["findings"]
+        }
+        findings = tuple(finding_by_id[item] for item in run.finding_ids)
+        requirements = translator(run, findings)
+        for requirement in requirements:
+            if not requirement.source_finding_ids or not set(
+                requirement.source_finding_ids
+            ) <= set(run.finding_ids):
+                raise ValueError("Playtest Requirement must cite this Run's Findings")
+            existing = {
+                item.requirement_id
+                for item in self.ledger.snapshot()["requirements"]
+            }
+            if requirement.requirement_id not in existing:
+                self.ledger.register(
+                    requirement,
+                    actor="human:playtest-operator",
+                    idempotency_key=f"playtest-requirement-{requirement.requirement_id}",
+                )
+        return requirements
+
+    def compare_with_model(
+        self,
+        *,
+        protocol_id: str,
+        model_evaluation_id: str,
+        playtest_run_ids: tuple[str, ...],
+    ) -> EvidenceComparison:
+        """Persist deterministic divergence without treating model scores as human play."""
+        if not playtest_run_ids:
+            raise ValueError("Evidence Comparison requires at least one Playtest Run")
+        protocol = self.ledger.get("playtest_protocol", protocol_id).value
+        binding = self.ledger.get("trial_binding", protocol.binding_id).value
+        evaluation = self.ledger.get("evaluation", model_evaluation_id).value
+        runs = tuple(
+            self.ledger.get("playtest_run", item).value for item in playtest_run_ids
+        )
+        dimensions = {}
+        for dimension in self.experiment.instrument.dimensions:
+            human_median = median(
+                item.scores[dimension.dimension_id] for item in runs
+            )
+            model_score = evaluation.scores[dimension.dimension_id]
+            dimensions[dimension.dimension_id] = {
+                "model": model_score,
+                "human_median": human_median,
+                "delta": human_median - model_score,
+            }
+        conclusion = (
+            "divergent"
+            if any(
+                abs(item["delta"]) > protocol.model_human_delta_tolerance
+                for item in dimensions.values()
+            )
+            else "aligned"
+        )
+        comparison = EvidenceComparison(
+            protocol.protocol_id,
+            binding.candidate_id,
+            protocol.instrument_id,
+            evaluation.evaluation_id,
+            playtest_run_ids,
+            dimensions,
+            conclusion,
+        )
+        return self.ledger.register(
+            comparison,
+            actor="system:evidence-comparison",
+            idempotency_key=f"evidence-comparison-{comparison.comparison_id}",
+        ).value
+
+    def issue_accepted_standing(
+        self,
+        *,
+        comparison_id: str,
+        reviewer: Authority,
+        statement: str,
+    ) -> StandingAttestation:
+        """Issue accepted Standing only through independent human review."""
+        existing = {
+            item.authority_id: item for item in self.ledger.snapshot()["authorities"]
+        }
+        if reviewer.authority_id in existing:
+            if existing[reviewer.authority_id] != reviewer:
+                raise ValueError("Standing reviewer identity conflicts with an existing Authority")
+        else:
+            self.ledger.register(
+                reviewer,
+                actor="human:playtest-operator",
+                idempotency_key=f"standing-reviewer-{reviewer.authority_id}",
+            )
+        comparison = self.ledger.get("evidence_comparison", comparison_id).value
+        standing = StandingAttestation(
+            comparison.candidate_id,
+            "accepted",
+            (comparison.model_evaluation_id,),
+            (
+                "fresh-human-play",
+                "model-human-comparison",
+                "independent-standing-review",
+            ),
+            reviewer.authority_id,
+            statement,
+            comparison.playtest_run_ids,
+            comparison.comparison_id,
+        )
+        return self.ledger.register(
+            standing,
+            actor=f"human:{reviewer.principal}",
+            idempotency_key=f"accepted-standing-{standing.attestation_id}",
+        ).value

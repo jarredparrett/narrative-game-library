@@ -20,3 +20,7 @@ turning one worked mystery into the architecture:
 6. **Let evidence inform humans, not replace them.** Agents propose and measure;
    humans may approve direction. Frozen selection rules decide only which
    measured Candidate supports the next rung.
+7. **Keep model and human evidence distinct.** Blind models cheaply expose
+   likely weaknesses; fresh human play reveals what people actually understand,
+   choose, and experience. Record agreement or divergence, never a blended
+   score that obscures either source.

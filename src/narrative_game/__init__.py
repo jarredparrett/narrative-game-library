@@ -16,6 +16,8 @@ from .compiler import compile_candidate, freeze_candidate
 from .experiment import Experiment, GameProfileAdapter
 from .narrative import GameDefinition, validate_facilitated_investigation
 from .physical import PhysicalExport, PhysicalExportProfile, export_physical
+from .playtest import EvidenceComparison, PlaytestProtocol, PlaytestRun
+from .playtest.program import PlaytestProgram
 from .profiles import FacilitatedInvestigationAuthoringAdapter
 from .runtime import apply_command, create_session, replay, seat_snapshot
 from .workspace import Workspace
@@ -28,11 +30,15 @@ __all__ = [
     "BlueprintProposal",
     "DisplayedClaim",
     "Experiment",
+    "EvidenceComparison",
     "GameDefinition",
     "GameBlueprint",
     "GameProfileAdapter",
     "PhysicalExport",
     "PhysicalExportProfile",
+    "PlaytestProgram",
+    "PlaytestProtocol",
+    "PlaytestRun",
     "RichTextMaterial",
     "FacilitatedInvestigationAuthoringAdapter",
     "Workspace",
@@ -49,4 +55,4 @@ __all__ = [
     "validate_blueprint",
 ]
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"

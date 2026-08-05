@@ -6,7 +6,15 @@ from dataclasses import dataclass
 import json
 from typing import Any, Mapping
 
+from narrative_game.contracts import canonical_json
 from narrative_game.workspace import Workspace
+from narrative_game.playtest.model import (
+    EvidenceComparison,
+    ParticipantConsent,
+    PlayObservation,
+    PlaytestProtocol,
+    PlaytestRun,
+)
 
 from .model import (
     Authority,
@@ -47,6 +55,9 @@ Record = (
     | StandingAttestation
     | TrialBinding
     | SelectionDecision
+    | PlaytestProtocol
+    | PlaytestRun
+    | EvidenceComparison
 )
 
 
@@ -84,6 +95,9 @@ _KIND_TO_COLLECTION = {
     "standing": "standings",
     "trial_binding": "trial_bindings",
     "selection": "selections",
+    "playtest_protocol": "playtest_protocols",
+    "playtest_run": "playtest_runs",
+    "evidence_comparison": "evidence_comparisons",
 }
 
 
@@ -120,6 +134,12 @@ def _kind_and_id(value: Record) -> tuple[str, str]:
         return "trial_binding", value.binding_id
     if isinstance(value, SelectionDecision):
         return "selection", value.decision_id
+    if isinstance(value, PlaytestProtocol):
+        return "playtest_protocol", value.protocol_id
+    if isinstance(value, PlaytestRun):
+        return "playtest_run", value.run_id
+    if isinstance(value, EvidenceComparison):
+        return "evidence_comparison", value.comparison_id
     raise TypeError(f"unsupported climb record: {type(value)!r}")
 
 
@@ -212,6 +232,7 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
         result = StandingAttestation(
             value["candidate_id"], value["level"], tuple(value["evaluation_ids"]),
             tuple(value["evidence_kinds"]), value["reviewer_authority_id"], value["statement"],
+            tuple(value.get("playtest_run_ids", ())), value.get("comparison_id"),
         )
     elif kind == "trial_binding":
         result = TrialBinding(
@@ -224,6 +245,32 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
             value["instrument_id"], value["baseline_evaluation_id"],
             value["child_evaluation_id"], value["outcome"],
             value["selected_candidate_id"], value["reason"],
+        )
+    elif kind == "playtest_protocol":
+        result = PlaytestProtocol(
+            value["name"], value["version"], value["binding_id"],
+            value["instrument_id"], value["consent_version"],
+            int(value["minimum_fresh_runs"]), int(value["minimum_participants_per_run"]),
+            tuple(value["required_observation_categories"]),
+            bool(value.get("require_model_comparison", True)),
+            int(value.get("model_human_delta_tolerance", 10)),
+        )
+    elif kind == "playtest_run":
+        result = PlaytestRun(
+            value["protocol_id"], value["run_key"], value["release_id"],
+            value["physical_export_id"], value["session_history_ref"],
+            value["production_receipt_ref"], tuple(value["participant_authority_ids"]),
+            value["facilitator_authority_id"], tuple(value["observer_authority_ids"]),
+            tuple(ParticipantConsent.from_mapping(item) for item in value["consents"]),
+            tuple(PlayObservation.from_mapping(item) for item in value["observations"]),
+            value["scores"], tuple(value["finding_ids"]), value["hard_gate_results"],
+            value["outcome"], value.get("evidence_class", "fresh-human-play"),
+        )
+    elif kind == "evidence_comparison":
+        result = EvidenceComparison(
+            value["protocol_id"], value["candidate_id"], value["instrument_id"],
+            value["model_evaluation_id"], tuple(value["playtest_run_ids"]),
+            value["dimensions"], value["conclusion"],
         )
     else:
         raise ValueError(f"unsupported climb record kind: {kind!r}")
@@ -532,6 +579,11 @@ class ClimbLedger:
                 records = self._records()
                 findings = validate_climb_bundle(**self.snapshot())
                 failures.extend(f"{item.code}: {item.message}" for item in findings)
+                authorities = {
+                    item.value.authority_id: item.value
+                    for item in records
+                    if isinstance(item.value, Authority)
+                }
                 for record in records:
                     if not self.store.verify(record.record_ref):
                         failures.append(f"missing record object: {record.record_ref}")
@@ -572,6 +624,72 @@ class ClimbLedger:
                         if not self.store.verify(record.value.response_ref):
                             failures.append(
                                 f"missing human observation response: {record.value.response_ref}"
+                            )
+                    if isinstance(record.value, PlaytestRun):
+                        playtest_refs = (
+                            record.value.session_history_ref,
+                            record.value.production_receipt_ref,
+                            *(item.response_ref for item in record.value.consents),
+                            *(item.response_ref for item in record.value.observations),
+                        )
+                        for playtest_ref in playtest_refs:
+                            if not self.store.verify(playtest_ref):
+                                failures.append(
+                                    f"missing human play evidence object: {playtest_ref}"
+                                )
+                        try:
+                            from narrative_game.runtime import SessionHistory
+                            from narrative_game.runtime.runtime import verify_history
+
+                            history = SessionHistory.from_bytes(
+                                self.store.read_bytes(record.value.session_history_ref)
+                            )
+                            verify_history(history)
+                            if history.mode != "live" or history.release_id != record.value.release_id:
+                                failures.append(
+                                    f"playtest Session is not fresh live evidence: {record.value.run_id}"
+                                )
+                            if not any(
+                                item.event_type == "resolution-recorded"
+                                for item in history.ordered_events
+                            ):
+                                failures.append(
+                                    f"playtest Session is incomplete: {record.value.run_id}"
+                                )
+                            genesis = history.ordered_events[0]
+                            session_actor_ids = {
+                                item["actor"]["id"]
+                                for item in genesis.payload["bindings"]
+                            }
+                            participant_principals = {
+                                authorities[item].principal
+                                for item in record.value.participant_authority_ids
+                                if item in authorities
+                            }
+                            if participant_principals != session_actor_ids:
+                                failures.append(
+                                    f"playtest participants differ from Session Actors: {record.value.run_id}"
+                                )
+                            production = self.store.read_json(
+                                record.value.production_receipt_ref
+                            )
+                            if (
+                                production.get("release_id") != record.value.release_id
+                                or production.get("physical_export_id")
+                                != record.value.physical_export_id
+                            ):
+                                failures.append(
+                                    f"playtest production receipt differs: {record.value.run_id}"
+                                )
+                            for observation in record.value.observations:
+                                response = self.store.read_json(observation.response_ref)
+                                if observation.quote not in canonical_json(response).decode("utf-8"):
+                                    failures.append(
+                                        f"playtest quote is absent from response: {record.value.run_id}"
+                                    )
+                        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                            failures.append(
+                                f"human play evidence verification failed: {exc}"
                             )
             except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 failures.append(f"record reconstruction failed: {exc}")
