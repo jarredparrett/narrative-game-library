@@ -11,13 +11,12 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. The current implementation
-includes the Stage 0 dependency boundary and Stage 1 content-addressed
-Workspace lineage, plus the Stage 2 pure Kernel and Facilitated Investigation
-profile, Stage 3 deterministic Game Release compiler, and Stage 4 authorized
-Session runtime. Public schema compatibility
-is not promised before the first complete worked game climb, but hashes,
-receipts, dependency direction, and deterministic outputs are never optional.
+Version `0.x` is an experimental contract epoch. Stages 0-5 now form one
+working path: public Artifact Forge boundary, content-addressed Workspace,
+pure Kernel and Facilitated Investigation profile, deterministic compiler,
+authorized Session runtime, and deterministic Physical Export. Public schema
+compatibility is not promised yet, but hashes, receipts, dependency direction,
+human authorization, and reproducible outputs are never optional.
 
 ## Repository boundary
 
@@ -47,6 +46,41 @@ The fixture creates a Verismill experiment through its public facade, emits a
 seeded 1997 New Jersey deed, materializes its bytes and Artifact Attestation,
 and prints the content hashes and verification result. Repeating it in another
 directory produces byte-identical artifact and manifest hashes.
+
+## Complete worked example
+
+`The Ashwood Ledger` is the first end-to-end release fixture. It is a fully
+written two-player estate-archive mystery with asymmetric dossiers, phased
+evidence, two independent proof paths, host recovery, a joint resolution,
+accessible evidence, and a Verismill-forged 1997 Madison deed.
+
+```bash
+uv sync --all-extras --dev
+uv run narrative-game-example /tmp/ashwood-ledger
+```
+
+The command writes only to the new user-owned directory. Its `output/` folder
+contains:
+
+- `game-release.zip` - the byte-identical digital Release;
+- `physical-package.zip` - print assets, containers, labels, preflight, claim
+  lineage, and an assembly guide;
+- `session-history.json` - a complete replayable, correctly resolved Session;
+- `workspace.ngw`, `workspace-lineage.md`, and `hill-climb-lineage.md` -
+  portable experiment state and human-readable proposal, authorization,
+  measurement, release, export, and replay lineage;
+- `stage5-result.json` - exact identities and verification results.
+
+Run the same command with another empty directory and the Candidate, Release,
+artifact, physical package, Session, and Workspace lineage hashes match. No
+network is used after the pinned dependencies are installed.
+
+The printable deed is visibly marked as fictional game material. The exact,
+unmodified Verismill artifact and its Artifact Attestation remain inside the
+embedded Game Release. The deed's current Verismill measurement standing is
+reported honestly as `development_only`; the physical package claims only
+production-ready layout and assembly, not independently validated legal
+realism.
 
 ## State ownership
 
