@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 from copy import deepcopy
 from dataclasses import dataclass
+import datetime as dt
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from verismill import AgentRun, Experiment, ModelConfig
 
@@ -39,7 +40,7 @@ from narrative_game.runtime import (
 from narrative_game.workspace import Workspace
 
 
-UPSTREAM_COMMIT = "fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3"
+UPSTREAM_COMMIT = "c2b02fdf2faa28ac869dafcd119bf65d1a32e87c"
 DEFAULT_SOURCE = Path(__file__).resolve().parent / "examples" / "ashwood-ledger"
 
 
@@ -84,7 +85,7 @@ def _agent_run() -> AgentRun:
     )
 
 
-def _forge_deed(root: Path):
+def _forge_deed(root: Path, *, artifact_pins: dict[str, Any] | None = None):
     experiment = Experiment.create(
         root,
         request="Forge the 1997 Madison deed used as resolution evidence in The Ashwood Ledger",
@@ -107,6 +108,8 @@ def _forge_deed(root: Path):
             "coverage": {
                 "execution_date": "pinned",
                 "consideration": "pinned",
+                "notary_identity": "pinned",
+                "accessible_fields": "public artifact manifest",
                 "visual_form": "existing measured emitter",
             },
         },
@@ -138,20 +141,38 @@ def _forge_deed(root: Path):
                 "property": "artifact bytes, provenance, measurement, and attestation cross the public facade",
                 "failure": "the game reads private Verismill or Mattermill state",
             },
+            {
+                "id": "artifact.acknowledgment-number-agreement",
+                "property": "acknowledgment grammar agrees with the displayed signer count",
+                "failure": "a single grantor is described with plural signer language",
+            },
+            {
+                "id": "artifact.pinned-notary-identity",
+                "property": "the displayed notary identity derives from a caller pin",
+                "failure": "a sampled notary collides with a narrative character",
+            },
+            {
+                "id": "artifact.public-display-facts",
+                "property": "the public manifest exposes every displayed fact required by an accessible rendition",
+                "failure": "the game must duplicate or infer a deed field from private emitter state",
+            },
         ],
     )
     builder_run = experiment.record_agent_run(_agent_run())
+    pins = {
+        "execution_date": "1997-10-17",
+        "consideration": 425000,
+        "grantor_married": True,
+        "notary_name": "Elise North",
+        "new_construction": False,
+        "partial_exemption": "none",
+    }
+    pins.update(artifact_pins or {})
     request = ArtifactRequest(
         artifact_id="madison-deed-1997",
         document_class="deed_nj_1997",
         seed=1997,
-        pins={
-            "execution_date": "1997-10-17",
-            "consideration": 425000,
-            "grantor_married": True,
-            "new_construction": False,
-            "partial_exemption": "none",
-        },
+        pins=pins,
         fact_references=("deed-date", "deed-consideration"),
         narrative_function="Resolution evidence for the concealed Quillstone transaction",
         permitted_disclosures=("host", "seat:avery", "seat:blake"),
@@ -169,23 +190,111 @@ def _forge_deed(root: Path):
     )
 
 
+def _accessible_deed_text(display_facts: Mapping[str, Any]) -> bytes:
+    """Derive the in-fiction reading copy from the emitter's public fact projection."""
+    required = {
+        "instrument_type",
+        "county",
+        "municipality",
+        "state",
+        "street",
+        "zip",
+        "block",
+        "lot",
+        "execution_date",
+        "consideration",
+        "grantor_name",
+        "grantor_address",
+        "grantee_name",
+        "grantee_address",
+        "grantor_spouse_name",
+        "signatory_names",
+        "acknowledgment_names",
+        "grantor_married",
+        "new_construction",
+        "partial_exemption",
+        "prior_book",
+        "prior_page",
+        "notary_name",
+    }
+    missing = required - set(display_facts)
+    if missing:
+        raise ValueError(f"artifact display facts omit accessible fields: {sorted(missing)}")
+    married = "married" if display_facts["grantor_married"] else "unmarried"
+    construction = "yes" if display_facts["new_construction"] else "no"
+    consideration = f"${int(display_facts['consideration']):,.2f}"
+    execution_date = dt.date.fromisoformat(str(display_facts["execution_date"]))
+    spouse = display_facts["grantor_spouse_name"] or "None"
+    signatories = ", ".join(str(name) for name in display_facts["signatory_names"])
+    acknowledgers = ", ".join(
+        str(name) for name in display_facts["acknowledgment_names"]
+    )
+    return (
+        "VALE HOUSE ARCHIVE\n"
+        "READING COPY OF RECORDED INSTRUMENT\n\n"
+        "Prepared for readers who cannot use the marked facsimile. Preserve this "
+        "sheet with the facsimile in the Quillstone file.\n\n"
+        f"Instrument type: {display_facts['instrument_type']}\n"
+        f"County: {display_facts['county']} County, New Jersey\n"
+        f"Municipality: Borough of {display_facts['municipality']}\n"
+        f"Property address: {display_facts['street']}, {display_facts['municipality']}, "
+        f"New Jersey {display_facts['zip']}\n"
+        f"Tax map reference: Block {display_facts['block']}, Lot {display_facts['lot']}\n"
+        f"Grantor: {display_facts['grantor_name']}\n"
+        f"Grantor address: {display_facts['grantor_address']}\n"
+        f"Grantee: {display_facts['grantee_name']}\n"
+        f"Grantee address: {display_facts['grantee_address']}\n"
+        f"Joining spouse: {spouse}\n"
+        f"Execution signatories: {signatories}\n"
+        f"Persons acknowledged: {acknowledgers}\n"
+        f"Execution date: {execution_date:%B %d, %Y}.\n"
+        f"Consideration stated: {consideration}.\n"
+        "Prior transfer recital: conveyed to the Grantor by deed recorded in "
+        f"Deed Book {display_facts['prior_book']}, Page {display_facts['prior_page']}.\n"
+        f"Grantor marital status: {married}\n"
+        f"New construction: {construction}\n"
+        f"Partial exemption: {display_facts['partial_exemption']}\n"
+        f"Acknowledging notary: {display_facts['notary_name']}\n\n"
+        "End of reading copy.\n"
+    ).encode("utf-8")
+
+
 def build_worked_candidate(
     experiment_root: str | Path,
     *,
     source_root: str | Path = DEFAULT_SOURCE,
+    source_mapping: dict[str, Any] | None = None,
+    material_overrides: Mapping[str, str | bytes] | None = None,
+    artifact_pins: dict[str, Any] | None = None,
 ) -> WorkedBuild:
     """Materialize the human-readable scenario into one frozen Candidate."""
     source_root = Path(source_root)
-    source = json.loads((source_root / "scenario.json").read_bytes())
-    artifact = _forge_deed(Path(experiment_root))
+    source = (
+        deepcopy(source_mapping)
+        if source_mapping is not None
+        else json.loads((source_root / "scenario.json").read_bytes())
+    )
+    artifact = _forge_deed(Path(experiment_root), artifact_pins=artifact_pins)
     mapping = deepcopy(source)
     mapping.pop("authoring_schema_version", None)
     displayed_claims = mapping.pop("displayed_claims")
     accessibility = mapping.pop("physical_accessibility_renditions")
+    display_facts = artifact.manifest.get("display_facts")
+    if not isinstance(display_facts, Mapping):
+        raise ValueError("Artifact Result omits the public deed display facts")
     material_bytes: dict[str, bytes] = {}
     relative_sources: dict[str, str] = {}
     for resource in mapping["kernel"]["resources"]:
-        if "source_path" in resource:
+        if resource["id"] == "deed-accessible":
+            data = _accessible_deed_text(display_facts)
+            relative_sources[resource["id"]] = "artifact-manifest:display_facts"
+            resource.pop("source_path", None)
+        elif resource["id"] in (material_overrides or {}):
+            override = (material_overrides or {})[resource["id"]]
+            data = override.encode("utf-8") if isinstance(override, str) else override
+            relative_sources[resource["id"]] = "agent-proposed-material"
+            resource.pop("source_path", None)
+        elif "source_path" in resource:
             relative = resource.pop("source_path")
             data = (source_root / relative).read_bytes()
             relative_sources[resource["id"]] = relative
@@ -211,6 +320,18 @@ def build_worked_candidate(
                 "upstream_commit": UPSTREAM_COMMIT,
             }
             attestation = dict(artifact.attestation)
+        elif resource_id == "deed-accessible":
+            receipt = {
+                "schema_version": "0.5",
+                "kind": "artifact-accessibility-rendition",
+                "resource_id": resource_id,
+                "source_artifact_id": artifact.artifact_id,
+                "source_artifact_hash": artifact.content_hash,
+                "display_facts_hash": digest_json(display_facts),
+                "input_hash": digest_bytes(data),
+                "operation": "derive-reading-copy-from-public-display-facts",
+            }
+            attestation = None
         else:
             receipt = {
                 "schema_version": "0.5",

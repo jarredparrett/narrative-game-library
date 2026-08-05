@@ -96,8 +96,8 @@ wheels = [
 
 [[package]]
 name = "mattermill"
-version = "0.16.0"
-source = { git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3#fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3" }
+version = "0.18.0"
+source = { git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c#c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" }
 dependencies = [
     { name = "pillow" },
     { name = "pypdfium2" },
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "narrative-game-library"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "pypdf" },
@@ -126,10 +126,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mattermill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3" },
+    { name = "mattermill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" },
     { name = "pypdf", specifier = ">=5,<7" },
     { name = "reportlab", specifier = ">=4,<5" },
-    { name = "verismill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?rev=fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3" },
+    { name = "verismill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" },
 ]
 provides-extras = ["forge"]
 
@@ -317,4 +317,4 @@ wheels = [
 [[package]]
 name = "verismill"
 version = "0.7.0"
-source = { git = "https://github.com/jarredparrett/verismill-lean.git?rev=fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3#fca101e99e2bc3f5dd9e5376d51c97ef9606e3f3" }
+source = { git = "https://github.com/jarredparrett/verismill-lean.git?rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c#c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" }

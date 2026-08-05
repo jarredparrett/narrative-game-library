@@ -47,9 +47,9 @@ def test_candidate_release_and_bundle_identities_are_pinned():
     assert result.attempt.release_id == release.release_id
     assert result.attempt.bundle_hash == release.bundle_hash
     assert result.attempt.outcome == "released"
-    assert frozen.candidate_id == "sha256:db56299bcdfa36d60aac91571d9abf56d4ce9e46a30826ab38f04d4959d930b8"
-    assert release.release_id == "sha256:9c79b9497609c47b6c3a7fbd5337afae08870aa0fe2cea455786bcffbe4da4a4"
-    assert release.bundle_hash == "sha256:459bb11ffc63e16f5a2d2f4cc5bc092cd355eb1831c3dad729c3f840bc427700"
+    assert frozen.candidate_id == "sha256:5a5b4eddb11df7aa1df6ea648263d8faae5f57d1fcce355f1c18359a97dcd84c"
+    assert release.release_id == "sha256:7f2170328bea06a4c5ae0242da1b0bb4719d47363aee08a4b42fd5cc28123696"
+    assert release.bundle_hash == "sha256:9b2f30e64d996c27c71c5a7fb20a1496075bee7b27581cd2b74a56c0fde8cca2"
 
 
 def test_release_bytes_are_identical_across_processes():

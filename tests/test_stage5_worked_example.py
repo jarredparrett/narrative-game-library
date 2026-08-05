@@ -75,6 +75,59 @@ def test_artifact_boundary_preserves_bytes_attestation_and_only_pinned_facts(wor
     assert "deed-index-hidden" not in request["fact_references"]
 
 
+def test_artifact_acknowledgment_agrees_with_pinned_signer_count(worked):
+    """artifact.acknowledgment-number-agreement: deed grammar follows signer count."""
+    receipt = json.loads(worked.release.file("receipts/madison-deed-1997.json").data)
+    deed = worked.release.file("materials/madison-deed-1997").data
+    text = " ".join(
+        page.extract_text() or "" for page in PdfReader(BytesIO(deed)).pages
+    )
+    if receipt["artifact_request"]["pins"]["grantor_married"]:
+        assert "they are the persons named" in text
+    else:
+        assert "the Grantor is the person named" in text
+        assert "they are the persons named" not in text
+
+
+def test_artifact_notary_identity_is_pinned_away_from_game_characters(worked):
+    """artifact.pinned-notary-identity: the request controls a non-colliding notary."""
+    receipt = json.loads(worked.release.file("receipts/madison-deed-1997.json").data)
+    deed = worked.release.file("materials/madison-deed-1997").data
+    text = " ".join(
+        page.extract_text() or "" for page in PdfReader(BytesIO(deed)).pages
+    )
+    assert receipt["artifact_request"]["pins"]["notary_name"] == "Elise North"
+    assert "Elise North, Notary Public" in text
+    assert "Avery North" not in text
+
+
+def test_accessible_deed_derives_every_required_field_from_public_manifest(worked):
+    """artifact.public-display-facts: reading-copy fields derive from the public result."""
+    receipt = json.loads(worked.release.file("receipts/madison-deed-1997.json").data)
+    accessible_receipt = json.loads(
+        worked.release.file("receipts/deed-accessible.json").data
+    )
+    text = worked.release.file("materials/deed-accessible").data.decode()
+    facts = receipt["artifact_manifest"]["display_facts"]
+    for field in (
+        "grantor_name",
+        "grantor_address",
+        "grantee_name",
+        "grantee_address",
+        "grantor_spouse_name",
+    ):
+        assert str(facts[field]) in text
+    for name in facts["signatory_names"]:
+        assert name in text
+    for name in facts["acknowledgment_names"]:
+        assert name in text
+    assert accessible_receipt["kind"] == "artifact-accessibility-rendition"
+    assert f"Deed Book {facts['prior_book']}, Page {facts['prior_page']}" in text
+    assert "Execution date: October 17, 1997" in text
+    assert f"${facts['consideration']:,.2f}" in text
+    assert facts["notary_name"] in text
+
+
 def test_every_displayed_claim_has_reexecuted_proposition_lineage(worked):
     """stage5.claim-trace: displayed facts quote material or an exact forge pin."""
     trace = json.loads(worked.physical.file("trusted/claim-trace.json").data)
@@ -130,6 +183,45 @@ def test_every_print_page_is_letter_sized_marked_and_preflighted(worked):
     exact_deed = worked.release.file("materials/madison-deed-1997")
     assert marked_deed.content_hash != exact_deed.content_hash
     assert worked.physical.file("source/game-release.zip").data == worked.release.bundle_bytes
+
+
+def test_physical_preflight_reports_executed_and_unexecuted_usability_checks(worked):
+    """stage7.physical-preflight-coverage: readiness names measured scope and remaining print debt."""
+    preflight = worked.physical.preflight
+    assert set(preflight["executed_checks"]) == {
+        "file_integrity",
+        "pdf_geometry",
+        "text_usability",
+        "authored_reading_order",
+        "layout_completion",
+        "renderer_palette_contrast",
+    }
+    assert set(preflight["unexecuted_checks"]) == {
+        "physical_printer_test",
+        "imported_artifact_palette_contrast",
+    }
+    pdf_records = [item for item in preflight["files"] if "pdf_checks" in item]
+    assert pdf_records
+    assert all(item["pdf_checks"]["extractable_text"] for item in pdf_records)
+    assert all(item["pdf_checks"]["minimum_font_size"]["passed"] for item in pdf_records)
+    authored = [
+        item["pdf_checks"]["authored_content_font_size"]
+        for item in pdf_records
+        if item["pdf_checks"]["authored_content_font_size"]["executed"]
+    ]
+    assert authored
+    assert all(item["passed"] for item in authored)
+    assert all(item["measured_points"] >= 8.5 for item in authored)
+    assert all(item["pdf_checks"]["authored_reading_order"]["executed"] for item in pdf_records)
+    assert all(item["pdf_checks"]["authored_reading_order"]["passed"] for item in pdf_records)
+    rendered = [
+        item for item in pdf_records
+        if item["pdf_checks"]["layout_engine_completed"]["executed"]
+    ]
+    assert rendered
+    assert all(item["pdf_checks"]["layout_engine_completed"]["passed"] for item in rendered)
+    assert len(rendered) == len(pdf_records)
+    assert all(item["pdf_checks"]["renderer_palette_contrast"]["passed"] for item in rendered)
 
 
 def test_authorized_seat_experiences_remain_distinct_and_replay_portably(worked):

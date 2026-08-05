@@ -95,12 +95,13 @@ class Task:
     excluded_authority_ids: tuple[str, ...]
     input_refs: Mapping[str, str]
     instructions: str
+    participant_authority_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "input_refs", _copy(self.input_refs))
 
     def material(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": "0.6",
             "task_key": self.task_key,
             "kind": self.kind,
@@ -111,6 +112,14 @@ class Task:
             "input_refs": dict(self.input_refs),
             "instructions": self.instructions,
         }
+        if self.participant_authority_ids:
+            result["participant_authority_ids"] = list(self.participant_authority_ids)
+        return result
+
+    @property
+    def occupant_authority_ids(self) -> tuple[str, ...]:
+        """Return every agent explicitly authorized to occupy this Task."""
+        return (self.assigned_authority_id, *self.participant_authority_ids)
 
     @property
     def task_id(self) -> str:
@@ -135,12 +144,18 @@ class ModelReceipt:
     raw_output_ref: str
     parsed_output_ref: str
     seed: int | None
+    prompt_ref: str | None = None
+    context_ref: str | None = None
+    tool_contract_ref: str | None = None
+    input_refs: Mapping[str, str] | None = None
+    evidence_class: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "input_hashes", _copy(self.input_hashes))
+        object.__setattr__(self, "input_refs", _copy(self.input_refs or {}))
 
     def material(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": "0.6",
             "authority_id": self.authority_id,
             "provider": self.provider,
@@ -156,6 +171,19 @@ class ModelReceipt:
             "parsed_output_ref": self.parsed_output_ref,
             "seed": self.seed,
         }
+        if any(
+            item is not None
+            for item in (self.prompt_ref, self.context_ref, self.tool_contract_ref)
+        ) or self.input_refs:
+            result["replay"] = {
+                "prompt_ref": self.prompt_ref,
+                "context_ref": self.context_ref,
+                "tool_contract_ref": self.tool_contract_ref,
+                "input_refs": dict(self.input_refs or {}),
+            }
+        if self.evidence_class is not None:
+            result["evidence_class"] = self.evidence_class
+        return result
 
     @property
     def receipt_id(self) -> str:
@@ -406,3 +434,66 @@ class StandingAttestation:
 
     def to_mapping(self) -> dict[str, Any]:
         return {"attestation_id": self.attestation_id, **self.material()}
+
+
+@dataclass(frozen=True)
+class TrialBinding:
+    candidate_id: str
+    release_id: str
+    release_bundle_ref: str
+    physical_export_id: str
+    physical_archive_ref: str
+    blind_trial_id: str
+    blind_trial_ref: str
+    hard_gate_results: Mapping[str, bool]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "hard_gate_results", _copy(self.hard_gate_results))
+
+    def material(self) -> dict[str, Any]:
+        return {
+            "schema_version": "0.7",
+            "candidate_id": self.candidate_id,
+            "release_id": self.release_id,
+            "release_bundle_ref": self.release_bundle_ref,
+            "physical_export_id": self.physical_export_id,
+            "physical_archive_ref": self.physical_archive_ref,
+            "blind_trial_id": self.blind_trial_id,
+            "blind_trial_ref": self.blind_trial_ref,
+            "hard_gate_results": dict(self.hard_gate_results),
+        }
+
+    @property
+    def binding_id(self) -> str:
+        return _identified("trial-binding", self.material())
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {"binding_id": self.binding_id, **self.material()}
+
+
+@dataclass(frozen=True)
+class SelectionDecision:
+    instrument_id: str
+    baseline_evaluation_id: str
+    child_evaluation_id: str
+    outcome: str
+    selected_candidate_id: str
+    reason: str
+
+    def material(self) -> dict[str, Any]:
+        return {
+            "schema_version": "0.7",
+            "instrument_id": self.instrument_id,
+            "baseline_evaluation_id": self.baseline_evaluation_id,
+            "child_evaluation_id": self.child_evaluation_id,
+            "outcome": self.outcome,
+            "selected_candidate_id": self.selected_candidate_id,
+            "reason": self.reason,
+        }
+
+    @property
+    def decision_id(self) -> str:
+        return _identified("selection", self.material())
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {"decision_id": self.decision_id, **self.material()}

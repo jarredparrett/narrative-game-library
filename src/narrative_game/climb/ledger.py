@@ -19,8 +19,10 @@ from .model import (
     ModelReceipt,
     Proposal,
     Requirement,
+    SelectionDecision,
     StandingAttestation,
     Task,
+    TrialBinding,
     Transition,
 )
 from .validation import ClimbFinding, validate_climb_bundle
@@ -39,6 +41,8 @@ Record = (
     | HumanReview
     | Transition
     | StandingAttestation
+    | TrialBinding
+    | SelectionDecision
 )
 
 
@@ -72,6 +76,8 @@ _KIND_TO_COLLECTION = {
     "human_review": "reviews",
     "transition": "transitions",
     "standing": "standings",
+    "trial_binding": "trial_bindings",
+    "selection": "selections",
 }
 
 
@@ -100,6 +106,10 @@ def _kind_and_id(value: Record) -> tuple[str, str]:
         return "transition", value.transition_id
     if isinstance(value, StandingAttestation):
         return "standing", value.attestation_id
+    if isinstance(value, TrialBinding):
+        return "trial_binding", value.binding_id
+    if isinstance(value, SelectionDecision):
+        return "selection", value.decision_id
     raise TypeError(f"unsupported climb record: {type(value)!r}")
 
 
@@ -124,14 +134,19 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
             value["task_key"], value["kind"], value["candidate_id"], value["instrument_id"],
             value["assigned_authority_id"], tuple(value["excluded_authority_ids"]),
             value["input_refs"], value["instructions"],
+            tuple(value.get("participant_authority_ids", ())),
         )
     elif kind == "model_receipt":
+        replay = value.get("replay", {})
         result = ModelReceipt(
             value["authority_id"], value["provider"], value["requested_model"],
             value["resolved_model"], value["role"], value["prompt_hash"],
             value["context_hash"], value["tool_contract_hash"], value["input_hashes"],
             tuple(value["tool_receipt_hashes"]), value["raw_output_ref"],
             value["parsed_output_ref"], value.get("seed"),
+            replay.get("prompt_ref"), replay.get("context_ref"),
+            replay.get("tool_contract_ref"), replay.get("input_refs", {}),
+            value.get("evidence_class"),
         )
     elif kind == "exposure":
         result = Exposure(
@@ -176,6 +191,18 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
         result = StandingAttestation(
             value["candidate_id"], value["level"], tuple(value["evaluation_ids"]),
             tuple(value["evidence_kinds"]), value["reviewer_authority_id"], value["statement"],
+        )
+    elif kind == "trial_binding":
+        result = TrialBinding(
+            value["candidate_id"], value["release_id"], value["release_bundle_ref"],
+            value["physical_export_id"], value["physical_archive_ref"],
+            value["blind_trial_id"], value["blind_trial_ref"], value["hard_gate_results"],
+        )
+    elif kind == "selection":
+        result = SelectionDecision(
+            value["instrument_id"], value["baseline_evaluation_id"],
+            value["child_evaluation_id"], value["outcome"],
+            value["selected_candidate_id"], value["reason"],
         )
     else:
         raise ValueError(f"unsupported climb record kind: {kind!r}")
@@ -281,19 +308,83 @@ class ClimbLedger:
         seed: int | None,
         actor: str,
         idempotency_key: str,
+        evidence_class: str | None = None,
     ) -> StoredRecord:
         raw_ref = self.store.put_bytes(raw_output)
         parsed_ref = self.store.put_json(parsed_output)
         receipt = ModelReceipt(
             authority_id, provider, requested_model, resolved_model, role, prompt_hash,
             context_hash, tool_contract_hash, input_hashes, tool_receipt_hashes,
-            raw_ref, parsed_ref, seed,
+            raw_ref, parsed_ref, seed, evidence_class=evidence_class,
         )
         return self._record(
             receipt,
             actor=actor,
             idempotency_key=idempotency_key,
             extra_object_refs=(raw_ref, parsed_ref),
+        )
+
+    def record_replayable_model_invocation(
+        self,
+        *,
+        authority_id: str,
+        provider: str,
+        requested_model: str,
+        resolved_model: str,
+        role: str,
+        prompt: str,
+        context: Any,
+        tool_contract: Any,
+        inputs: Mapping[str, bytes],
+        tool_receipts: tuple[bytes, ...],
+        raw_output: bytes,
+        parsed_output: Any,
+        seed: int | None,
+        evidence_class: str,
+        actor: str,
+        idempotency_key: str,
+    ) -> StoredRecord:
+        """Persist a model result together with every byte needed to replay it."""
+        prompt_ref = self.store.put_bytes(prompt.encode("utf-8"))
+        context_ref = self.store.put_json(context)
+        tool_contract_ref = self.store.put_json(tool_contract)
+        input_refs = {key: self.store.put_bytes(value) for key, value in sorted(inputs.items())}
+        tool_receipt_refs = tuple(self.store.put_bytes(value) for value in tool_receipts)
+        raw_ref = self.store.put_bytes(raw_output)
+        parsed_ref = self.store.put_json(parsed_output)
+        receipt = ModelReceipt(
+            authority_id=authority_id,
+            provider=provider,
+            requested_model=requested_model,
+            resolved_model=resolved_model,
+            role=role,
+            prompt_hash=prompt_ref,
+            context_hash=context_ref,
+            tool_contract_hash=tool_contract_ref,
+            input_hashes=dict(input_refs),
+            tool_receipt_hashes=tool_receipt_refs,
+            raw_output_ref=raw_ref,
+            parsed_output_ref=parsed_ref,
+            seed=seed,
+            prompt_ref=prompt_ref,
+            context_ref=context_ref,
+            tool_contract_ref=tool_contract_ref,
+            input_refs=input_refs,
+            evidence_class=evidence_class,
+        )
+        return self._record(
+            receipt,
+            actor=actor,
+            idempotency_key=idempotency_key,
+            extra_object_refs=(
+                prompt_ref,
+                context_ref,
+                tool_contract_ref,
+                *input_refs.values(),
+                *tool_receipt_refs,
+                raw_ref,
+                parsed_ref,
+            ),
         )
 
     def record_proposal(
@@ -397,9 +488,35 @@ class ClimbLedger:
                     if not self.store.verify(record.record_ref):
                         failures.append(f"missing record object: {record.record_ref}")
                     if isinstance(record.value, ModelReceipt):
-                        for output_ref in (record.value.raw_output_ref, record.value.parsed_output_ref):
+                        receipt = record.value
+                        replay_refs = tuple(
+                            item
+                            for item in (
+                                receipt.prompt_ref,
+                                receipt.context_ref,
+                                receipt.tool_contract_ref,
+                                *receipt.input_refs.values(),
+                            )
+                            if item is not None
+                        )
+                        for output_ref in (
+                            receipt.raw_output_ref,
+                            receipt.parsed_output_ref,
+                            *receipt.tool_receipt_hashes,
+                            *replay_refs,
+                        ):
                             if not self.store.verify(output_ref):
-                                failures.append(f"missing model output: {output_ref}")
+                                failures.append(f"missing model replay object: {output_ref}")
+                        for claimed, replay_ref in (
+                            (receipt.prompt_hash, receipt.prompt_ref),
+                            (receipt.context_hash, receipt.context_ref),
+                            (receipt.tool_contract_hash, receipt.tool_contract_ref),
+                        ):
+                            if replay_ref is not None and claimed != replay_ref:
+                                failures.append(f"model replay hash differs: {claimed} != {replay_ref}")
+                        for key, replay_ref in receipt.input_refs.items():
+                            if receipt.input_hashes.get(key) != replay_ref:
+                                failures.append(f"model input replay hash differs: {key}")
             except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 failures.append(f"record reconstruction failed: {exc}")
         return {
