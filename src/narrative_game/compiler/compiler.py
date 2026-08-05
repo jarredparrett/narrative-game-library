@@ -47,6 +47,11 @@ def reference_component_lock() -> dict[str, Any]:
                 ["proof-resolution", "host-interventions", "cast-variants"],
             ),
             _component("compiler", COMPILER_VERSION, ["deterministic-release-zip"]),
+            _component(
+                "runtime",
+                "0.4.0",
+                ["session-authority", "event-replay", "authorized-seat-snapshots"],
+            ),
         ],
     }
 

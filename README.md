@@ -14,7 +14,8 @@ experiment lineage. Polished maker and player interfaces come later.
 Version `0.x` is an experimental contract epoch. The current implementation
 includes the Stage 0 dependency boundary and Stage 1 content-addressed
 Workspace lineage, plus the Stage 2 pure Kernel and Facilitated Investigation
-profile and Stage 3 deterministic Game Release compiler. Public schema compatibility
+profile, Stage 3 deterministic Game Release compiler, and Stage 4 authorized
+Session runtime. Public schema compatibility
 is not promised before the first complete worked game climb, but hashes,
 receipts, dependency direction, and deterministic outputs are never optional.
 
@@ -137,3 +138,31 @@ simulation views, an authorized projection for each Seat, exact materials,
 reproduction receipts, artifact attestations, Component Lock, compilation
 report, and Release manifest. Seat projections never contain trusted truth,
 proof paths, answer keys, future information, or material bytes.
+
+### Run and replay a Session
+
+One Session Authority accepts an untrusted Command only after checking its
+trusted Actor Binding or host Viewer context, Release identity, expected
+revision, availability, and transition legality. Acceptance appends a hashed
+Event; rejection appends only an operational Command Receipt.
+
+```python
+from pathlib import Path
+
+from narrative_game.runtime import replay, seat_snapshot
+from narrative_game.stage4_fixture import run_micro_session
+
+release, history, authorization = run_micro_session(
+    Path("fixtures/micro-game/game.json").read_bytes()
+)
+state = replay(release, history)
+assert state["status"] == "resolved"
+avery = seat_snapshot(release, history, authorization["avery"])
+assert avery["revision"] == history.sequence
+```
+
+Session History is canonical portable data. Reloading the same Release and
+History yields identical state and Seat Snapshots. Live Sessions allow human
+Actors; model Actors use isolated simulation forks over a verified Event
+prefix. Actor replacement, physical disclosure grades, hints, planned recovery,
+and exceptional host actions remain explicit Events.
