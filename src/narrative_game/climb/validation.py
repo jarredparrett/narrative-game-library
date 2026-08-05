@@ -5,7 +5,14 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 import re
+from statistics import median
 from typing import Iterable
+
+from narrative_game.playtest.model import (
+    EvidenceComparison,
+    PlaytestProtocol,
+    PlaytestRun,
+)
 
 from .model import (
     Authority,
@@ -81,6 +88,9 @@ def validate_climb_bundle(
     standings: Iterable[StandingAttestation] = (),
     trial_bindings: Iterable[TrialBinding] = (),
     selections: Iterable[SelectionDecision] = (),
+    playtest_protocols: Iterable[PlaytestProtocol] = (),
+    playtest_runs: Iterable[PlaytestRun] = (),
+    evidence_comparisons: Iterable[EvidenceComparison] = (),
 ) -> tuple[ClimbFinding, ...]:
     """Validate one closed bundle without fetching, repairing, or mutating it."""
     experiment_plans = tuple(experiment_plans)
@@ -99,6 +109,9 @@ def validate_climb_bundle(
     standings = tuple(standings)
     trial_bindings = tuple(trial_bindings)
     selections = tuple(selections)
+    playtest_protocols = tuple(playtest_protocols)
+    playtest_runs = tuple(playtest_runs)
+    evidence_comparisons = tuple(evidence_comparisons)
     result: list[ClimbFinding] = []
 
     ids = {
@@ -118,6 +131,9 @@ def validate_climb_bundle(
         "standing": [item.attestation_id for item in standings],
         "trial-binding": [item.binding_id for item in trial_bindings],
         "selection": [item.decision_id for item in selections],
+        "playtest-protocol": [item.protocol_id for item in playtest_protocols],
+        "playtest-run": [item.run_id for item in playtest_runs],
+        "evidence-comparison": [item.comparison_id for item in evidence_comparisons],
     }
     for kind, values in ids.items():
         result.extend(_duplicates(kind, values))
@@ -132,6 +148,10 @@ def validate_climb_bundle(
     evaluation_by_id = {item.evaluation_id: item for item in evaluations}
     proposal_by_id = {item.proposal_id: item for item in proposals}
     review_by_id = {item.review_id: item for item in reviews}
+    binding_by_id = {item.binding_id: item for item in trial_bindings}
+    protocol_by_id = {item.protocol_id: item for item in playtest_protocols}
+    playtest_run_by_id = {item.run_id: item for item in playtest_runs}
+    comparison_by_id = {item.comparison_id: item for item in evidence_comparisons}
 
     if len(experiment_plans) > 1:
         result.append(
@@ -173,10 +193,10 @@ def validate_climb_bundle(
     for authority in authorities:
         if authority.kind not in {"agent", "human", "system"}:
             result.append(_finding("climb.invalid-authority", authority.authority_id, authority.kind, "authority kind is unsupported"))
-        if authority.role not in {"builder", "fixer", "judge", "reviewer", "publisher", "validator"}:
+        if authority.role not in {"builder", "fixer", "judge", "reviewer", "publisher", "validator", "participant", "facilitator", "observer"}:
             result.append(_finding("climb.invalid-authority", authority.authority_id, authority.role, "authority role is unsupported"))
-        if authority.role in {"reviewer", "publisher"} and authority.kind != "human":
-            result.append(_finding("climb.human-authority-required", authority.authority_id, authority.kind, "review and publication authority must be human"))
+        if authority.role in {"reviewer", "publisher", "participant", "facilitator", "observer"} and authority.kind != "human":
+            result.append(_finding("climb.human-authority-required", authority.authority_id, authority.kind, "review, publication, and human-play authority must be human"))
 
     for instrument in instruments:
         dimensions = [item.dimension_id for item in instrument.dimensions]
@@ -452,6 +472,146 @@ def validate_climb_bundle(
             if not _HASH.fullmatch(value):
                 result.append(_finding("climb.invalid-object-reference", transition.transition_id, f"{label}={value}", "Transition content requires exact Workspace object references"))
 
+    for protocol in playtest_protocols:
+        binding = binding_by_id.get(protocol.binding_id)
+        if binding is None:
+            result.append(_finding("climb.dangling-reference", protocol.protocol_id, protocol.binding_id, "Playtest Protocol names a missing Trial Binding"))
+        if protocol.instrument_id not in instrument_by_id:
+            result.append(_finding("climb.dangling-reference", protocol.protocol_id, protocol.instrument_id, "Playtest Protocol names a missing Frozen Instrument"))
+        if (
+            not protocol.name.strip()
+            or not protocol.version.strip()
+            or not protocol.consent_version.strip()
+            or protocol.minimum_fresh_runs < 2
+            or protocol.minimum_participants_per_run < 1
+            or protocol.model_human_delta_tolerance < 0
+        ):
+            result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(protocol.to_mapping()), "Playtest Protocol requires identity, versioned consent, at least two fresh runs, participants, and a nonnegative comparison tolerance"))
+        categories = protocol.required_observation_categories
+        if not categories or len(categories) != len(set(categories)) or any(not item.strip() for item in categories):
+            result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(categories), "Playtest Protocol requires unique observation categories"))
+
+    for protocol in playtest_protocols:
+        protocol_runs = [item for item in playtest_runs if item.protocol_id == protocol.protocol_id]
+        run_keys = [item.run_key for item in protocol_runs]
+        if len(run_keys) != len(set(run_keys)):
+            result.append(_finding("climb.duplicate-playtest-run", protocol.protocol_id, str(run_keys), "one Playtest Protocol cannot reuse a run key"))
+        session_refs = [item.session_history_ref for item in protocol_runs]
+        if len(session_refs) != len(set(session_refs)):
+            result.append(_finding("climb.reused-play-session", protocol.protocol_id, str(session_refs), "fresh Playtest Runs require distinct live Session histories"))
+        cohorts = [
+            tuple(
+                sorted(
+                    authority_by_id[item].principal
+                    for item in run.participant_authority_ids
+                    if item in authority_by_id
+                )
+            )
+            for run in protocol_runs
+        ]
+        if len(cohorts) != len(set(cohorts)):
+            result.append(_finding("climb.reused-playtest-cohort", protocol.protocol_id, str(cohorts), "fresh Playtest Runs require distinct participant cohorts"))
+
+    for run in playtest_runs:
+        protocol = protocol_by_id.get(run.protocol_id)
+        if protocol is None:
+            result.append(_finding("climb.dangling-reference", run.run_id, run.protocol_id, "Playtest Run names a missing Protocol"))
+            continue
+        binding = binding_by_id.get(protocol.binding_id)
+        instrument = instrument_by_id.get(protocol.instrument_id)
+        if binding is None or instrument is None:
+            continue
+        if run.release_id != binding.release_id or run.physical_export_id != binding.physical_export_id:
+            result.append(_finding("climb.playtest-package-mismatch", run.run_id, f"{run.release_id}; {run.physical_export_id}", "Playtest Run differs from the Protocol's exact Release or Physical Export"))
+        for label, ref in {
+            "session_history_ref": run.session_history_ref,
+            "production_receipt_ref": run.production_receipt_ref,
+        }.items():
+            if not _HASH.fullmatch(ref):
+                result.append(_finding("climb.invalid-object-reference", run.run_id, f"{label}={ref}", "Playtest Run requires exact Session and production objects"))
+        roster = (
+            *run.participant_authority_ids,
+            run.facilitator_authority_id,
+            *run.observer_authority_ids,
+        )
+        if len(roster) != len(set(roster)):
+            result.append(_finding("climb.duplicate-playtest-role", run.run_id, str(roster), "one human cannot occupy multiple roles in one Playtest Run"))
+        if len(run.participant_authority_ids) < protocol.minimum_participants_per_run:
+            result.append(_finding("climb.incomplete-playtest-cast", run.run_id, str(run.participant_authority_ids), "Playtest Run does not meet the frozen participant minimum"))
+        expected_roles = {
+            **{item: "participant" for item in run.participant_authority_ids},
+            run.facilitator_authority_id: "facilitator",
+            **{item: "observer" for item in run.observer_authority_ids},
+        }
+        for authority_id, expected_role in expected_roles.items():
+            authority = authority_by_id.get(authority_id)
+            if authority is None or authority.kind != "human" or authority.role != expected_role:
+                result.append(_finding("climb.playtest-role-mismatch", run.run_id, f"{authority_id}:{expected_role}", "Playtest roster requires exact human participant, facilitator, and observer Authorities"))
+        consent_by_authority = {item.authority_id: item for item in run.consents}
+        if set(consent_by_authority) != set(roster):
+            result.append(_finding("climb.incomplete-playtest-consent", run.run_id, str(sorted(consent_by_authority)), "every human in a Playtest Run requires one exact consent receipt"))
+        for authority_id, consent in consent_by_authority.items():
+            required_scopes = {"record-observations", "retain-anonymized-quotes"}
+            if expected_roles.get(authority_id) == "participant":
+                required_scopes.add("participate")
+            if consent.consent_version != protocol.consent_version or not required_scopes <= set(consent.scopes) or not _HASH.fullmatch(consent.response_ref):
+                result.append(_finding("climb.incomplete-playtest-consent", run.run_id, authority_id, "consent must match the frozen version, required scopes, and exact response object"))
+        observed_categories = {item.category for item in run.observations}
+        if not set(protocol.required_observation_categories) <= observed_categories:
+            result.append(_finding("climb.incomplete-playtest-observation", run.run_id, str(sorted(observed_categories)), "Playtest Run must cover every frozen observation category"))
+        for observation in run.observations:
+            authority = authority_by_id.get(observation.authority_id)
+            if observation.authority_id not in roster or authority is None or observation.observer_role != authority.role:
+                result.append(_finding("climb.playtest-observer-mismatch", run.run_id, observation.authority_id, "Play Observation must come from a human occupying its declared Run role"))
+            if observation.category not in protocol.required_observation_categories or not observation.phase_id.strip() or not observation.quote.strip() or not observation.note.strip() or not _HASH.fullmatch(observation.response_ref):
+                result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.quote, "Play Observation requires a frozen category, Phase, exact quote, note, and response object"))
+        if set(run.scores) != {item.dimension_id for item in instrument.dimensions} or any(not 0 <= item <= 100 for item in run.scores.values()):
+            result.append(_finding("climb.invalid-score", run.run_id, str(dict(run.scores)), "Playtest scores must cover every frozen dimension from 0 to 100"))
+        if set(run.hard_gate_results) != set(instrument.hard_gate_codes):
+            result.append(_finding("climb.incomplete-hard-gates", run.run_id, str(dict(run.hard_gate_results)), "Playtest Run must replay every frozen hard gate"))
+        if run.evidence_class != "fresh-human-play":
+            result.append(_finding("climb.invalid-evidence-class", run.run_id, run.evidence_class, "Playtest Run must be first-order fresh-human-play evidence"))
+        missing_findings = [item for item in run.finding_ids if item not in finding_by_id]
+        if missing_findings:
+            result.append(_finding("climb.dangling-reference", run.run_id, str(missing_findings), "Playtest Run names missing Findings"))
+        if set(run.scores) == {item.dimension_id for item in instrument.dimensions} and set(run.hard_gate_results) == set(instrument.hard_gate_codes):
+            candidate_id = binding.candidate_id
+            synthetic = Evaluation("playtest", candidate_id, instrument.instrument_id, "blind", (), (), run.scores, (), run.hard_gate_results, run.outcome)
+            try:
+                expected = "pass" if evaluation_passes(instrument, synthetic) else "fail"
+            except ValueError as exc:
+                result.append(_finding("climb.invalid-instrument", instrument.instrument_id, str(instrument.acceptance_rules), str(exc)))
+            else:
+                if run.outcome != expected:
+                    result.append(_finding("climb.invalid-playtest-outcome", run.run_id, run.outcome, "Playtest outcome differs from the frozen Instrument"))
+
+    for comparison in evidence_comparisons:
+        protocol = protocol_by_id.get(comparison.protocol_id)
+        evaluation = evaluation_by_id.get(comparison.model_evaluation_id)
+        runs = [playtest_run_by_id.get(item) for item in comparison.playtest_run_ids]
+        if protocol is None or evaluation is None or not runs or any(item is None for item in runs):
+            result.append(_finding("climb.dangling-reference", comparison.comparison_id, f"{comparison.protocol_id}; {comparison.model_evaluation_id}; {comparison.playtest_run_ids}", "Evidence Comparison names missing Protocol, model Evaluation, or Playtest Run"))
+            continue
+        binding = binding_by_id.get(protocol.binding_id)
+        task = task_by_id.get(evaluation.task_id)
+        complete_runs = [item for item in runs if item is not None]
+        if binding is None or task is None or task.input_refs.get("blind_trial") != binding.blind_trial_ref or evaluation.candidate_id != binding.candidate_id or comparison.candidate_id != binding.candidate_id or comparison.instrument_id != protocol.instrument_id or evaluation.instrument_id != protocol.instrument_id or evaluation.mode != "blind" or not evaluation.model_receipt_ids:
+            result.append(_finding("climb.comparison-input-mismatch", comparison.comparison_id, comparison.candidate_id, "Evidence Comparison requires blind model evidence and human Runs for the same Candidate and Instrument"))
+        if any(item.protocol_id != protocol.protocol_id for item in complete_runs):
+            result.append(_finding("climb.comparison-input-mismatch", comparison.comparison_id, str(comparison.playtest_run_ids), "Evidence Comparison mixes Playtest Protocols"))
+        expected_dimensions = {}
+        for dimension in instrument_by_id[protocol.instrument_id].dimensions:
+            human_median = median(item.scores[dimension.dimension_id] for item in complete_runs)
+            model_score = evaluation.scores[dimension.dimension_id]
+            expected_dimensions[dimension.dimension_id] = {
+                "model": model_score,
+                "human_median": human_median,
+                "delta": human_median - model_score,
+            }
+        expected_conclusion = "divergent" if any(abs(item["delta"]) > protocol.model_human_delta_tolerance for item in expected_dimensions.values()) else "aligned"
+        if comparison.dimensions != expected_dimensions or comparison.conclusion != expected_conclusion:
+            result.append(_finding("climb.invalid-evidence-comparison", comparison.comparison_id, str(dict(comparison.dimensions)), "Evidence Comparison differs from deterministic model-versus-human aggregation"))
+
     for standing in standings:
         reviewer = authority_by_id.get(standing.reviewer_authority_id)
         linked = [evaluation_by_id.get(item) for item in standing.evaluation_ids]
@@ -469,9 +629,25 @@ def validate_climb_bundle(
             if "model-blind-panel" not in standing.evidence_kinds or not linked_evaluations or any(item.mode != "blind" or item.outcome != "pass" for item in linked_evaluations):
                 result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Machine-qualified standing requires passing blind model evidence"))
         if standing.level == "accepted":
-            required = {"two-fresh-human-runs", "independent-standing-review"}
+            required = {"fresh-human-play", "independent-standing-review", "model-human-comparison"}
             if not required <= set(standing.evidence_kinds):
-                result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Accepted standing requires two fresh human runs and independent review"))
+                result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Accepted standing requires fresh human play, model comparison, and independent review"))
+            linked_runs = [playtest_run_by_id.get(item) for item in standing.playtest_run_ids]
+            comparison = comparison_by_id.get(standing.comparison_id or "")
+            if not standing.playtest_run_ids or any(item is None for item in linked_runs):
+                result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.playtest_run_ids), "Accepted standing must link exact Playtest Runs"))
+            else:
+                complete_runs = [item for item in linked_runs if item is not None]
+                protocols = {item.protocol_id for item in complete_runs}
+                protocol = protocol_by_id.get(next(iter(protocols))) if len(protocols) == 1 else None
+                if protocol is None or len(complete_runs) < protocol.minimum_fresh_runs or any(item.outcome != "pass" for item in complete_runs):
+                    result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.playtest_run_ids), "Accepted standing requires the frozen number of passing fresh Runs under one Protocol"))
+                roster = {authority_id for item in complete_runs for authority_id in (*item.participant_authority_ids, item.facilitator_authority_id, *item.observer_authority_ids)}
+                if standing.reviewer_authority_id in roster:
+                    result.append(_finding("climb.nonindependent-standing-review", standing.attestation_id, standing.reviewer_authority_id, "Standing reviewer cannot participate in, facilitate, or observe a supporting Run"))
+                if protocol is not None and protocol.require_model_comparison:
+                    if comparison is None or set(comparison.playtest_run_ids) != set(standing.playtest_run_ids) or comparison.protocol_id != protocol.protocol_id or comparison.model_evaluation_id not in standing.evaluation_ids:
+                        result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.comparison_id), "Accepted standing requires the exact persisted model-versus-human comparison"))
 
     for binding in trial_bindings:
         for label, value in {

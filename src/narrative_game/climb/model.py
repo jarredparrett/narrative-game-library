@@ -475,10 +475,12 @@ class StandingAttestation:
     evidence_kinds: tuple[str, ...]
     reviewer_authority_id: str
     statement: str
+    playtest_run_ids: tuple[str, ...] = ()
+    comparison_id: str | None = None
 
     def material(self) -> dict[str, Any]:
-        return {
-            "schema_version": "0.6",
+        result = {
+            "schema_version": "0.10" if self.playtest_run_ids else "0.6",
             "candidate_id": self.candidate_id,
             "level": self.level,
             "evaluation_ids": list(self.evaluation_ids),
@@ -486,6 +488,10 @@ class StandingAttestation:
             "reviewer_authority_id": self.reviewer_authority_id,
             "statement": self.statement,
         }
+        if self.playtest_run_ids:
+            result["playtest_run_ids"] = list(self.playtest_run_ids)
+            result["comparison_id"] = self.comparison_id
+        return result
 
     @property
     def attestation_id(self) -> str:

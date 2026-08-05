@@ -173,11 +173,27 @@ human-play acceptance.
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
 |---|---|---|---|---|---|---|
-| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.blueprint` | `blueprint` | Vanished Ledger rich-text Blueprint | `test_blueprint_derives_canonical_resources_and_validates_arc_alignment` | Material text derives Resource hashes; Arc Beats stay aligned with canonical Reveals | implemented |
-| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.operations` | `blueprint` | Requirement-bound Material revision | `test_authoring_operations_are_requirement_complete_and_domain_sized` | typed operation, exact Requirement coverage, preserved Truth Model | implemented |
-| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.adapter` | `profiles.facilitated_investigation` | complete rich-text package | `test_profile_adapter_builds_complete_deterministic_rich_text_package` | byte-identical Candidate, Release, Physical Export, and Blind Trial | implemented |
-| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.human-control` | `experiment` + profile adapter | witness-voice climb | `test_agentic_authoring_stops_at_human_review_before_child_transition` | Proposal preview, exact human Review, fresh child remeasurement, and frozen selection | implemented |
+| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.blueprint` | `blueprint` | Vanished Ledger rich-text Blueprint | `test_blueprint_derives_canonical_resources_and_validates_arc_alignment` | Material text derives Resource hashes; Arc Beats stay aligned with canonical Reveals | accepted 2026-08-05 |
+| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.operations` | `blueprint` | Requirement-bound Material revision | `test_authoring_operations_are_requirement_complete_and_domain_sized` | typed operation, exact Requirement coverage, preserved Truth Model | accepted 2026-08-05 |
+| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.adapter` | `profiles.facilitated_investigation` | complete rich-text package | `test_profile_adapter_builds_complete_deterministic_rich_text_package` | byte-identical Candidate, Release, Physical Export, and Blind Trial | accepted 2026-08-05 |
+| [Stage 9 implementation](https://github.com/jarredparrett/narrative-game-library/issues/7) | `stage9.human-control` | `experiment` + profile adapter | witness-voice climb | `test_agentic_authoring_stops_at_human_review_before_child_transition` | Proposal preview, exact human Review, fresh child remeasurement, and frozen selection | accepted 2026-08-05 |
 
-Human Stage Review: pending review of the public CI run and Stage 9 authoring
-lineage. This stage proves reusable construction and revision mechanics; it
-does not claim that the synthetic worked Blueprint has human-play standing.
+Human Stage Review: accepted by the repository owner through merge of PR #13
+after the public Python 3.11/3.13 CI run passed. This stage proves reusable
+construction and revision mechanics; it does not claim that the synthetic
+worked Blueprint has human-play standing.
+
+## Stage 10 - human-play evidence and standing
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 10 implementation](https://github.com/jarredparrett/narrative-game-library/issues/8) | `stage10.first-order-run` | `playtest` + `climb.ledger` | completed Micro Game Session | `test_playtest_run_binds_live_session_package_roles_consent_and_observations` | exact Release and Physical Export, live Session history, role Authorities, versioned consent, phase-scoped quotes, and frozen scores | implemented |
+| [Stage 10 implementation](https://github.com/jarredparrett/narrative-game-library/issues/8) | `stage10.harvest` | `playtest.PlaytestProgram` + `experiment.Experiment` | progressive-disclosure observation | `test_playtest_findings_translate_to_answer_safe_requirements` | quoted Finding becomes attributable Requirement and inert builder Proposal without exposing the answer | implemented |
+| [Stage 10 implementation](https://github.com/jarredparrett/narrative-game-library/issues/8) | `stage10.standing` | `playtest` + `climb.validation` | two passing fresh cohorts and divergent model panel | `test_two_fresh_runs_and_independent_review_can_support_accepted_standing` | exact model-human comparison, preserved divergence, independent publisher, and accepted Standing | implemented |
+| [Stage 10 implementation](https://github.com/jarredparrett/narrative-game-library/issues/8) | `stage10.freshness` | `playtest` + `climb.validation` | simulation, repeated cohort, and participant reviewer | `test_simulation_reused_cohort_and_participant_reviewer_cannot_claim_fresh_standing` | each invalid human-play or review claim is rejected before Standing | implemented |
+| [Stage 10 implementation](https://github.com/jarredparrett/narrative-game-library/issues/8) | `stage10.portability` | Workspace + `climb.ledger` | relocated Stage 10 archive | `test_human_play_evidence_survives_portable_archive_replay` | Runs, exact responses, comparison, and Standing reconstruct and verify after relocation | implemented |
+| [Stage 10 implementation](https://github.com/jarredparrett/narrative-game-library/issues/8) | `stage10.cross-process` | Workspace + `playtest` | two isolated evidence programs | `test_human_play_archive_is_identical_across_processes` | byte-identical portable archive under different process hash seeds and paths | implemented |
+
+Human Stage Review: pending review of the public CI run and Stage 10 evidence
+lineage. The capability fixture proves the measurement contract; its synthetic
+scores do not confer standing on a public game Release.
