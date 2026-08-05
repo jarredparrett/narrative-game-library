@@ -11,12 +11,13 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-5 now form one
+Version `0.x` is an experimental contract epoch. Stages 0-6 now form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
-authorized Session runtime, and deterministic Physical Export. Public schema
-compatibility is not promised yet, but hashes, receipts, dependency direction,
-human authorization, and reproducible outputs are never optional.
+authorized Session runtime, deterministic Physical Export, and a native
+agentic hill-climb ledger. Public schema compatibility is not promised yet,
+but hashes, receipts, dependency direction, human authorization, and
+reproducible outputs are never optional.
 
 ## Repository boundary
 
@@ -85,6 +86,53 @@ reported honestly as `development_only`; the physical package claims only
 production-ready layout and assembly, not independently validated legal
 realism.
 
+## Native hill climbing
+
+Stage 6 makes iteration a library contract instead of an informal sequence of
+agent messages. A person triggers work; agents may build, fix, harvest, or
+judge; and the Workspace records the exact authority, task, model invocation,
+input exposure, proposal, evaluation, and standing.
+
+```text
+Frozen Instrument + baseline Candidate
+  -> blind Task + Exposure Ledger + Model Receipt
+  -> Evaluation + quoted Findings
+  -> answer-safe Requirements
+  -> builder Task + Proposal
+  -> Human Review
+  -> authorized child Draft + Candidate
+  -> fresh blind Task under the same Instrument
+  -> honest Standing Attestation
+```
+
+Models are replaceable occupants of typed Tasks. Each invocation records its
+provider, requested and resolved model, prompt/context/tool hashes, input
+hashes, raw output, parsed output, and seed. Changing a model creates new
+evidence; it does not change the workflow or silently overwrite earlier state.
+Builders and fixers are excluded from judging their own child, and a blind
+judge's Exposure Ledger makes contamination inspectable.
+
+Human feedback is first-order evidence and first-order authority. An agent
+Proposal is inert. Only an exact `approved` Review from a human reviewer may
+advance a Workspace branch. Model-only evidence can support development or
+machine-qualified standing, but never the library's accepted human-play
+standing.
+
+Run the complete offline control-plane example:
+
+```bash
+uv sync --all-extras --dev
+uv run narrative-game-climb-example /tmp/ashwood-climb
+```
+
+It persists a baseline measurement, quoted tell, translated Requirement,
+model-authored Proposal, human-approved Transition, child Candidate, and fresh
+blind remeasurement over `The Ashwood Ledger`. The output includes a portable
+`ashwood-stage6.ngw` archive, `stage6-result.json`, and a concise lineage
+report. The fixture proves the loop and a 66.9 -> 82.8 score movement without
+hard-gate regression; it deliberately retains `development_only` standing
+because recorded offline judge fixtures are not fresh human playtests.
+
 ## State ownership
 
 Evolving authoring and experiment state is user data, not repository content.
@@ -122,8 +170,10 @@ assert workspace.verify()["ok"]
 ```
 
 Canonical history lives in immutable objects and independently verifiable
-journals. Branch Heads and `workspace.json` are projections that can be rebuilt
-after interruption. Workspace Archives are deterministic and path-independent.
+lineage, operational, and climb journals. Branch Heads and `workspace.json` are
+projections that can be rebuilt after interruption. Workspace Archives are
+deterministic and path-independent and carry exact model outputs and human
+Review receipts with the game.
 
 ### Author and validate a game
 

@@ -29,6 +29,9 @@ class Workspace:
         self.operational = Journal(
             self.root / "journals" / "operational.jsonl", journal_id="operational-audit"
         )
+        self.climb = Journal(
+            self.root / "journals" / "climb.jsonl", journal_id="agentic-climb"
+        )
         self.transaction_lock = self.root / "workspace.lock"
         if not self.lineage.read():
             raise FileNotFoundError(f"not a narrative game Workspace: {self.root}")
@@ -95,6 +98,7 @@ class Workspace:
             "branches": dict(sorted(branches.items())),
             "candidates": candidates,
             "journal_heads": {
+                "climb": self.climb.head(),
                 "lineage": events[-1]["event_hash"] if events else None,
                 "operational": self.operational.head(),
             },
@@ -337,12 +341,14 @@ class Workspace:
         failures = []
         lineage_ok, lineage_failures = self.lineage.verify()
         operational_ok, operational_failures = self.operational.verify()
+        climb_ok, climb_failures = self.climb.verify()
         failures.extend(f"lineage: {item}" for item in lineage_failures)
         failures.extend(f"operational: {item}" for item in operational_failures)
+        failures.extend(f"climb: {item}" for item in climb_failures)
         objects_ok, corrupt = self.store.verify_all()
         failures.extend(f"corrupt object: {ref}" for ref in corrupt)
         referenced = set()
-        for journal in (self.lineage, self.operational):
+        for journal in (self.lineage, self.operational, self.climb):
             for event in journal.read():
                 referenced.update(event.get("object_refs", []))
         pending = list(referenced)
@@ -373,6 +379,7 @@ class Workspace:
             "objects_verified": len(checked),
             "lineage_events": len(self.lineage.read()) if lineage_ok else 0,
             "operational_events": len(self.operational.read()) if operational_ok else 0,
+            "climb_events": len(self.climb.read()) if climb_ok else 0,
             "all_objects_intact": objects_ok,
         }
 

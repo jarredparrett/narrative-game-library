@@ -106,3 +106,20 @@ authorization, physical-disclosure, and isolation evidence was presented.
 
 Human Stage Review: accepted by the repository owner after reviewing the final
 rendered package, deterministic release evidence, and honest realism standing.
+
+## Stage 6 - native agentic hill climbing
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.closed-bundle` | `climb.model` + `climb.validation` | closed climb bundle | `test_valid_native_climb_bundle_has_no_findings` | immutable typed Tasks, receipts, Findings, Requirements, Evaluations, Reviews, Transitions, and Standing | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.human-transition` | `climb.ledger` + `workspace` | rejected and approved Ashwood Proposals | `test_proposal_is_inert_until_exact_human_approval_advances_workspace` | agent approval and rejected review are inert; exact human approval advances once | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.blind-inputs` | `climb.validation` | blind judge receipt/exposure defects | `test_blind_evaluation_requires_exact_judge_receipts_and_exposure_ledger` | exact judge receipts and task-scoped Exposure Ledger | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.role-blindness` | `climb.validation` | excluded builder as judge | `test_builder_or_fixer_cannot_judge_its_candidate` | explicit self-judging blocker | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.harvest-honesty` | `climb.validation` | scored harvest | `test_harvest_cannot_claim_a_score_or_standing` | harvest cannot move a rung | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.portable-replay` | `climb.ledger` + `workspace` | relocated Stage 6 archive | `test_climb_reopens_archives_and_preserves_exact_model_outputs` | verified hash chains, raw/parsed model outputs, and path-independent archive | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.vertical-loop` | `stage6_fixture` | The Ashwood Ledger | `test_ashwood_climb_moves_only_after_review_and_improves_frozen_score` | 66.9 baseline to 82.8 child under one Instrument; no hard-gate regression | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.offline-replay` | repository | two isolated CLI processes | `test_stage6_build_path_is_offline_and_cross_process_deterministic` | byte-identical portable archives and summaries with network blocked | pending human Stage Review |
+
+Human Stage Review: pending review of the public CI run and Stage 6 lineage.
+The offline judge fixture demonstrates control-plane correctness and score
+movement only; it does not claim fresh human-play or public realism standing.
