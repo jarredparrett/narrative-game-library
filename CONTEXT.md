@@ -88,3 +88,18 @@ A **Human Receipt** is the exact persisted observation of a human judge
 occupying a Task. It is first-order evidence and is never represented as a
 Model Receipt.
 _Avoid_: manual model result, unstructured feedback note.
+
+A **Game Blueprint** is the editable source for one game: its canonical game
+structure, rich-text Materials, deterministic seed, and Arc Beats. It derives a
+Game Definition and Candidate; it is not itself a measured Candidate.
+_Avoid_: prompt, game JSON, mutable Candidate.
+
+An **Arc Beat** states the dramatic question, intended player shift, target
+duration, and Evidence delivery for one Phase. It is authoring intent checked
+against canonical Reveals, not a second runtime timeline.
+_Avoid_: chapter, scene script, Phase.
+
+An **Authoring Operation** is one typed, reviewable change to a Game Blueprint
+that names the Requirements it addresses. A set of operations remains an inert
+Proposal until exact human Review authorizes a Transition.
+_Avoid_: JSON patch, autonomous edit, rewrite.

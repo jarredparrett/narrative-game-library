@@ -11,11 +11,12 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-8 now form one
+Version `0.x` is an experimental contract epoch. Stages 0-9 now form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
-agentic hill-climb ledger exercised by a real blind model panel. Public schema
+agentic hill-climb ledger exercised by a real blind model panel. Stage 9 adds
+the reusable Game Blueprint and first-party authoring adapter. Public schema
 compatibility is not promised yet, but hashes, receipts, dependency direction,
 human authorization, and reproducible outputs are never optional.
 
@@ -190,6 +191,54 @@ and adapter identity are frozen in the Experiment contract, so changing either
 is explicit rather than an ambient behavior change. Profile adapters may be
 added for other game genres—or domains such as insurance and accounting—without
 placing their authoring rules in the experiment core.
+
+## Game authoring
+
+Stage 9 makes the editable game source explicit. A `GameBlueprint` wraps the
+canonical `GameDefinition` with rich-text Materials, exact visible claim
+traces, a deterministic seed, and one `ArcBeat` per Phase. Resource hashes are
+derived from source text; Arc Beats are checked against canonical Reveals; and
+the existing validator remains the only owner of world, character, evidence,
+proof, access, and resolution consistency.
+
+```python
+from narrative_game import (
+    Experiment,
+    FacilitatedInvestigationAuthoringAdapter,
+    GameBlueprint,
+    validate_blueprint,
+)
+from narrative_game.examples import vanished_ledger_blueprint
+
+blueprint = vanished_ledger_blueprint()  # Or GameBlueprint.from_mapping(your_data)
+assert validate_blueprint(blueprint) == ()
+
+adapter = FacilitatedInvestigationAuthoringAdapter()
+experiment = Experiment.create(
+    "/path/to/user-data/my-game",
+    experiment_id="my-game-v1",
+    profile_id=adapter.profile_id,
+    profile_version=adapter.profile_version,
+    instrument=my_frozen_instrument,
+    initial_data=blueprint.to_mapping(),
+    component_lock=adapter.component_lock,
+    reviewer=my_human_reviewer,
+)
+package, binding = experiment.build_and_bind(
+    adapter,
+    scratch_root="/path/to/user-data/scratch",
+    idempotency_key="bind-baseline",
+)
+```
+
+Builders return typed `AuthoringOperation` values: replace direction, world,
+cast, deduction graph, arc, or displayed claims; upsert a rich-text Material;
+or remove one. Every operation names the Requirements it addresses and carries
+a rationale. The adapter applies the operations, revalidates the complete
+Blueprint, builds a full preview package, and stops at an inert Proposal. The
+same human Review and child remeasurement loop from Stage 8 then governs the
+transition. Iterative authoring is therefore the default without putting model
+behavior inside the deterministic compiler.
 
 ## State ownership
 
