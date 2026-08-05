@@ -16,14 +16,32 @@ _OBJECT_REF_KEYS = frozenset(
         "artifact",
         "artifact_result",
         "attestation",
+        "authority",
+        "baseline_draft",
         "candidate",
+        "child_draft",
         "component_lock",
         "draft_revision",
+        "evaluation",
+        "exposure",
+        "finding",
+        "instrument",
         "manifest",
+        "model_receipt",
+        "object",
         "operation_receipt",
         "parents",
+        "parsed_output",
+        "proposal",
+        "proposed_data",
+        "human_review",
+        "raw_output",
+        "requirement",
         "resource",
         "resources",
+        "standing",
+        "task",
+        "transition",
     }
 )
 
@@ -37,10 +55,17 @@ def refs_in(value: Any, *, key: str | None = None) -> Iterable[str]:
     never inferred merely from the digest's shape.
     """
     if isinstance(value, str):
-        if key in _OBJECT_REF_KEYS and value.startswith("sha256:") and len(value) == 71:
+        normalized_key = key
+        if normalized_key and normalized_key.endswith("_refs"):
+            normalized_key = normalized_key[:-5]
+        elif normalized_key and normalized_key.endswith("_ref"):
+            normalized_key = normalized_key[:-4]
+        if normalized_key in _OBJECT_REF_KEYS and value.startswith("sha256:") and len(value) == 71:
             yield value
     elif isinstance(value, dict):
         for child_key, item in value.items():
+            if child_key in {"input_hashes", "inputs"}:
+                continue
             yield from refs_in(item, key=child_key)
     elif isinstance(value, (list, tuple)):
         for item in value:

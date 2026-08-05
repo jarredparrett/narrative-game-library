@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.5.0"
+version = "0.6.0"
 description = "Deterministic narrative game building with human-governed hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,7 @@ dev = ["pytest>=8,<9"]
 [project.scripts]
 narrative-game-stage0 = "narrative_game.stage0_fixture:main"
 narrative-game-example = "narrative_game.stage5_fixture:main"
+narrative-game-climb-example = "narrative_game.stage6_fixture:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -33,3 +33,23 @@ per Release, asymmetric knowledge, competing hypotheses, evidence, phased
 disclosure, a host, proof-based resolution, explicit hints/recovery, and
 physical/web/hybrid delivery. Other genres become profiles or extensions, not
 Kernel exceptions.
+
+## Agentic climb language
+
+A **Frozen Instrument** defines dimensions, weights, acceptance rules, blind
+protocol, and hard gates before a measured round. A **Task** binds one Candidate
+and Instrument to an **Authority**. An agent occupying that Task leaves an
+exact **Model Receipt**; a judge also receives an explicit **Exposure Ledger**.
+
+An unblinded harvest produces quoted **Findings**, never a score. Findings are
+translated into property-level **Requirements** so the builder does not receive
+judge-only answers. A builder returns an immutable **Proposal**. It is not a
+Draft Revision and has no transition authority. A human **Review** either
+rejects it or approves every named Requirement; only that exact approval may
+create a **Transition** and child Draft.
+
+A fresh judge then measures the frozen child under the unchanged Instrument.
+A **Standing Attestation** says exactly what the evidence supports. Offline or
+model-only evidence cannot impersonate fresh human play. Model identity is an
+occupancy receipt, not domain identity, so different providers and models can
+fill the same typed Task without changing the Kernel or losing lineage.
