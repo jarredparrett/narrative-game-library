@@ -11,7 +11,7 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-7 now form one
+Version `0.x` is an experimental contract epoch. Stages 0-8 now form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -152,6 +152,44 @@ retained the baseline and claimed no quality or human-play standing. That is a
 successful proof of the process—not an assertion that the worked game is
 finished. Stage 8 generalizes the experiment API before more fixture-specific
 quality work.
+
+## Reusable Experiment API
+
+Stage 8 separates the evidence workflow from any one game. An `Experiment`
+owns its persisted plan, frozen Instrument, authority graph, model and human
+receipts, Reviews, Transitions, Selection Decisions, and portable archive. A
+versioned `GameProfileAdapter` owns how its domain data becomes a complete
+Candidate package and how builder output becomes a proposed revision.
+
+```python
+from narrative_game import Experiment
+from narrative_game.climb import Authority
+
+experiment = Experiment.create(
+    "/path/to/user-data/my-experiment",
+    experiment_id="my-game-v1",
+    profile_id="my-domain.facilitated-investigation",
+    profile_version="1.0.0",
+    instrument=my_frozen_instrument,
+    initial_data=my_game_data,
+    component_lock=my_component_lock,
+    reviewer=Authority("owner", "human", "reviewer", "game-maker"),
+)
+
+package, binding = experiment.build_and_bind(
+    my_profile_adapter,
+    scratch_root="/path/to/user-data/build-scratch",
+    idempotency_key="bind-baseline",
+)
+assert experiment.verify()["ok"]
+```
+
+Model and human judges occupy the same typed blind-measurement workflow, but
+leave distinct `ModelReceipt` and `HumanReceipt` evidence. Aggregation strategy
+and adapter identity are frozen in the Experiment contract, so changing either
+is explicit rather than an ambient behavior change. Profile adapters may be
+added for other game genres—or domains such as insurance and accounting—without
+placing their authoring rules in the experiment core.
 
 ## State ownership
 

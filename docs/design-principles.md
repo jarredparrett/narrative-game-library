@@ -1,0 +1,22 @@
+# Design principles
+
+These principles carry Stage 7's evidence into reusable orchestration without
+turning one worked mystery into the architecture:
+
+1. **Bound the proof.** Each stage answers a named design question. A measured
+   failure is a valid outcome when lineage is complete and selection remains
+   honest; fixture polishing continues only when it tests a new general rule.
+2. **Validate information in time.** A form, fact, or action required at one
+   phase must be available in that phase. Later delivery cannot satisfy an
+   earlier dependency.
+3. **Preserve earned disclosure.** Shared or opening projections must not
+   duplicate the private or later facts whose interpretation creates play.
+4. **Separate character voice from procedure.** Operational instructions may
+   be systematic, but character-authored records and role decisions need
+   distinct language, knowledge, and agency.
+5. **Make measurements applicable.** Every preflight or judge claim declares
+   which artifact classes it can measure. A skipped or inapplicable check is
+   never reported as evidence of quality.
+6. **Let evidence inform humans, not replace them.** Agents propose and measure;
+   humans may approve direction. Frozen selection rules decide only which
+   measured Candidate supports the next rung.

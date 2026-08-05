@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from .model import Evaluation, FrozenInstrument, ModelReceipt, SelectionDecision
+from .model import (
+    Evaluation,
+    FrozenInstrument,
+    HumanReceipt,
+    ModelReceipt,
+    SelectionDecision,
+)
 
 
 def _compare(actual: float | bool, operator: str, expected: float | bool) -> bool:
@@ -50,7 +56,7 @@ def decide_selection(
     instrument: FrozenInstrument,
     baseline: Evaluation,
     child: Evaluation,
-    receipts: tuple[ModelReceipt, ...],
+    receipts: tuple[ModelReceipt | HumanReceipt, ...],
 ) -> SelectionDecision:
     """Choose evidence for the next rung without authorizing a Draft transition."""
     if baseline.instrument_id != instrument.instrument_id or child.instrument_id != instrument.instrument_id:
@@ -58,9 +64,14 @@ def decide_selection(
     if baseline.candidate_id == child.candidate_id:
         raise ValueError("Selection requires distinct baseline and child Candidates")
     receipt_by_id = {item.receipt_id: item for item in receipts}
-    receipt_ids = (*baseline.model_receipt_ids, *child.model_receipt_ids)
+    receipt_ids = (
+        *baseline.model_receipt_ids,
+        *baseline.human_receipt_ids,
+        *child.model_receipt_ids,
+        *child.human_receipt_ids,
+    )
     if any(item not in receipt_by_id for item in receipt_ids):
-        raise ValueError("Selection requires every Evaluation Model Receipt")
+        raise ValueError("Selection requires every Evaluation evidence Receipt")
     evidence_classes = {receipt_by_id[item].evidence_class for item in receipt_ids}
     allowed = set(instrument.blind_protocol.get("selection_evidence_classes", ()))
     evidence_ok = bool(allowed) and bool(evidence_classes) and evidence_classes <= allowed

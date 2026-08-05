@@ -3,6 +3,7 @@
 from .contracts.artifacts import ArtifactRequest, ArtifactResult
 from .authoring import parse_game_definition
 from .compiler import compile_candidate, freeze_candidate
+from .experiment import Experiment, GameProfileAdapter
 from .narrative import GameDefinition, validate_facilitated_investigation
 from .physical import PhysicalExport, PhysicalExportProfile, export_physical
 from .runtime import apply_command, create_session, replay, seat_snapshot
@@ -11,7 +12,9 @@ from .workspace import Workspace
 __all__ = [
     "ArtifactRequest",
     "ArtifactResult",
+    "Experiment",
     "GameDefinition",
+    "GameProfileAdapter",
     "PhysicalExport",
     "PhysicalExportProfile",
     "Workspace",
@@ -26,4 +29,4 @@ __all__ = [
     "validate_facilitated_investigation",
 ]
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"

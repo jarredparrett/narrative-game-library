@@ -150,3 +150,20 @@ Ashwood's game quality or confer human-play standing.
 Deferred general rules for Stage 8 and later validation: phase-accurate
 availability, nonduplicative progressive disclosure, distinct character voice,
 artifact-specific measurement applicability, and objective host checkpoints.
+
+## Stage 8 - reusable experiment and orchestration API
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.plan` | `experiment.Experiment` + `climb.ExperimentPlan` | relocated fixture Experiment | `test_experiment_plan_persists_profile_instrument_and_archive_identity` | one portable plan freezes profile identity, version, Instrument, and branch | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.profile-adapter` | `experiment.GameProfileAdapter` | fixture investigation profile | `test_profile_adapter_builds_answer_safe_proposal_but_human_moves_branch` | profile builds and revises; Proposal remains inert until exact human Review | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.human-evidence` | `climb.HumanReceipt` + `experiment.Experiment` | model baseline and human child panels | `test_model_and_human_judges_are_distinct_first_order_receipts` | exact human observations participate without impersonating Model Receipts | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.frozen-strategy` | `experiment.ScoreAggregator` | attempted aggregator/profile swaps | `test_frozen_aggregation_and_profile_identity_cannot_be_swapped` | alternate strategies and adapter versions require explicit contract changes | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.selection` | `experiment.Experiment` + `climb.selection` | mixed model/human evidence | `test_model_and_human_judges_are_distinct_first_order_receipts` | frozen evidence classes select the qualifying child without granting Standing | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.portability` | Workspace + `experiment.Experiment` | exported and relocated archive | `test_experiment_plan_persists_profile_instrument_and_archive_identity` | profile contract, packages, receipts, evaluations, and lineage remain content-addressed | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.fixture-independence` | `experiment` package | source dependency audit | `test_public_experiment_api_has_no_ashwood_or_stage_fixture_dependency` | reusable API imports no Ashwood or stage fixture module | implemented |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.worked-migration` | `stage7_experiment` | fresh Stage 7 model panel | `test_fresh_panel_uses_three_identities_and_frozen_dimension_medians` | worked example delegates panel measurement, review, child binding, and selection to the public Experiment API | implemented |
+
+Human Stage Review: pending review of the public CI run and Stage 8 lineage.
+This stage generalizes experiment mechanics; it does not claim new Ashwood
+quality standing or human-play acceptance.

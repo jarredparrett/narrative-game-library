@@ -70,25 +70,21 @@ Definition, exact materials, seed, compilation options, and Component Lock.
 Workspace may checkpoint a Draft, but that checkpoint is not measurement
 identity. _Avoid_: Draft checkpoint, branch head.
 
-## Climb design principles
+An **Experiment** is one operator-owned, persisted quality-climb lineage under
+one Experiment Plan. It contains Tasks, evidence, Reviews, Transitions, and
+Selection Decisions without owning game-profile authoring rules.
+_Avoid_: run, benchmark folder, Ashwood climb.
 
-These principles carry Stage 7's evidence into reusable orchestration without
-turning one worked mystery into the architecture:
+A **Game Profile Adapter** is the versioned boundary that builds and revises a
+specific game profile for an Experiment. Its identity is frozen in the Plan;
+changing it creates a different Experiment contract.
+_Avoid_: experiment plugin, fixture builder.
 
-1. **Bound the proof.** Each stage answers a named design question. A measured
-   failure is a valid outcome when lineage is complete and selection remains
-   honest; fixture polishing continues only when it tests a new general rule.
-2. **Validate information in time.** A form, fact, or action required at one
-   phase must be available in that phase. Later delivery cannot satisfy an
-   earlier dependency.
-3. **Preserve earned disclosure.** Shared or opening projections must not
-   duplicate the private or later facts whose interpretation creates play.
-4. **Separate character voice from procedure.** Operational instructions may
-   be systematic, but character-authored records and role decisions need
-   distinct language, knowledge, and agency.
-5. **Make measurements applicable.** Every preflight or judge claim declares
-   which artifact classes it can measure. A skipped or inapplicable check is
-   never reported as evidence of quality.
-6. **Let evidence inform humans, not replace them.** Agents propose and measure;
-   humans may approve direction. Frozen selection rules decide only which
-   measured Candidate supports the next rung.
+A **Complete Package** binds one Candidate to its exact Game Release, Physical
+Export, Blind Trial, and replayed hard gates before measurement.
+_Avoid_: build output, trial ZIP.
+
+A **Human Receipt** is the exact persisted observation of a human judge
+occupying a Task. It is first-order evidence and is never represented as a
+Model Receipt.
+_Avoid_: manual model result, unstructured feedback note.
