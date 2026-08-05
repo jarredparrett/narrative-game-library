@@ -53,8 +53,8 @@ def test_complete_session_replays_to_the_pinned_resolution():
     assert state["resolution"]["correct"] is True
     assert state["sequence"] == 9
     assert len(history.events) == 9
-    assert history.content_hash == "sha256:3d0bd062ac630d14f9e6269fa4dcdcecc9c29a2fe3e74d77c3349d66e14ce11f"
-    assert history.event_head == "sha256:be8c01cf4fd7ccc63d6fe9e46a77b0e489f7902e3d988e77ea0027c4ba9a7920"
+    assert history.content_hash == "sha256:14b6d04eabeddaddf2327792d49e2fdb81041faf0621d2b830264a59926d8591"
+    assert history.event_head == "sha256:604189ad5c0cbaefc989bd963694649b60c8739239fda9d53b8f4d356e914126"
     assert verify_history(history) is None
     assert host_snapshot(release, history, auth["host"])["state"] == state
 

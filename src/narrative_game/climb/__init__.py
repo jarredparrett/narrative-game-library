@@ -1,5 +1,14 @@
 """Human-governed, agent-operated hill-climb contracts."""
 
+from .execution import (
+    DriverOutput,
+    InvocationAttachment,
+    ModelDriver,
+    ModelInvocation,
+    execute_model_task,
+    replay_envelope,
+)
+from .drivers import JsonCommandDriver
 from .ledger import ClimbLedger, ClimbRejected, StoredRecord
 from .model import (
     Authority,
@@ -12,29 +21,56 @@ from .model import (
     ModelReceipt,
     Proposal,
     Requirement,
+    SelectionDecision,
     StandingAttestation,
     Task,
+    TrialBinding,
     Transition,
 )
+from .trial import (
+    BlindTrial,
+    TrialFile,
+    load_blind_trial,
+    prepare_blind_trial,
+    verify_blind_trial,
+    verify_trial_quote,
+)
+from .selection import decide_selection
 from .validation import ClimbFinding, validate_climb_bundle
 
 __all__ = [
     "Authority",
+    "BlindTrial",
     "ClimbLedger",
     "ClimbFinding",
     "ClimbRejected",
     "Dimension",
+    "DriverOutput",
     "Evaluation",
     "Exposure",
     "Finding",
     "FrozenInstrument",
     "HumanReview",
+    "InvocationAttachment",
+    "JsonCommandDriver",
+    "ModelDriver",
+    "ModelInvocation",
     "ModelReceipt",
     "Proposal",
     "Requirement",
+    "SelectionDecision",
     "StandingAttestation",
     "StoredRecord",
     "Task",
+    "TrialFile",
+    "TrialBinding",
     "Transition",
+    "execute_model_task",
+    "decide_selection",
+    "replay_envelope",
+    "prepare_blind_trial",
+    "load_blind_trial",
+    "verify_blind_trial",
+    "verify_trial_quote",
     "validate_climb_bundle",
 ]

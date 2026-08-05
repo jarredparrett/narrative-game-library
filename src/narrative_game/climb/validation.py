@@ -17,10 +17,13 @@ from .model import (
     ModelReceipt,
     Proposal,
     Requirement,
+    SelectionDecision,
     StandingAttestation,
     Task,
+    TrialBinding,
     Transition,
 )
+from .selection import evaluation_passes
 
 
 _HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -72,6 +75,8 @@ def validate_climb_bundle(
     reviews: Iterable[HumanReview] = (),
     transitions: Iterable[Transition] = (),
     standings: Iterable[StandingAttestation] = (),
+    trial_bindings: Iterable[TrialBinding] = (),
+    selections: Iterable[SelectionDecision] = (),
 ) -> tuple[ClimbFinding, ...]:
     """Validate one closed bundle without fetching, repairing, or mutating it."""
     authorities = tuple(authorities)
@@ -86,6 +91,8 @@ def validate_climb_bundle(
     reviews = tuple(reviews)
     transitions = tuple(transitions)
     standings = tuple(standings)
+    trial_bindings = tuple(trial_bindings)
+    selections = tuple(selections)
     result: list[ClimbFinding] = []
 
     ids = {
@@ -101,6 +108,8 @@ def validate_climb_bundle(
         "review": [item.review_id for item in reviews],
         "transition": [item.transition_id for item in transitions],
         "standing": [item.attestation_id for item in standings],
+        "trial-binding": [item.binding_id for item in trial_bindings],
+        "selection": [item.decision_id for item in selections],
     }
     for kind, values in ids.items():
         result.extend(_duplicates(kind, values))
@@ -134,6 +143,9 @@ def validate_climb_bundle(
     for task in tasks:
         authority = authority_by_id.get(task.assigned_authority_id)
         instrument = instrument_by_id.get(task.instrument_id)
+        occupants = task.occupant_authority_ids
+        if len(occupants) != len(set(occupants)):
+            result.append(_finding("climb.duplicate-task-occupant", task.task_id, str(occupants), "Task occupants must be distinct"))
         if authority is None:
             result.append(_finding("climb.dangling-reference", task.task_id, task.assigned_authority_id, "Task names a missing Authority"))
         if instrument is None:
@@ -149,8 +161,14 @@ def validate_climb_bundle(
         }.get(task.kind, set())
         if authority is not None and authority.role not in expected_roles:
             result.append(_finding("climb.role-mismatch", task.task_id, authority.role, "Task is assigned to an incompatible role"))
-        if task.assigned_authority_id in task.excluded_authority_ids:
-            result.append(_finding("climb.excluded-authority", task.task_id, task.assigned_authority_id, "Task is assigned to an explicitly excluded authority"))
+        for occupant_id in occupants:
+            occupant = authority_by_id.get(occupant_id)
+            if occupant is None:
+                result.append(_finding("climb.dangling-reference", task.task_id, occupant_id, "Task names a missing participant Authority"))
+            elif occupant.role not in expected_roles:
+                result.append(_finding("climb.role-mismatch", task.task_id, occupant.role, "Task participant has an incompatible role"))
+            if occupant_id in task.excluded_authority_ids:
+                result.append(_finding("climb.excluded-authority", task.task_id, occupant_id, "Task occupant is explicitly excluded"))
         for label, value in {"candidate_id": task.candidate_id, **task.input_refs}.items():
             if not _HASH.fullmatch(value):
                 result.append(_finding("climb.invalid-object-reference", task.task_id, f"{label}={value}", "Task Candidate and input references require exact SHA-256 identities"))
@@ -172,12 +190,32 @@ def validate_climb_bundle(
                 result.append(_finding("climb.incomplete-model-receipt", receipt.receipt_id, f"{label}={value}", "Model Receipt requires exact typed hashes"))
         if not receipt.provider or not receipt.requested_model or not receipt.resolved_model:
             result.append(_finding("climb.incomplete-model-receipt", receipt.receipt_id, "missing provider or model", "Model Receipt requires provider and requested/resolved model"))
+        if receipt.evidence_class is not None and receipt.evidence_class not in {
+            "live-model",
+            "recorded-model",
+            "capability-fixture",
+        }:
+            result.append(_finding("climb.invalid-evidence-class", receipt.receipt_id, receipt.evidence_class, "Model Receipt evidence class is unsupported"))
         for label, value in {
             **receipt.input_hashes,
             **{f"tool_receipt_{index}": item for index, item in enumerate(receipt.tool_receipt_hashes)},
         }.items():
             if not _HASH.fullmatch(value):
                 result.append(_finding("climb.incomplete-model-receipt", receipt.receipt_id, f"{label}={value}", "Model Receipt input and tool receipts require exact SHA-256 identities"))
+        replay_core = (receipt.prompt_ref, receipt.context_ref, receipt.tool_contract_ref)
+        if any(item is not None for item in replay_core) or receipt.input_refs:
+            if any(item is None for item in replay_core):
+                result.append(_finding("climb.incomplete-replay-envelope", receipt.receipt_id, str(replay_core), "Replayable Model Receipt requires prompt, context, and tool contract objects"))
+            for label, claimed, replay_ref in (
+                ("prompt", receipt.prompt_hash, receipt.prompt_ref),
+                ("context", receipt.context_hash, receipt.context_ref),
+                ("tool_contract", receipt.tool_contract_hash, receipt.tool_contract_ref),
+            ):
+                if replay_ref is not None and (not _HASH.fullmatch(replay_ref) or replay_ref != claimed):
+                    result.append(_finding("climb.replay-hash-mismatch", receipt.receipt_id, f"{label}={replay_ref}", "Replay object must exactly match the Model Receipt hash"))
+            for key, replay_ref in receipt.input_refs.items():
+                if not _HASH.fullmatch(replay_ref) or receipt.input_hashes.get(key) != replay_ref:
+                    result.append(_finding("climb.replay-hash-mismatch", receipt.receipt_id, f"{key}={replay_ref}", "Replay input object must exactly match its Model Receipt hash"))
 
     for requirement in requirements:
         source_findings = [finding_by_id.get(item) for item in requirement.source_finding_ids]
@@ -218,6 +256,8 @@ def validate_climb_bundle(
             dimension_ids = {item.dimension_id for item in instrument.dimensions}
             if set(evaluation.scores) != dimension_ids or any(not 0 <= value <= 100 for value in evaluation.scores.values()):
                 result.append(_finding("climb.invalid-score", evaluation.evaluation_id, str(dict(evaluation.scores)), "Blind scores must cover every frozen dimension from 0 to 100"))
+            if set(evaluation.judge_authority_ids) != set(task.occupant_authority_ids):
+                result.append(_finding("climb.incomplete-blind-panel", evaluation.evaluation_id, str(evaluation.judge_authority_ids), "Blind Evaluation judges must exactly match the frozen Task occupants"))
             for judge_id in evaluation.judge_authority_ids:
                 authority = authority_by_id.get(judge_id)
                 if authority is None or authority.role != "judge":
@@ -247,6 +287,14 @@ def validate_climb_bundle(
             result.append(_finding("climb.incomplete-hard-gates", evaluation.evaluation_id, str(dict(evaluation.hard_gate_results)), "Evaluation must replay every frozen hard gate"))
         if evaluation.outcome == "pass" and not all(evaluation.hard_gate_results.values()):
             result.append(_finding("climb.hard-gate-regression", evaluation.evaluation_id, str(dict(evaluation.hard_gate_results)), "Evaluation cannot pass while a hard gate regresses"))
+        if evaluation.mode == "blind":
+            try:
+                expected_outcome = "pass" if evaluation_passes(instrument, evaluation) else "fail"
+            except ValueError as exc:
+                result.append(_finding("climb.invalid-instrument", instrument.instrument_id, str(instrument.acceptance_rules), str(exc)))
+            else:
+                if evaluation.outcome != expected_outcome:
+                    result.append(_finding("climb.invalid-evaluation-outcome", evaluation.evaluation_id, evaluation.outcome, "Evaluation outcome differs from the frozen acceptance rules"))
 
     for proposal in proposals:
         task = task_by_id.get(proposal.task_id)
@@ -321,5 +369,53 @@ def validate_climb_bundle(
             required = {"two-fresh-human-runs", "independent-standing-review"}
             if not required <= set(standing.evidence_kinds):
                 result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Accepted standing requires two fresh human runs and independent review"))
+
+    for binding in trial_bindings:
+        for label, value in {
+            "candidate_id": binding.candidate_id,
+            "release_id": binding.release_id,
+            "release_bundle_ref": binding.release_bundle_ref,
+            "physical_export_id": binding.physical_export_id,
+            "physical_archive_ref": binding.physical_archive_ref,
+            "blind_trial_id": binding.blind_trial_id,
+            "blind_trial_ref": binding.blind_trial_ref,
+        }.items():
+            if not _HASH.fullmatch(value):
+                result.append(_finding("climb.invalid-object-reference", binding.binding_id, f"{label}={value}", "Trial Binding requires exact content identities"))
+        if not binding.hard_gate_results or not all(binding.hard_gate_results.values()):
+            result.append(_finding("climb.incomplete-trial-package", binding.binding_id, str(dict(binding.hard_gate_results)), "Trial Binding requires a verified Release, Physical Export, Blind Trial, and frozen hard gates"))
+
+    for selection in selections:
+        instrument = instrument_by_id.get(selection.instrument_id)
+        baseline = evaluation_by_id.get(selection.baseline_evaluation_id)
+        child = evaluation_by_id.get(selection.child_evaluation_id)
+        if instrument is None or baseline is None or child is None:
+            result.append(_finding("climb.dangling-reference", selection.decision_id, f"{selection.instrument_id}; {selection.baseline_evaluation_id}; {selection.child_evaluation_id}", "Selection Decision names missing evidence"))
+            continue
+        if baseline.instrument_id != instrument.instrument_id or child.instrument_id != instrument.instrument_id:
+            result.append(_finding("climb.selection-instrument-mismatch", selection.decision_id, instrument.instrument_id, "Selection Evaluations do not share the frozen Instrument"))
+            continue
+        baseline_score = baseline.overall_score(instrument)
+        child_score = child.overall_score(instrument)
+        child_receipts = [receipt_by_id.get(item) for item in child.model_receipt_ids]
+        baseline_receipts = [receipt_by_id.get(item) for item in baseline.model_receipt_ids]
+        allowed_classes = set(instrument.blind_protocol.get("selection_evidence_classes", ()))
+        receipt_classes = {
+            item.evidence_class
+            for item in (*baseline_receipts, *child_receipts)
+            if item is not None
+        }
+        evidence_ok = bool(allowed_classes) and bool(receipt_classes) and receipt_classes <= allowed_classes
+        child_wins = (
+            baseline_score is not None
+            and child_score is not None
+            and child_score > baseline_score
+            and evaluation_passes(instrument, child)
+            and evidence_ok
+        )
+        expected_outcome = "select_child" if child_wins else "retain_baseline"
+        expected_candidate = child.candidate_id if child_wins else baseline.candidate_id
+        if selection.outcome != expected_outcome or selection.selected_candidate_id != expected_candidate:
+            result.append(_finding("climb.unsupported-selection", selection.decision_id, f"{selection.outcome}:{selection.selected_candidate_id}", "Selection differs from frozen scores, hard gates, or admissible evidence classes"))
 
     return tuple(sorted(set(result)))

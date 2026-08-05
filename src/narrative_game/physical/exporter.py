@@ -21,7 +21,6 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     KeepTogether,
     Paragraph,
-    Preformatted,
     SimpleDocTemplate,
     Spacer,
     Table,
@@ -35,7 +34,7 @@ from narrative_game.contracts.canonical import canonical_json, digest_bytes, dig
 from .model import PhysicalExport, PhysicalExportProfile, PhysicalFile
 
 
-PHYSICAL_EXPORTER_VERSION = "0.5.0"
+PHYSICAL_EXPORTER_VERSION = "0.7.3"
 
 
 def _copy(value: Any) -> Any:
@@ -89,16 +88,34 @@ class _MarkedCanvas(canvas.Canvas):
         super().showPage()
 
 
-def _text_story(data: bytes, media_type: str) -> list[Any]:
+def _table_column_widths(rows: list[list[str]], available_width: float) -> list[float]:
+    """Allocate stable table width toward columns that carry longer evidence."""
+    column_count = max((len(row) for row in rows), default=0)
+    if column_count == 0:
+        return []
+    minimum = min(48.0, available_width / column_count)
+    remaining = max(0.0, available_width - minimum * column_count)
+    weights = [
+        max(1, min(48, max((len(row[index]) for row in rows if index < len(row)), default=1)))
+        for index in range(column_count)
+    ]
+    total_weight = sum(weights)
+    return [minimum + remaining * weight / total_weight for weight in weights]
+
+
+def _text_story(
+    data: bytes, media_type: str, *, available_width: float = LETTER[0] - 108
+) -> list[Any]:
     text = data.decode("utf-8")
+    compact_form = "joint finding sheet" in text.casefold()
     styles = getSampleStyleSheet()
     body = ParagraphStyle(
         "GameBody",
         parent=styles["BodyText"],
         fontName="Helvetica",
         fontSize=10,
-        leading=13,
-        spaceAfter=7,
+        leading=11 if compact_form else 12,
+        spaceAfter=1 if compact_form else 3.5,
     )
     h1 = ParagraphStyle(
         "GameH1",
@@ -106,7 +123,7 @@ def _text_story(data: bytes, media_type: str) -> list[Any]:
         fontName="Helvetica-Bold",
         fontSize=18,
         leading=21,
-        spaceAfter=12,
+        spaceAfter=6 if compact_form else 10,
         textColor=colors.HexColor("#1f2933"),
     )
     h2 = ParagraphStyle(
@@ -114,12 +131,30 @@ def _text_story(data: bytes, media_type: str) -> list[Any]:
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
         fontSize=12.5,
-        leading=16,
-        spaceBefore=7,
-        spaceAfter=7,
+        leading=14 if compact_form else 15,
+        spaceBefore=3 if compact_form else 6,
+        spaceAfter=2 if compact_form else 5,
         textColor=colors.HexColor("#334e68"),
     )
-    small = ParagraphStyle("Small", parent=body, fontSize=8.5, leading=11)
+    h3 = ParagraphStyle(
+        "GameH3",
+        parent=styles["Heading3"],
+        fontName="Helvetica-Bold",
+        fontSize=10.5,
+        leading=13,
+        spaceBefore=5,
+        spaceAfter=4,
+        textColor=colors.HexColor("#334e68"),
+        keepWithNext=True,
+    )
+    small = ParagraphStyle("Small", parent=body, fontSize=9, leading=11.5)
+    csv_cell = ParagraphStyle(
+        "CsvCell",
+        parent=body,
+        fontSize=8.5,
+        leading=10,
+        splitLongWords=False,
+    )
     quote = ParagraphStyle(
         "Quote",
         parent=body,
@@ -130,25 +165,81 @@ def _text_story(data: bytes, media_type: str) -> list[Any]:
         backColor=colors.HexColor("#f5f7fa"),
     )
     if media_type == "text/csv":
-        rows = list(csv.reader(text.splitlines()))
-        table = Table([[Paragraph(_inline(cell), small) for cell in row] for row in rows], repeatRows=1)
-        table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#d9e2ec")),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#829ab1")),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                    ("TOPPADDING", (0, 0), (-1, -1), 5),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ]
+        blocks: list[list[list[str]]] = []
+        current: list[list[str]] = []
+        for row in csv.reader(text.splitlines()):
+            if not row:
+                if current:
+                    blocks.append(current)
+                    current = []
+                continue
+            current.append(row)
+        if current:
+            blocks.append(current)
+
+        story: list[Any] = []
+        has_document_title = False
+
+        def append_table(rows: list[list[str]]) -> None:
+            column_widths = _table_column_widths(rows, available_width)
+            if rows and "source_system" in rows[0] and "observed_value" in rows[0]:
+                source_index = rows[0].index("source_system")
+                observation_index = rows[0].index("observed_value")
+                source_floor = 110.0
+                transfer = min(
+                    max(0.0, source_floor - column_widths[source_index]),
+                    max(0.0, column_widths[observation_index] - 100.0),
+                )
+                column_widths[source_index] += transfer
+                column_widths[observation_index] -= transfer
+            table = Table(
+                [[Paragraph(_inline(cell), csv_cell) for cell in row] for row in rows],
+                colWidths=column_widths,
+                repeatRows=1,
             )
-        )
-        return [Paragraph("Exterior camera log", h1), table]
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#d9e2ec")),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#829ab1")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ]
+                )
+            )
+            story.extend((table, Spacer(1, 5)))
+
+        for block in blocks:
+            rows = list(block)
+            if rows and len(rows[0]) == 1:
+                heading = rows.pop(0)[0]
+                story.append(Paragraph(_inline(heading), h1 if not has_document_title else h2))
+                has_document_title = True
+            elif not has_document_title:
+                story.append(Paragraph("Exterior camera log", h1))
+                has_document_title = True
+            if not rows:
+                continue
+            if all(len(row) == 1 for row in rows):
+                story.extend(Paragraph(_inline(row[0]), body) for row in rows)
+                continue
+            column_count = max(len(row) for row in rows)
+            padded = [row + [""] * (column_count - len(row)) for row in rows]
+            append_table(padded)
+        return story
     if media_type == "text/plain":
-        return [Preformatted(text, ParagraphStyle("Plain", parent=body, fontName="Courier", fontSize=9, leading=12))]
+        plain = ParagraphStyle(
+            "Plain",
+            parent=body,
+            fontName="Courier",
+            fontSize=10,
+            leading=12.5,
+        )
+        return [Paragraph(escape(text).replace("\n", "<br/>"), plain)]
 
     story: list[Any] = []
     paragraph: list[str] = []
@@ -200,13 +291,16 @@ def _text_story(data: bytes, media_type: str) -> list[Any]:
         elif line.startswith("## "):
             flush_paragraph()
             story.append(Paragraph(_inline(line[3:]), h2))
+        elif line.startswith("### "):
+            flush_paragraph()
+            story.append(Paragraph(_inline(line[4:]), h3))
         elif line.startswith("> "):
             flush_paragraph()
             story.append(Paragraph(_inline(line[2:]), quote))
         elif re.match(r"^(?:- |\d+\. )", line):
             flush_paragraph()
             item = re.sub(r"^(?:- |\d+\. )", "", line)
-            story.append(Paragraph(f"&#8226;&nbsp; {_inline(item)}", body))
+            story.append(Paragraph(f"&#45;&nbsp; {_inline(item)}", body))
         elif line == "---":
             flush_paragraph()
             story.append(Spacer(1, 8))
@@ -238,7 +332,14 @@ def _render_text_pdf(
             **kwargs,
         )
 
-    document.build(_text_story(data, media_type), canvasmaker=canvas_factory)
+    document.build(
+        _text_story(
+            data,
+            media_type,
+            available_width=LETTER[0] - 2 * profile.margin_points,
+        ),
+        canvasmaker=canvas_factory,
+    )
     return target.getvalue()
 
 
@@ -556,7 +657,116 @@ def _render_labels_pdf(plan: Mapping[str, Any], profile: PhysicalExportProfile) 
     return target.getvalue()
 
 
-def _preflight(files: Iterable[PhysicalFile]) -> dict[str, Any]:
+def _marker_text(value: str) -> str:
+    """Normalize authored and extracted text for a deterministic order check."""
+    value = re.sub(r"[^\w$]+", " ", value, flags=re.UNICODE)
+    return " ".join(value.casefold().split())
+
+
+def _reading_markers(data: bytes, media_type: str) -> tuple[str, ...]:
+    """Extract line-sized markers whose order must survive text rendering."""
+    text = data.decode("utf-8")
+    if media_type == "text/csv":
+        raw_markers = [" ".join(cell for cell in row if cell.strip()) for row in csv.reader(text.splitlines())]
+    else:
+        raw_markers = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or re.fullmatch(r"\|?(?:\s*:?-+:?\s*\|)+\s*", stripped):
+                continue
+            stripped = re.sub(r"^(?:#{1,3}\s+|>\s+|-\s+|\d+\.\s+)", "", stripped)
+            if stripped.startswith("|") and stripped.endswith("|"):
+                stripped = " ".join(cell.strip() for cell in stripped.strip("|").split("|"))
+            raw_markers.append(stripped)
+    return tuple(marker for value in raw_markers if (marker := _marker_text(value)))
+
+
+def _pdf_reading_markers(data: bytes) -> tuple[str, ...]:
+    """Sample stable OCR markers from every imported page before overlaying it."""
+    reader = PdfReader(BytesIO(data))
+    markers: list[str] = []
+    for page in reader.pages:
+        candidates = [
+            marker
+            for line in (page.extract_text() or "").splitlines()
+            if len(marker := _marker_text(line)) >= 8
+        ]
+        if not candidates:
+            continue
+        indexes = sorted({0, len(candidates) // 2, len(candidates) - 1})
+        markers.extend(candidates[index] for index in indexes)
+    return tuple(markers)
+
+
+def _label_reading_markers(plan: Mapping[str, Any]) -> tuple[str, ...]:
+    """Derive label markers from the package plan that authors the label sheet."""
+    values = ["Container labels"]
+    for container in plan["containers"]:
+        values.extend(
+            (
+                container["label"],
+                f"Container ID: {container['container_id']}",
+                f"Audience: {container['audience']}",
+                f"Delivery: {container['delivery_condition']}",
+                "Contents",
+            )
+        )
+        values.extend(
+            copy["copy_id"]
+            for copy in plan["copies"]
+            if copy["container_id"] == container["container_id"]
+        )
+    return tuple(_marker_text(value) for value in values)
+
+
+def _markers_appear_in_order(
+    extracted: str,
+    markers: Iterable[str],
+    ignored_text: Iterable[str] = (),
+) -> bool:
+    for value in ignored_text:
+        extracted = extracted.replace(value, " ")
+    extracted = re.sub(r"(?im)^\s*Page\s+\d+\s*$", " ", extracted)
+    haystack = _marker_text(extracted)
+    cursor = 0
+    for marker in markers:
+        position = haystack.find(marker, cursor)
+        if position < 0:
+            return False
+        cursor = position + len(marker)
+    return True
+
+
+def _pdf_font_measurements(reader: PdfReader) -> list[tuple[str, float]]:
+    measurements: list[tuple[str, float]] = []
+    for page in reader.pages:
+        def visitor(text: str, _cm: Any, _tm: Any, _font: Any, font_size: float) -> None:
+            if text.strip() and float(font_size) > 0:
+                measurements.append((text.strip(), float(font_size)))
+
+        page.extract_text(visitor_text=visitor)
+    return measurements
+
+
+def _pdf_font_sizes(reader: PdfReader) -> list[float]:
+    return [size for _text, size in _pdf_font_measurements(reader)]
+
+
+def _contrast_ratio(foreground: str, background: str) -> float:
+    def luminance(value: str) -> float:
+        channels = [int(value[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+        linear = [channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4 for channel in channels]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    first, second = sorted((luminance(foreground), luminance(background)), reverse=True)
+    return (first + 0.05) / (second + 0.05)
+
+
+def _preflight(
+    files: Iterable[PhysicalFile],
+    rendition_expectations: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    expectations = rendition_expectations or {}
     checks = []
     for item in sorted(files, key=lambda value: value.path):
         record: dict[str, Any] = {
@@ -571,6 +781,33 @@ def _preflight(files: Iterable[PhysicalFile]) -> dict[str, Any]:
                 [float(page.mediabox.width), float(page.mediabox.height)]
                 for page in reader.pages
             ]
+            extracted = "\n".join(page.extract_text() or "" for page in reader.pages)
+            font_measurements = _pdf_font_measurements(reader)
+            font_sizes = [size for _text, size in font_measurements]
+            expectation = expectations.get(item.path, {})
+            markers = tuple(expectation.get("reading_markers", ()))
+            ignored_text = tuple(expectation.get("ignored_text", ()))
+            minimum_font_size = min(font_sizes) if font_sizes else None
+            reportlab_rendition = expectation.get("renderer") == "reportlab-platypus"
+            artifact_overlay = expectation.get("renderer") == "artifact-overlay"
+            authored_content_sizes = [
+                size
+                for text, size in font_measurements
+                if not re.fullmatch(r"Page\s+\d+", text)
+                and text not in ignored_text
+            ]
+            expected_boxes = expectation.get("source_page_boxes")
+            overlay_layout_passed = (
+                boxes == expected_boxes if artifact_overlay and expected_boxes is not None else None
+            )
+            palette_ratios = (
+                _contrast_ratio("#000000", "#ffffff"),
+                _contrast_ratio("#334e68", "#ffffff"),
+                _contrast_ratio("#1f2933", "#ffffff"),
+                _contrast_ratio("#444444", "#ffffff"),
+                _contrast_ratio("#000000", "#d9e2ec"),
+                _contrast_ratio("#000000", "#f5f7fa"),
+            )
             record.update(
                 {
                     "page_count": len(reader.pages),
@@ -579,19 +816,87 @@ def _preflight(files: Iterable[PhysicalFile]) -> dict[str, Any]:
                         abs(width - LETTER[0]) < 1 and abs(height - LETTER[1]) < 1
                         for width, height in boxes
                     ),
+                    "pdf_checks": {
+                        "parseable_page_tree": bool(reader.pages),
+                        "extractable_text": bool(extracted.strip()),
+                        "minimum_font_size": {
+                            "measured_points": minimum_font_size,
+                            "threshold_points": 6.0,
+                            "passed": minimum_font_size is not None and minimum_font_size >= 6.0,
+                            "scope": "nonvisual OCR text layer" if artifact_overlay else "rendered text",
+                        },
+                        "authored_content_font_size": {
+                            "executed": reportlab_rendition,
+                            "measured_points": min(authored_content_sizes) if reportlab_rendition and authored_content_sizes else None,
+                            "threshold_points": 8.5,
+                            "scope": "authored content excluding page numbers and provenance marks",
+                            "passed": (
+                                min(authored_content_sizes) >= 8.5
+                                if reportlab_rendition and authored_content_sizes else None
+                            ),
+                        },
+                        "authored_reading_order": {
+                            "executed": bool(markers),
+                            "marker_count": len(markers),
+                            "passed": _markers_appear_in_order(extracted, markers, ignored_text) if markers else None,
+                        },
+                        "layout_engine_completed": {
+                            "executed": reportlab_rendition or artifact_overlay,
+                            "method": (
+                                "source page count and media boxes preserved by artifact overlay"
+                                if artifact_overlay
+                                else "ReportLab Platypus completed without LayoutError"
+                            ),
+                            "passed": overlay_layout_passed if artifact_overlay else True,
+                        },
+                        "renderer_palette_contrast": {
+                            "executed": reportlab_rendition or artifact_overlay,
+                            "scope": "added provenance mark" if artifact_overlay else "library-rendered palette",
+                            "minimum_ratio": round(min(palette_ratios), 3),
+                            "threshold_ratio": 4.5,
+                            "passed": min(palette_ratios) >= 4.5,
+                        },
+                    },
                 }
             )
         checks.append(record)
-    failures = [
-        item["path"]
-        for item in checks
-        if not item["nonempty"]
-        or ("letter_portrait" in item and not item["letter_portrait"])
-    ]
+    failures = []
+    for item in checks:
+        if not item["nonempty"] or ("letter_portrait" in item and not item["letter_portrait"]):
+            failures.append(item["path"])
+            continue
+        pdf_checks = item.get("pdf_checks")
+        if pdf_checks is None:
+            continue
+        mandatory = (
+            pdf_checks["parseable_page_tree"],
+            pdf_checks["extractable_text"],
+            pdf_checks["minimum_font_size"]["passed"],
+        )
+        reading_order = pdf_checks["authored_reading_order"]
+        authored_size = pdf_checks["authored_content_font_size"]
+        if (
+            not all(mandatory)
+            or reading_order["executed"] and not reading_order["passed"]
+            or authored_size["executed"] and not authored_size["passed"]
+        ):
+            failures.append(item["path"])
     return {
-        "schema_version": "0.5",
+        "schema_version": "0.7",
         "ok": not failures,
         "failures": failures,
+        "executed_checks": {
+            "file_integrity": "non-empty bytes and stable content hash for every shipped file",
+            "pdf_geometry": "parseable, non-empty US-Letter portrait page tree for every printable PDF",
+            "text_usability": "extractable text, OCR-layer size, and separate authored-content font size for every printable PDF",
+            "authored_reading_order": "source-line or source-OCR markers remain in order in every printable rendition",
+            "layout_completion": "authored layouts complete and imported overlays preserve source page geometry",
+            "renderer_palette_contrast": "WCAG contrast calculation for library-rendered palettes and imported-artifact provenance marks",
+        },
+        "unexecuted_checks": {
+            "physical_printer_test": "requires a specific printer, paper, scale, and human inspection; no print-run receipt exists",
+            "imported_artifact_palette_contrast": "owned by the Artifact Forge attestation; this exporter only measures its added provenance mark",
+        },
         "files": checks,
     }
 
@@ -606,6 +911,7 @@ def export_physical(
     game = parse_game_definition(release.file("trusted/game.json").data)
     material_files = _material_by_resource(release)
     rendition_files: dict[str, PhysicalFile] = {}
+    rendition_expectations: dict[str, dict[str, Any]] = {}
     output_files: list[PhysicalFile] = [
         PhysicalFile("source/game-release.zip", "application/zip", release.bundle_bytes, "trusted-producer")
     ]
@@ -629,6 +935,19 @@ def export_physical(
             audience="as-planned",
         )
         rendition_files[resource.id] = physical_file
+        source_reader = PdfReader(BytesIO(material.data)) if resource.media_type == "application/pdf" else None
+        rendition_expectations[physical_file.path] = {
+            "renderer": "artifact-overlay" if resource.media_type == "application/pdf" else "reportlab-platypus",
+            "reading_markers": _pdf_reading_markers(material.data) if resource.media_type == "application/pdf" else _reading_markers(material.data, resource.media_type),
+            "ignored_text": (profile.provenance_label,),
+            "source_page_boxes": (
+                [
+                    [float(page.mediabox.width), float(page.mediabox.height)]
+                    for page in source_reader.pages
+                ]
+                if source_reader is not None else None
+            ),
+        }
         output_files.append(physical_file)
 
     plan = _build_plan(release, profile, rendition_files)
@@ -640,6 +959,16 @@ def export_physical(
         profile=profile,
     )
     labels_pdf = _render_labels_pdf(plan, profile)
+    rendition_expectations["guides/assembly-guide.pdf"] = {
+        "renderer": "reportlab-platypus",
+        "reading_markers": _reading_markers(guide_md, "text/markdown"),
+        "ignored_text": (profile.provenance_label,),
+    }
+    rendition_expectations["print/container-labels.pdf"] = {
+        "renderer": "reportlab-platypus",
+        "reading_markers": _label_reading_markers(plan),
+        "ignored_text": (profile.provenance_label,),
+    }
     output_files.extend(
         [
             PhysicalFile("guides/assembly-guide.md", "text/markdown", guide_md, "trusted-producer"),
@@ -659,7 +988,7 @@ def export_physical(
             ),
         ]
     )
-    preflight = _preflight(output_files)
+    preflight = _preflight(output_files, rendition_expectations)
     if not preflight["ok"]:
         raise ValueError(f"Physical preflight failed: {preflight['failures']}")
     preflight_file = PhysicalFile(

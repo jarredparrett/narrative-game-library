@@ -10,3 +10,6 @@ htmlcov/
 .narrative-game/
 workspaces/
 artifacts/
+.agents/
+skills-lock.json
+tmp/

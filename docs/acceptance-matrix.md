@@ -111,15 +111,42 @@ rendered package, deterministic release evidence, and honest realism standing.
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
 |---|---|---|---|---|---|---|
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.closed-bundle` | `climb.model` + `climb.validation` | closed climb bundle | `test_valid_native_climb_bundle_has_no_findings` | immutable typed Tasks, receipts, Findings, Requirements, Evaluations, Reviews, Transitions, and Standing | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.human-transition` | `climb.ledger` + `workspace` | rejected and approved Ashwood Proposals | `test_proposal_is_inert_until_exact_human_approval_advances_workspace` | agent approval and rejected review are inert; exact human approval advances once | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.blind-inputs` | `climb.validation` | blind judge receipt/exposure defects | `test_blind_evaluation_requires_exact_judge_receipts_and_exposure_ledger` | exact judge receipts and task-scoped Exposure Ledger | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.role-blindness` | `climb.validation` | excluded builder as judge | `test_builder_or_fixer_cannot_judge_its_candidate` | explicit self-judging blocker | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.harvest-honesty` | `climb.validation` | scored harvest | `test_harvest_cannot_claim_a_score_or_standing` | harvest cannot move a rung | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.portable-replay` | `climb.ledger` + `workspace` | relocated Stage 6 archive | `test_climb_reopens_archives_and_preserves_exact_model_outputs` | verified hash chains, raw/parsed model outputs, and path-independent archive | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.vertical-loop` | `stage6_fixture` | The Ashwood Ledger | `test_ashwood_climb_moves_only_after_review_and_improves_frozen_score` | 66.9 baseline to 82.8 child under one Instrument; no hard-gate regression | pending human Stage Review |
-| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.offline-replay` | repository | two isolated CLI processes | `test_stage6_build_path_is_offline_and_cross_process_deterministic` | byte-identical portable archives and summaries with network blocked | pending human Stage Review |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.closed-bundle` | `climb.model` + `climb.validation` | closed climb bundle | `test_valid_native_climb_bundle_has_no_findings` | immutable typed Tasks, receipts, Findings, Requirements, Evaluations, Reviews, Transitions, and Standing | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.human-transition` | `climb.ledger` + `workspace` | rejected and approved Ashwood Proposals | `test_proposal_is_inert_until_exact_human_approval_advances_workspace` | agent approval and rejected review are inert; exact human approval advances once | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.blind-inputs` | `climb.validation` | blind judge receipt/exposure defects | `test_blind_evaluation_requires_exact_judge_receipts_and_exposure_ledger` | exact judge receipts and task-scoped Exposure Ledger | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.role-blindness` | `climb.validation` | excluded builder as judge | `test_builder_or_fixer_cannot_judge_its_candidate` | explicit self-judging blocker | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.harvest-honesty` | `climb.validation` | scored harvest | `test_harvest_cannot_claim_a_score_or_standing` | harvest cannot move a rung | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.portable-replay` | `climb.ledger` + `workspace` | relocated Stage 6 archive | `test_climb_reopens_archives_and_preserves_exact_model_outputs` | verified hash chains, raw/parsed model outputs, and path-independent archive | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.vertical-loop` | `stage6_fixture` | The Ashwood Ledger | `test_ashwood_climb_moves_only_after_review_and_improves_frozen_score` | persisted fixture control plane from 66.9 baseline to 82.8 child; no hard-gate regression | accepted 2026-08-05 |
+| [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.offline-replay` | repository | two isolated CLI processes | `test_stage6_build_path_is_offline_and_cross_process_deterministic` | byte-identical portable archives and summaries with network blocked | accepted 2026-08-05 |
 
-Human Stage Review: pending review of the public CI run and Stage 6 lineage.
-The offline judge fixture demonstrates control-plane correctness and score
-movement only; it does not claim fresh human-play or public realism standing.
+Human Stage Review: accepted by the repository owner through merge of PR #3
+after the public Python 3.11/3.13 CI run passed. The offline judge fixture
+demonstrates control-plane correctness and illustrative score movement only;
+it does not claim measured quality improvement, fresh human play, or public
+realism standing.
+
+## Stage 7 - real measured-climb proof
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.model-driver` | `climb.execution` + `climb.drivers` | replaceable model occupants | `test_replaceable_driver_persists_an_exact_replay_envelope` | provider, resolved model, inputs, raw/parsed output, tools, and seed survive replay | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.complete-trial` | `climb.trial` | complete Ashwood Release and Physical Export | `test_blind_trial_contains_complete_seat_experience_without_trusted_truth` | complete authorized player tree with exact printable assets | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.blindness` | `climb.trial` + `climb.validation` | anonymous baseline and child trials | `test_trial_conceals_source_identity_answers_and_provenance` | no trusted truth, answers, lineage labels, or prior scores | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.real-measurement` | `stage7_experiment` | fresh three-member model panel | `test_measurement_records_driver_scores_and_quoted_spans_without_selecting` | Evaluation `evaluation:8cdffcda972cf1ee8671e68cfbd7c2338d36ddb7a0772ea4a836bdf9b28087cf`; Instrument 1.1; score 72.4; failed | accepted as process evidence 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.human-gate` | `climb.ledger` + `workspace` | approved S6 Proposal | `test_builder_receives_answer_safe_requirements_and_stops_at_proposal` | exact human Review precedes canonical child Transition | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.full-child` | compiler + `physical` + `climb.trial` | S6 child | `test_complete_child_package_changes_trial_without_revealing_lineage` | verified Candidate, Release, Physical Export, Blind Trial, and Trial Binding | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.selection` | `climb.selection` | baseline/child Evaluations | `test_hard_gate_regression_retains_baseline_despite_higher_score` | Decision `selection:56a7d8b872806e9184f627a1a99b533d0aceff84170e4d2ed99ab78a1ad8ace6`; frozen rule retained baseline because child failed qualification | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.portability` | Workspace + `climb.ledger` | relocated Stage 7 archive | `test_prepared_archive_relocates_complete_release_physical_and_trial_bytes` | exact releases, exports, trials, receipts, evaluations, and selection remain verifiable | accepted 2026-08-05 |
+| [Stage 7 implementation](https://github.com/jarredparrett/narrative-game-library/issues/4) | `stage7.honest-standing` | `climb.selection` | failed fresh child panel | `test_capability_fixture_scores_cannot_select_a_child` | no standing issued and no quality acceptance claimed | accepted 2026-08-05 |
+
+Human Stage Review: the repository owner accepted Stage 7 as a bounded process
+prototype after the live panel completed. The measured child did not qualify:
+`72.4` overall, with all hard gates green, and the frozen selection rule
+retained the baseline. This closes the orchestration proof while preserving
+the failed result and its quoted findings as design input. It does not accept
+Ashwood's game quality or confer human-play standing.
+
+Deferred general rules for Stage 8 and later validation: phase-accurate
+availability, nonduplicative progressive disclosure, distinct character voice,
+artifact-specific measurement applicability, and objective host checkpoints.

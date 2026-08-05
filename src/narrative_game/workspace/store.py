@@ -32,6 +32,7 @@ _OBJECT_REF_KEYS = frozenset(
         "operation_receipt",
         "parents",
         "parsed_output",
+        "prompt",
         "proposal",
         "proposed_data",
         "human_review",
@@ -41,6 +42,13 @@ _OBJECT_REF_KEYS = frozenset(
         "resources",
         "standing",
         "task",
+        "trial_binding",
+        "blind_trial",
+        "physical_archive",
+        "release_bundle",
+        "selection",
+        "context",
+        "tool_contract",
         "transition",
     }
 )

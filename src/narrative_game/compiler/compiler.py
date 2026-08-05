@@ -24,7 +24,7 @@ from .model import (
 from .projections import export_projection, host_projection, seat_projection, simulation_projection
 
 
-COMPILER_VERSION = "0.3.0"
+COMPILER_VERSION = "0.4.0"
 CANONICALIZATION_VERSION = "canonical-json-sha256-v1"
 
 
@@ -40,7 +40,11 @@ def reference_component_lock() -> dict[str, Any]:
         "components": [
             _component("canonicalization", "1.0.0", [CANONICALIZATION_VERSION]),
             _component("kernel", "0.3.0", ["resources", "access", "extensions"]),
-            _component("narrative", "0.3.0", ["fixed-truth", "authorized-projections"]),
+            _component(
+                "narrative",
+                "0.4.0",
+                ["fixed-truth", "authorized-projections", "phase-evidence-framing"],
+            ),
             _component(
                 "facilitated-investigation",
                 "0.1.0",

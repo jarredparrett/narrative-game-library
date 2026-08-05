@@ -11,13 +11,13 @@ experiment lineage. Polished maker and player interfaces come later.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-6 now form one
+Version `0.x` is an experimental contract epoch. Stages 0-7 now form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
-agentic hill-climb ledger. Public schema compatibility is not promised yet,
-but hashes, receipts, dependency direction, human authorization, and
-reproducible outputs are never optional.
+agentic hill-climb ledger exercised by a real blind model panel. Public schema
+compatibility is not promised yet, but hashes, receipts, dependency direction,
+human authorization, and reproducible outputs are never optional.
 
 ## Repository boundary
 
@@ -132,6 +132,26 @@ blind remeasurement over `The Ashwood Ledger`. The output includes a portable
 report. The fixture proves the loop and a 66.9 -> 82.8 score movement without
 hard-gate regression; it deliberately retains `development_only` standing
 because recorded offline judge fixtures are not fresh human playtests.
+
+### Real measured-climb proof
+
+Stage 7 replaces the illustrative scores with live, replaceable model drivers
+and complete anonymous trial packages. Preparation is deliberately separate
+from execution so a human can choose the panel and approve any proposed child:
+
+```bash
+uv run narrative-game-climb-prepare /path/to/user-data/ashwood-stage7
+uv run narrative-game-climb-measure /path/to/user-data/ashwood-stage7 \
+  --provider YOUR_PROVIDER --model YOUR_MODEL -- YOUR_JSON_MODEL_COMMAND
+```
+
+The first persisted experiment ran a three-member fresh blind panel under
+Instrument 1.1. Its final child scored `72.4`, failed the frozen `75` threshold,
+and was not selected. All package hard gates passed. The ledger therefore
+retained the baseline and claimed no quality or human-play standing. That is a
+successful proof of the process—not an assertion that the worked game is
+finished. Stage 8 generalizes the experiment API before more fixture-specific
+quality work.
 
 ## State ownership
 

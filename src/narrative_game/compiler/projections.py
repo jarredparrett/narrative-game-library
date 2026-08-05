@@ -15,8 +15,28 @@ def seat_projection(game: GameDefinition, seat_id: str) -> dict[str, Any]:
     evidence = {item.id: item for item in game.evidence}
     opening = min(game.phases, key=lambda item: item.order)
     visible_evidence = available_evidence(game, seat_id=seat_id, phase_id=opening.id)
+    evidence_by_phase = []
+    previous: set[str] = set()
+    for phase in sorted(game.phases, key=lambda item: item.order):
+        available = set(available_evidence(game, seat_id=seat_id, phase_id=phase.id))
+        newly_available = sorted(available - previous)
+        evidence_by_phase.append(
+            {
+                "phase_id": phase.id,
+                "phase_label": phase.label,
+                "evidence": [
+                    {
+                        "id": item,
+                        "summary": evidence[item].summary,
+                        "resource_id": evidence[item].resource_id,
+                    }
+                    for item in newly_available
+                ],
+            }
+        )
+        previous = available
     return {
-        "schema_version": "0.3",
+        "schema_version": "0.4",
         "seat": {"id": seat.id, "label": seat.label},
         "character": {
             "id": character.id,
@@ -48,6 +68,7 @@ def seat_projection(game: GameDefinition, seat_id: str) -> dict[str, Any]:
             }
             for item in visible_evidence
         ],
+        "evidence_by_phase": evidence_by_phase,
         "resolution_prompt": game.resolution.prompt,
         "allowed_actions": ["share-claim", "request-evidence", "submit-resolution"],
     }
