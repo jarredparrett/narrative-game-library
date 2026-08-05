@@ -527,6 +527,10 @@ def run(
         "workspace_verified": workspace.verify()["ok"],
         "workspace_lineage_head": workspace.manifest["journal_heads"]["lineage"],
         "upstream_verismill_commit": UPSTREAM_COMMIT,
+        "determinism_scope": (
+            "byte-identical for the same persisted Candidate and resolved toolchain; "
+            "forged artifact bytes are persisted for cross-environment replay"
+        ),
     }
     (output_root / "stage5-result.json").write_bytes(canonical_json(summary))
     return WorkedResult(

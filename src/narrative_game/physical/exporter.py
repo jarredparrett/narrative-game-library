@@ -11,7 +11,9 @@ import re
 from typing import Any, Iterable, Mapping
 import zipfile
 
+import pypdf
 from pypdf import PdfReader, PdfWriter
+import reportlab
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -673,6 +675,10 @@ def export_physical(
         "release_id": release.release_id,
         "release_bundle_hash": release.bundle_hash,
         "exporter": {"id": "narrative-game-library.physical", "version": PHYSICAL_EXPORTER_VERSION},
+        "toolchain": {
+            "pypdf": pypdf.__version__,
+            "reportlab": reportlab.Version,
+        },
         "profile": profile.to_mapping(),
         "plan_hash": digest_json(plan),
         "preflight_hash": digest_json(preflight),

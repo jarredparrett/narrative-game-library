@@ -71,9 +71,12 @@ contains:
   measurement, release, export, and replay lineage;
 - `stage5-result.json` - exact identities and verification results.
 
-Run the same command with another empty directory and the Candidate, Release,
-artifact, physical package, Session, and Workspace lineage hashes match. No
-network is used after the pinned dependencies are installed.
+Run the same command with another empty directory under the same resolved
+toolchain and the Candidate, Release, artifact, physical package, Session, and
+Workspace lineage hashes match. No network is used after the pinned
+dependencies are installed. Cross-environment replay uses the exact artifact
+bytes persisted in the Candidate and Release; regenerating an upstream PDF on
+a different operating system may produce a different Candidate.
 
 The printable deed is visibly marked as fictional game material. The exact,
 unmodified Verismill artifact and its Artifact Attestation remain inside the
