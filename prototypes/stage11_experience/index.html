@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stage 11 experience boundary prototype</title>
+  <!--
+    PROTOTYPE — three structurally different experience shells, switchable with
+    ?variant=A|B|C and ?surface=maker|host|player|print on one throwaway route.
+
+    Tokens: Carbon #17212B, Blueprint #174A7E, Signal #F3B43F,
+    Archive #D8D8F2, Porcelain #F6F7FB, Evidence #F16445.
+    Type: Baskerville for represented-world voice, Avenir Next for actions,
+    SFMono-Regular for identity and lineage.
+    Signature: one chain-of-custody rail shows when evidence enters play.
+  -->
+  <style>
+    :root {
+      --carbon: #17212b;
+      --blueprint: #174a7e;
+      --signal: #f3b43f;
+      --archive: #d8d8f2;
+      --porcelain: #f6f7fb;
+      --evidence: #f16445;
+      --ink-soft: #526171;
+      --line: #b9c3ce;
+      --display: Baskerville, "Iowan Old Style", Georgia, serif;
+      --body: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--carbon); background: var(--porcelain); font-family: var(--body); }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, a:focus-visible { outline: 3px solid var(--signal); outline-offset: 3px; }
+    .prototype-note { position: fixed; z-index: 30; top: 12px; right: 14px; padding: 6px 9px; background: var(--signal); color: var(--carbon); font: 700 10px/1 var(--mono); letter-spacing: .08em; }
+    .surface-switcher { position: fixed; z-index: 25; top: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; padding: 4px; background: rgba(23,33,43,.92); box-shadow: 0 8px 30px rgba(23,33,43,.2); }
+    .surface-switcher button { border: 0; padding: 8px 12px; color: #fff; background: transparent; font-size: 12px; }
+    .surface-switcher button[aria-current="page"] { color: var(--carbon); background: var(--archive); }
+    .variant-switcher { position: fixed; z-index: 40; left: 50%; bottom: 18px; transform: translateX(-50%); display: grid; grid-template-columns: 42px minmax(210px,auto) 42px; align-items: center; background: var(--carbon); color: white; border-radius: 999px; box-shadow: 0 12px 36px rgba(23,33,43,.35); overflow: hidden; }
+    .variant-switcher button { border: 0; background: transparent; color: white; height: 44px; font-size: 20px; }
+    .variant-switcher button:hover { background: var(--blueprint); }
+    .variant-label { padding: 0 20px; text-align: center; font: 650 12px/1 var(--mono); }
+    .eyebrow { color: var(--blueprint); font: 700 10px/1.2 var(--mono); letter-spacing: .13em; text-transform: uppercase; }
+    .hash { font: 10px/1.4 var(--mono); color: var(--ink-soft); overflow-wrap: anywhere; }
+    .display { font-family: var(--display); font-weight: 400; }
+    .tag { display: inline-block; padding: 4px 7px; border: 1px solid currentColor; font: 700 9px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+    .action { border: 0; padding: 10px 13px; background: var(--blueprint); color: white; font-weight: 650; }
+    .action.secondary { color: var(--blueprint); background: transparent; box-shadow: inset 0 0 0 1px var(--blueprint); }
+    .rail { display: grid; grid-template-columns: repeat(3, 1fr); position: relative; gap: 16px; margin: 26px 0; }
+    .rail::before { content: ""; position: absolute; top: 9px; left: 9px; right: 9px; height: 2px; background: var(--line); }
+    .rail-step { position: relative; padding-top: 26px; }
+    .rail-step::before { content: ""; position: absolute; z-index: 1; top: 3px; left: 3px; width: 13px; height: 13px; border: 3px solid var(--porcelain); border-radius: 50%; background: var(--line); box-shadow: 0 0 0 1px var(--line); }
+    .rail-step.active::before { background: var(--evidence); box-shadow: 0 0 0 1px var(--evidence); }
+    .rail-step strong { display: block; font-size: 12px; }
+    .rail-step span { color: var(--ink-soft); font-size: 11px; }
+    .metric { padding: 12px 0; border-top: 1px solid var(--line); }
+    .metric b { display: block; font: 400 25px/1 var(--display); }
+    .metric span { color: var(--ink-soft); font-size: 11px; }
+    .evidence-list { display: grid; gap: 8px; }
+    .evidence-item { padding: 12px; background: white; border-left: 3px solid var(--archive); }
+    .evidence-item.live { border-color: var(--evidence); }
+    .evidence-item strong { display: block; font: 400 18px/1.15 var(--display); }
+    .evidence-item span { color: var(--ink-soft); font-size: 11px; }
+
+    /* A — custody rail: persistent role docket + one task canvas */
+    .variant-a { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; background: var(--porcelain); }
+    .a-docket { padding: 92px 28px 80px; background: var(--blueprint); color: white; }
+    .a-docket .eyebrow, .a-docket .hash { color: var(--archive); }
+    .a-docket h1 { margin: 18px 0 8px; font: 400 35px/.96 var(--display); }
+    .a-docket nav { margin-top: 44px; display: grid; gap: 1px; }
+    .a-docket nav button { padding: 13px 0; border: 0; border-bottom: 1px solid rgba(255,255,255,.2); color: white; background: transparent; text-align: left; }
+    .a-docket nav button.active::after { content: "NOW"; float: right; color: var(--signal); font: 700 9px var(--mono); }
+    .a-main { padding: 96px clamp(32px,7vw,104px) 100px; max-width: 1220px; }
+    .a-main header { display: flex; justify-content: space-between; align-items: end; gap: 30px; border-bottom: 1px solid var(--line); padding-bottom: 22px; }
+    .a-main h2 { max-width: 650px; margin: 8px 0 0; font: 400 clamp(40px,5vw,68px)/.96 var(--display); }
+    .a-columns { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(230px,.7fr); gap: 46px; }
+    .a-panel { margin-top: 22px; }
+    .a-panel h3 { margin: 0 0 14px; font-size: 13px; }
+
+    /* B — control room: dense live triptych with event stream at center */
+    .variant-b { min-height: 100vh; padding: 90px 28px 90px; background: var(--carbon); color: #f8fafc; }
+    .b-header { max-width: 1440px; margin: 0 auto 18px; display: flex; align-items: end; justify-content: space-between; border-bottom: 1px solid #43505d; padding-bottom: 17px; }
+    .b-header h1 { margin: 5px 0 0; font: 400 34px/1 var(--display); }
+    .b-header .eyebrow, .b-header .hash { color: #9eb2c4; }
+    .b-grid { max-width: 1440px; margin: auto; display: grid; grid-template-columns: minmax(230px,.78fr) minmax(360px,1.5fr) minmax(260px,.9fr); min-height: 650px; border: 1px solid #43505d; }
+    .b-pane { padding: 24px; border-right: 1px solid #43505d; }
+    .b-pane:last-child { border-right: 0; }
+    .b-pane h2 { margin: 4px 0 22px; font: 400 25px/1.1 var(--display); }
+    .b-grid .rail { grid-template-columns: 1fr; margin-left: 3px; }
+    .b-grid .rail::before { top: 7px; bottom: 8px; left: 9px; right: auto; width: 2px; height: auto; }
+    .b-grid .rail-step { padding: 0 0 22px 32px; }
+    .b-grid .rail-step::before { top: 0; }
+    .b-event { position: relative; padding: 16px 16px 16px 48px; border-top: 1px solid #43505d; }
+    .b-event::before { content: attr(data-seq); position: absolute; left: 0; color: var(--signal); font: 700 11px var(--mono); }
+    .b-event strong { display: block; font-size: 13px; }
+    .b-event span { color: #9eb2c4; font-size: 11px; }
+    .b-grid .evidence-item { color: var(--carbon); }
+    .b-control { width: 100%; margin-top: 8px; text-align: left; background: transparent; color: #fff; border: 1px solid #667381; padding: 12px; }
+    .b-control:hover { border-color: var(--signal); color: var(--signal); }
+
+    /* C — artifact stack: represented-world sheets over a quiet worktable */
+    .variant-c { min-height: 100vh; padding: 102px 5vw 120px; background: #dce4e7; }
+    .c-header { max-width: 1200px; margin: auto; display: flex; justify-content: space-between; align-items: center; }
+    .c-header h1 { margin: 0; font: italic 400 34px/1 var(--display); }
+    .c-stack { max-width: 1120px; margin: 46px auto 0; display: grid; grid-template-columns: 1fr 1.35fr; align-items: start; gap: 0; }
+    .c-index { transform: rotate(-1.2deg) translate(22px,24px); z-index: 1; padding: 34px 58px 40px 34px; background: var(--archive); box-shadow: 0 18px 40px rgba(23,33,43,.13); min-height: 520px; }
+    .c-sheet { position: relative; z-index: 2; transform: rotate(.55deg); padding: 54px; background: #fff; box-shadow: 0 22px 48px rgba(23,33,43,.18); min-height: 610px; }
+    .c-sheet::before { content: "AUTHORIZED PROJECTION"; position: absolute; right: 26px; top: 28px; color: var(--evidence); border: 2px solid var(--evidence); padding: 6px 8px; transform: rotate(3deg); font: 800 10px var(--mono); }
+    .c-sheet h2 { margin: 22px 0 10px; max-width: 560px; font: 400 52px/.96 var(--display); }
+    .c-sheet blockquote { margin: 28px 0; padding: 18px 0 18px 24px; border-left: 3px solid var(--evidence); font: italic 22px/1.3 var(--display); }
+    .c-index .rail { grid-template-columns: 1fr; }
+    .c-index .rail::before { display: none; }
+    .c-index .rail-step { border-top: 1px solid rgba(23,33,43,.2); }
+    .c-index .rail-step::before { display: none; }
+    .c-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
+
+    @media (max-width: 800px) {
+      .prototype-note { display: none; }
+      .surface-switcher { top: 8px; width: calc(100% - 16px); justify-content: center; }
+      .variant-a { grid-template-columns: 1fr; }
+      .a-docket { padding: 80px 24px 24px; }
+      .a-docket nav { display: none; }
+      .a-main { padding: 32px 22px 100px; }
+      .a-main header { align-items: start; flex-direction: column; }
+      .a-columns, .b-grid, .c-stack { grid-template-columns: 1fr; }
+      .variant-b { padding: 78px 12px 90px; }
+      .b-pane { border-right: 0; border-bottom: 1px solid #43505d; }
+      .c-index, .c-sheet { transform: none; padding: 28px; min-height: 0; }
+      .c-sheet h2 { font-size: 40px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <div class="prototype-note">THROWAWAY PROTOTYPE</div>
+  <nav class="surface-switcher" aria-label="Experience surface"></nav>
+  <main id="app"></main>
+  <div class="variant-switcher" aria-label="Prototype variant switcher">
+    <button id="previous" aria-label="Previous variant">←</button>
+    <div class="variant-label" id="variant-label"></div>
+    <button id="next" aria-label="Next variant">→</button>
+  </div>
+  <script>
+    const variants = {
+      A: "Custody rail",
+      B: "Control room",
+      C: "Artifact stack"
+    };
+    const surfaces = ["maker", "host", "player", "print"];
+    const copy = {
+      maker: {
+        eyebrow: "Game maker / Draft ashwood-17",
+        title: "Shape the mystery without losing its proof.",
+        focus: "The closing interview resolves the contradiction too early.",
+        primary: "Propose a revision",
+        secondary: "Review lineage",
+        status: "One proposal awaits human review",
+        metrics: [["12", "authored materials"], ["2", "independent proof paths"], ["82.8", "latest blind score"]]
+      },
+      host: {
+        eyebrow: "Live session / The Vanished Ledger",
+        title: "Keep the room moving. Reveal only what is earned.",
+        focus: "Avery requested context for the payment note.",
+        primary: "Deliver planned hint",
+        secondary: "Advance phase",
+        status: "Opening · 18 minutes elapsed",
+        metrics: [["2", "players connected"], ["1", "open request"], ["04", "session revision"]]
+      },
+      player: {
+        eyebrow: "Character view / Avery Vale",
+        title: "You promised Harlan the ledger would stay buried.",
+        focus: "The payment note names a key that should not exist.",
+        primary: "Share a claim",
+        secondary: "Keep a private note",
+        status: "3 records available only to you",
+        metrics: [["3", "records in hand"], ["1", "private objective"], ["0", "claims shared"]]
+      },
+      print: {
+        eyebrow: "Physical package / Export 7F2A",
+        title: "Assemble the room from the same authorized Release.",
+        focus: "Envelope B remains sealed until the confrontation phase.",
+        primary: "Download package",
+        secondary: "Open assembly guide",
+        status: "12 pages · simplex · grayscale safe",
+        metrics: [["4", "sealed containers"], ["12", "preflighted pages"], ["0", "untraced claims"]]
+      }
+    };
+    const events = {
+      maker: [["01", "Blueprint validated", "Truth, access, arcs, and proof paths agree"], ["02", "Blind tell harvested", "Progressive disclosure requirement created"], ["03", "Proposal prepared", "Waiting for human direction"]],
+      host: [["01", "Session opened", "Private opening records delivered"], ["02", "Hint requested", "Avery asks about the payment notation"], ["03", "Claim held", "No shared theory yet"]],
+      player: [["01", "Your dossier opened", "Only Avery can read this brief"], ["02", "Payment note disclosed", "Available in the opening phase"], ["03", "Camera log sealed", "Not yet available"]],
+      print: [["01", "Release verified", "All material hashes match"], ["02", "Claims re-executed", "Every displayed statement has lineage"], ["03", "Print preflight passed", "Letter, simplex, grayscale safe"]]
+    };
+    const evidence = [
+      ["Payment note", "Opening · private to Avery", true],
+      ["Key register", "Opening · private to Blake", true],
+      ["Camera log", "Confrontation · shared", false],
+      ["Closing interview", "Resolution · host-held", false]
+    ];
+
+    function params() {
+      const value = new URLSearchParams(location.search);
+      return {
+        variant: variants[value.get("variant")] ? value.get("variant") : "A",
+        surface: surfaces.includes(value.get("surface")) ? value.get("surface") : "maker"
+      };
+    }
+    function setParam(key, value) {
+      const next = new URLSearchParams(location.search);
+      next.set(key, value);
+      history.replaceState(null, "", `?${next.toString()}`);
+      render();
+    }
+    function rail() {
+      return `<div class="rail">
+        <div class="rail-step active"><strong>Opening</strong><span>Private records</span></div>
+        <div class="rail-step"><strong>Confrontation</strong><span>Shared evidence</span></div>
+        <div class="rail-step"><strong>Resolution</strong><span>Prove the theory</span></div>
+      </div>`;
+    }
+    function evidenceList() {
+      return `<div class="evidence-list">${evidence.map(item => `<div class="evidence-item ${item[2] ? "live" : ""}"><strong>${item[0]}</strong><span>${item[1]}</span></div>`).join("")}</div>`;
+    }
+    function metrics(surface) {
+      return copy[surface].metrics.map(item => `<div class="metric"><b>${item[0]}</b><span>${item[1]}</span></div>`).join("");
+    }
+    function eventList(surface) {
+      return events[surface].map(item => `<div class="b-event" data-seq="${item[0]}"><strong>${item[1]}</strong><span>${item[2]}</span></div>`).join("");
+    }
+    function variantA(surface) {
+      const c = copy[surface];
+      return `<section class="variant-a">
+        <aside class="a-docket">
+          <div class="eyebrow">Release-bound experience</div>
+          <h1>The Vanished<br>Ledger</h1>
+          <p class="hash">release:0197bd81…f4c1<br>session:ashwood-live-01</p>
+          <nav>${["Direction", "World & cast", "Evidence", "Arc", "Measurement"].map((item,i) => `<button class="${i === 2 ? "active" : ""}">${item}</button>`).join("")}</nav>
+        </aside>
+        <div class="a-main">
+          <header><div><div class="eyebrow">${c.eyebrow}</div><h2>${c.title}</h2></div><span class="tag">${c.status}</span></header>
+          ${rail()}
+          <div class="a-columns">
+            <section class="a-panel"><h3>Evidence custody</h3>${evidenceList()}</section>
+            <aside class="a-panel"><h3>Current signal</h3><p class="display" style="font-size:25px;line-height:1.25">“${c.focus}”</p><button class="action">${c.primary}</button> <button class="action secondary">${c.secondary}</button><div style="margin-top:28px">${metrics(surface)}</div></aside>
+          </div>
+        </div>
+      </section>`;
+    }
+    function variantB(surface) {
+      const c = copy[surface];
+      return `<section class="variant-b">
+        <header class="b-header"><div><div class="eyebrow">${c.eyebrow}</div><h1>${c.title}</h1></div><div class="hash">RELEASE 0197BD81…F4C1 · REV 04</div></header>
+        <div class="b-grid">
+          <aside class="b-pane"><div class="eyebrow">Custody sequence</div>${rail()}<div>${metrics(surface)}</div></aside>
+          <section class="b-pane"><div class="eyebrow">Live event record</div><h2>${c.status}</h2>${eventList(surface)}<blockquote class="display" style="font-size:24px;margin:30px 0">“${c.focus}”</blockquote></section>
+          <aside class="b-pane"><div class="eyebrow">Authorized materials</div><h2>In play now</h2>${evidenceList()}<button class="b-control">${c.primary}</button><button class="b-control">${c.secondary}</button></aside>
+        </div>
+      </section>`;
+    }
+    function variantC(surface) {
+      const c = copy[surface];
+      return `<section class="variant-c">
+        <header class="c-header"><h1>The Vanished Ledger</h1><span class="hash">${c.eyebrow}</span></header>
+        <div class="c-stack">
+          <aside class="c-index"><div class="eyebrow">Chain of custody</div>${rail()}<h3 style="margin-top:34px">Package record</h3>${metrics(surface)}<p class="hash">release:0197bd81…f4c1<br>session:ashwood-live-01<br>projection:${surface}</p></aside>
+          <article class="c-sheet"><div class="eyebrow">${c.status}</div><h2>${c.title}</h2><blockquote>${c.focus}</blockquote>${evidenceList()}<div class="c-actions"><button class="action">${c.primary}</button><button class="action secondary">${c.secondary}</button></div></article>
+        </div>
+      </section>`;
+    }
+    function render() {
+      const {variant, surface} = params();
+      document.querySelector(".surface-switcher").innerHTML = surfaces.map(item => `<button data-surface="${item}" aria-current="${item === surface ? "page" : "false"}">${item[0].toUpperCase() + item.slice(1)}</button>`).join("");
+      document.querySelectorAll("[data-surface]").forEach(button => button.onclick = () => setParam("surface", button.dataset.surface));
+      document.getElementById("variant-label").textContent = `${variant} — ${variants[variant]}`;
+      document.getElementById("app").innerHTML = ({A: variantA, B: variantB, C: variantC})[variant](surface);
+    }
+    function cycle(delta) {
+      const keys = Object.keys(variants);
+      const current = keys.indexOf(params().variant);
+      setParam("variant", keys[(current + delta + keys.length) % keys.length]);
+    }
+    document.getElementById("previous").onclick = () => cycle(-1);
+    document.getElementById("next").onclick = () => cycle(1);
+    addEventListener("keydown", event => {
+      if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable) return;
+      if (event.key === "ArrowLeft") cycle(-1);
+      if (event.key === "ArrowRight") cycle(1);
+    });
+    addEventListener("popstate", render);
+    render();
+  </script>
+</body>
+</html>
