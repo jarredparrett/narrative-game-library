@@ -17,6 +17,7 @@ from narrative_game.climb import (
     ClimbLedger,
     Dimension,
     Evaluation,
+    ExperimentPlan,
     Exposure,
     Finding,
     FrozenInstrument,
@@ -38,6 +39,11 @@ from narrative_game.climb.drivers import JsonCommandDriver
 from narrative_game.climb.selection import decide_selection, evaluation_passes
 from narrative_game.compiler import GameRelease, compile_candidate, reference_component_lock
 from narrative_game.contracts import canonical_json, digest_json
+from narrative_game.experiment import (
+    CompletePackage,
+    Experiment,
+    ModelPanelMember,
+)
 from narrative_game.physical import PhysicalExport, export_physical
 from narrative_game.stage5_fixture import DEFAULT_SOURCE, WorkedBuild, build_worked_candidate
 from narrative_game.workspace import Workspace
@@ -103,6 +109,37 @@ class PanelMeasurement:
     evaluation: Evaluation
     individual_scores: Mapping[str, Mapping[str, int]]
     summary: Mapping[str, Any]
+
+
+def _stage7_experiment(root: str | Path) -> Experiment:
+    """Attach the worked Stage 7 profile to the reusable Stage 8 Experiment API."""
+    root = Path(root)
+    workspace = Workspace.open(root / "workspace")
+    ledger = ClimbLedger(workspace)
+    plans = ledger.snapshot()["experiment_plans"]
+    if not plans:
+        instrument = complete_experience_panel_instrument()
+        if not any(
+            item.instrument_id == instrument.instrument_id
+            for item in ledger.snapshot()["instruments"]
+        ):
+            ledger.register(
+                instrument,
+                actor="human:operator",
+                idempotency_key="instrument-complete-experience-panel-v1-1",
+            )
+        ledger.register(
+            ExperimentPlan(
+                "ashwood-ledger-stage7",
+                "worked.facilitated-investigation",
+                "1.0.0",
+                instrument.instrument_id,
+                "main",
+            ),
+            actor="human:operator",
+            idempotency_key="experiment-plan-ashwood-ledger-stage7",
+        )
+    return Experiment(workspace)
 
 
 def complete_experience_instrument() -> FrozenInstrument:
@@ -300,6 +337,7 @@ def prepare_baseline(
         actor="system:exposure-recorder",
         idempotency_key="exposure-baseline-trial",
     )
+    _stage7_experiment(root)
     if not ledger.verify()["ok"] or not workspace.verify()["ok"]:
         raise ValueError({"climb": ledger.verify(), "workspace": workspace.verify()})
 
@@ -893,28 +931,12 @@ def review_stage7_proposal(
     reason: str,
 ) -> HumanReview:
     """Persist the repository owner's first-order decision on one Proposal."""
-    if decision not in {"approved", "rejected"} or not reason.strip():
-        raise ValueError("review requires an approved/rejected decision and reason")
-    root = Path(root)
-    ledger = ClimbLedger(Workspace.open(root / "workspace"))
-    proposal_record = ledger.get("proposal", proposal_id)
-    proposal = proposal_record.value
-    assert isinstance(proposal, Proposal)
-    review = HumanReview(
-        proposal.proposal_id,
-        "stage7-human-reviewer",
-        decision,
-        reason,
-        proposal.requirement_ids if decision == "approved" else (),
+    return _stage7_experiment(root).review_proposal(
+        proposal_id=proposal_id,
+        reviewer_authority_id="stage7-human-reviewer",
+        decision=decision,
+        reason=reason,
     )
-    ledger.register(
-        review,
-        actor="human:repository-owner",
-        idempotency_key=f"stage7-review-{proposal.proposal_id}",
-    )
-    if not ledger.verify()["ok"]:
-        raise ValueError(ledger.verify())
-    return review
 
 
 def prepare_stage7_proposal(
@@ -1539,17 +1561,13 @@ def bind_approved_stage7_child(
         physical,
         cover_story=instrument.blind_protocol["cover_story"],
     )
-    release_ref = workspace.store.put_bytes(release.bundle_bytes)
-    physical_ref = workspace.store.put_bytes(physical.archive_bytes)
-    trial_ref = workspace.store.put_bytes(trial.archive_bytes)
-    binding = TrialBinding(
+    package = CompletePackage(
         build.candidate.candidate_id,
         release.release_id,
-        release_ref,
+        release.bundle_bytes,
         physical.export_id,
-        physical_ref,
-        trial.trial_id,
-        trial_ref,
+        physical.archive_bytes,
+        trial,
         {
             "compiler.release": True,
             "physical.preflight": bool(physical.preflight["ok"]),
@@ -1559,9 +1577,9 @@ def bind_approved_stage7_child(
             ),
         },
     )
-    ledger.register(
-        binding,
-        actor="system:stage7-compiler",
+    binding = _stage7_experiment(root).bind_package(
+        package,
+        actor="system:stage7-worked-profile",
         idempotency_key=f"trial-binding-approved-child-{transition.transition_id}",
     )
     output = root / "output"
@@ -1589,6 +1607,70 @@ def bind_approved_stage7_child(
 
 
 def measure_stage7_blind_panel(
+    root: str | Path,
+    *,
+    binding_id: str,
+    task_key: str,
+    members: tuple[PanelMember, ...],
+) -> PanelMeasurement:
+    """Measure the worked example through the reusable Experiment API."""
+    root = Path(root)
+    experiment = _stage7_experiment(root)
+    measured = experiment.measure_model_panel(
+        binding_id=binding_id,
+        task_key=task_key,
+        members=tuple(
+            ModelPanelMember(
+                item.authority_id,
+                item.principal,
+                item.requested_model,
+                item.assigned_lens,
+                item.driver,
+            )
+            for item in members
+        ),
+        seed=1997,
+    )
+    evaluation = measured.evaluation
+    summary = {
+        "schema_version": "0.8",
+        "status": "blind-panel-complete",
+        "task_id": evaluation.task_id,
+        "candidate_id": evaluation.candidate_id,
+        "instrument_id": evaluation.instrument_id,
+        "evaluation_id": evaluation.evaluation_id,
+        "panel_size": len(evaluation.judge_authority_ids),
+        "aggregation": experiment.instrument.blind_protocol["panel_aggregation"],
+        "individual_scores": measured.individual_scores,
+        "scores": dict(evaluation.scores),
+        "overall_score": evaluation.overall_score(experiment.instrument),
+        "outcome": evaluation.outcome,
+        "finding_ids": list(evaluation.finding_ids),
+        "standing": None,
+    }
+    output = root / "output"
+    output.mkdir(parents=True, exist_ok=True)
+    safe_task_key = "".join(
+        character if character.isalnum() or character == "-" else "-"
+        for character in task_key
+    )
+    (output / f"stage7-panel-{safe_task_key}.json").write_bytes(
+        canonical_json(summary)
+    )
+    experiment.export_archive(output / f"ashwood-stage7-panel-{safe_task_key}.ngw")
+    verification = experiment.verify()
+    if not verification["ok"]:
+        raise ValueError(verification)
+    return PanelMeasurement(
+        experiment.workspace,
+        experiment.ledger,
+        evaluation,
+        measured.individual_scores,
+        summary,
+    )
+
+
+def _measure_stage7_blind_panel_legacy(
     root: str | Path,
     *,
     binding_id: str,
@@ -1855,27 +1937,21 @@ def select_stage7_child(
 ) -> SelectionDecision:
     """Persist the evidence-only Selection Decision under the panel Instrument."""
     root = Path(root)
-    workspace = Workspace.open(root / "workspace")
-    ledger = ClimbLedger(workspace)
-    baseline = ledger.get("evaluation", baseline_evaluation_id).value
-    child = ledger.get("evaluation", child_evaluation_id).value
-    instrument = ledger.get("instrument", baseline.instrument_id).value
-    receipt_ids = (*baseline.model_receipt_ids, *child.model_receipt_ids)
-    receipts = tuple(ledger.get("model_receipt", item).value for item in receipt_ids)
-    decision = decide_selection(instrument, baseline, child, receipts)
-    ledger.register(
-        decision,
-        actor="system:frozen-selection-rule",
-        idempotency_key=f"stage7-selection-{baseline.evaluation_id}-{child.evaluation_id}",
+    experiment = _stage7_experiment(root)
+    baseline = experiment.ledger.get("evaluation", baseline_evaluation_id).value
+    child = experiment.ledger.get("evaluation", child_evaluation_id).value
+    decision = experiment.select(
+        baseline_evaluation_id=baseline_evaluation_id,
+        child_evaluation_id=child_evaluation_id,
     )
     summary = {
         "schema_version": "0.7",
         "status": "stage7-selection-complete",
-        "instrument_id": instrument.instrument_id,
+        "instrument_id": experiment.instrument.instrument_id,
         "baseline_evaluation_id": baseline.evaluation_id,
-        "baseline_score": baseline.overall_score(instrument),
+        "baseline_score": baseline.overall_score(experiment.instrument),
         "child_evaluation_id": child.evaluation_id,
-        "child_score": child.overall_score(instrument),
+        "child_score": child.overall_score(experiment.instrument),
         "child_outcome": child.outcome,
         "selection_id": decision.decision_id,
         "selection_outcome": decision.outcome,
@@ -1885,9 +1961,10 @@ def select_stage7_child(
     }
     output = root / "output"
     (output / "stage7-selection.json").write_bytes(canonical_json(summary))
-    workspace.export_archive(output / "ashwood-stage7-selected.ngw")
-    if not ledger.verify()["ok"] or not workspace.verify()["ok"]:
-        raise ValueError({"climb": ledger.verify(), "workspace": workspace.verify()})
+    experiment.export_archive(output / "ashwood-stage7-selected.ngw")
+    verification = experiment.verify()
+    if not verification["ok"]:
+        raise ValueError(verification)
     return decision
 
 

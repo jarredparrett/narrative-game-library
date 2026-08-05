@@ -10,9 +10,11 @@ from typing import Iterable
 from .model import (
     Authority,
     Evaluation,
+    ExperimentPlan,
     Exposure,
     Finding,
     FrozenInstrument,
+    HumanReceipt,
     HumanReview,
     ModelReceipt,
     Proposal,
@@ -63,10 +65,12 @@ def _duplicates(kind: str, values: Iterable[str]) -> list[ClimbFinding]:
 
 def validate_climb_bundle(
     *,
+    experiment_plans: Iterable[ExperimentPlan] = (),
     authorities: Iterable[Authority] = (),
     instruments: Iterable[FrozenInstrument] = (),
     tasks: Iterable[Task] = (),
     model_receipts: Iterable[ModelReceipt] = (),
+    human_receipts: Iterable[HumanReceipt] = (),
     exposures: Iterable[Exposure] = (),
     findings: Iterable[Finding] = (),
     requirements: Iterable[Requirement] = (),
@@ -79,10 +83,12 @@ def validate_climb_bundle(
     selections: Iterable[SelectionDecision] = (),
 ) -> tuple[ClimbFinding, ...]:
     """Validate one closed bundle without fetching, repairing, or mutating it."""
+    experiment_plans = tuple(experiment_plans)
     authorities = tuple(authorities)
     instruments = tuple(instruments)
     tasks = tuple(tasks)
     model_receipts = tuple(model_receipts)
+    human_receipts = tuple(human_receipts)
     exposures = tuple(exposures)
     findings = tuple(findings)
     requirements = tuple(requirements)
@@ -96,10 +102,12 @@ def validate_climb_bundle(
     result: list[ClimbFinding] = []
 
     ids = {
+        "experiment-plan": [item.plan_id for item in experiment_plans],
         "authority": [item.authority_id for item in authorities],
         "instrument": [item.instrument_id for item in instruments],
         "task": [item.task_id for item in tasks],
         "model-receipt": [item.receipt_id for item in model_receipts],
+        "human-receipt": [item.receipt_id for item in human_receipts],
         "exposure": [item.exposure_id for item in exposures],
         "finding": [item.finding_id for item in findings],
         "requirement": [item.requirement_id for item in requirements],
@@ -118,11 +126,49 @@ def validate_climb_bundle(
     instrument_by_id = {item.instrument_id: item for item in instruments}
     task_by_id = {item.task_id: item for item in tasks}
     receipt_by_id = {item.receipt_id: item for item in model_receipts}
+    human_receipt_by_id = {item.receipt_id: item for item in human_receipts}
     finding_by_id = {item.finding_id: item for item in findings}
     requirement_by_id = {item.requirement_id: item for item in requirements}
     evaluation_by_id = {item.evaluation_id: item for item in evaluations}
     proposal_by_id = {item.proposal_id: item for item in proposals}
     review_by_id = {item.review_id: item for item in reviews}
+
+    if len(experiment_plans) > 1:
+        result.append(
+            _finding(
+                "climb.multiple-experiment-plans",
+                "experiment",
+                str([item.plan_id for item in experiment_plans]),
+                "One Workspace carries exactly one Experiment Plan",
+            )
+        )
+    for plan in experiment_plans:
+        if not all(
+            value.strip()
+            for value in (
+                plan.experiment_id,
+                plan.profile_id,
+                plan.profile_version,
+                plan.branch,
+            )
+        ):
+            result.append(
+                _finding(
+                    "climb.invalid-experiment-plan",
+                    plan.plan_id,
+                    str(plan.to_mapping()),
+                    "Experiment Plan identity, profile, version, and branch are required",
+                )
+            )
+        if plan.instrument_id not in instrument_by_id:
+            result.append(
+                _finding(
+                    "climb.dangling-reference",
+                    plan.plan_id,
+                    plan.instrument_id,
+                    "Experiment Plan names a missing Frozen Instrument",
+                )
+            )
 
     for authority in authorities:
         if authority.kind not in {"agent", "human", "system"}:
@@ -217,6 +263,47 @@ def validate_climb_bundle(
                 if not _HASH.fullmatch(replay_ref) or receipt.input_hashes.get(key) != replay_ref:
                     result.append(_finding("climb.replay-hash-mismatch", receipt.receipt_id, f"{key}={replay_ref}", "Replay input object must exactly match its Model Receipt hash"))
 
+    for receipt in human_receipts:
+        authority = authority_by_id.get(receipt.authority_id)
+        task = task_by_id.get(receipt.task_id)
+        if authority is None or authority.kind != "human" or authority.role != "judge":
+            result.append(
+                _finding(
+                    "climb.human-observation-authority-mismatch",
+                    receipt.receipt_id,
+                    receipt.authority_id,
+                    "Human Receipt requires a human judge Authority",
+                )
+            )
+        if task is None or receipt.authority_id not in task.occupant_authority_ids:
+            result.append(
+                _finding(
+                    "climb.human-observation-task-mismatch",
+                    receipt.receipt_id,
+                    receipt.task_id,
+                    "Human Receipt must occupy its named Task",
+                )
+            )
+        if receipt.evidence_class not in {"fresh-human", "recorded-human"}:
+            result.append(
+                _finding(
+                    "climb.invalid-evidence-class",
+                    receipt.receipt_id,
+                    receipt.evidence_class,
+                    "Human Receipt evidence class is unsupported",
+                )
+            )
+        for label, value in {**receipt.input_refs, "response": receipt.response_ref}.items():
+            if not _HASH.fullmatch(value):
+                result.append(
+                    _finding(
+                        "climb.incomplete-human-receipt",
+                        receipt.receipt_id,
+                        f"{label}={value}",
+                        "Human Receipt requires exact input and response object references",
+                    )
+                )
+
     for requirement in requirements:
         source_findings = [finding_by_id.get(item) for item in requirement.source_finding_ids]
         missing = [item for item, value in zip(requirement.source_finding_ids, source_findings) if value is None]
@@ -277,12 +364,28 @@ def validate_climb_bundle(
         missing_receipts = [item for item in evaluation.model_receipt_ids if item not in receipt_by_id]
         if missing_receipts:
             result.append(_finding("climb.dangling-reference", evaluation.evaluation_id, ", ".join(missing_receipts), "Evaluation names missing Model Receipts"))
-        if evaluation.mode == "blind" and not missing_receipts:
+        missing_human_receipts = [
+            item for item in evaluation.human_receipt_ids if item not in human_receipt_by_id
+        ]
+        if missing_human_receipts:
+            result.append(
+                _finding(
+                    "climb.dangling-reference",
+                    evaluation.evaluation_id,
+                    ", ".join(missing_human_receipts),
+                    "Evaluation names missing Human Receipts",
+                )
+            )
+        if evaluation.mode == "blind" and not missing_receipts and not missing_human_receipts:
             receipt_authorities = {
                 receipt_by_id[item].authority_id for item in evaluation.model_receipt_ids
             }
+            receipt_authorities.update(
+                human_receipt_by_id[item].authority_id
+                for item in evaluation.human_receipt_ids
+            )
             if receipt_authorities != set(evaluation.judge_authority_ids):
-                result.append(_finding("climb.judge-receipt-mismatch", evaluation.evaluation_id, str(sorted(receipt_authorities)), "Blind Evaluation receipts must exactly cover its named judges"))
+                result.append(_finding("climb.judge-receipt-mismatch", evaluation.evaluation_id, str(sorted(receipt_authorities)), "Blind Evaluation model and human receipts must exactly cover its named judges"))
         if set(evaluation.hard_gate_results) != set(instrument.hard_gate_codes):
             result.append(_finding("climb.incomplete-hard-gates", evaluation.evaluation_id, str(dict(evaluation.hard_gate_results)), "Evaluation must replay every frozen hard gate"))
         if evaluation.outcome == "pass" and not all(evaluation.hard_gate_results.values()):
@@ -398,7 +501,11 @@ def validate_climb_bundle(
         baseline_score = baseline.overall_score(instrument)
         child_score = child.overall_score(instrument)
         child_receipts = [receipt_by_id.get(item) for item in child.model_receipt_ids]
+        child_receipts.extend(human_receipt_by_id.get(item) for item in child.human_receipt_ids)
         baseline_receipts = [receipt_by_id.get(item) for item in baseline.model_receipt_ids]
+        baseline_receipts.extend(
+            human_receipt_by_id.get(item) for item in baseline.human_receipt_ids
+        )
         allowed_classes = set(instrument.blind_protocol.get("selection_evidence_classes", ()))
         receipt_classes = {
             item.evidence_class

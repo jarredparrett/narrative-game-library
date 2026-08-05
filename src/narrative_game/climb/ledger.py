@@ -12,9 +12,11 @@ from .model import (
     Authority,
     Dimension,
     Evaluation,
+    ExperimentPlan,
     Exposure,
     Finding,
     FrozenInstrument,
+    HumanReceipt,
     HumanReview,
     ModelReceipt,
     Proposal,
@@ -29,10 +31,12 @@ from .validation import ClimbFinding, validate_climb_bundle
 
 
 Record = (
-    Authority
+    ExperimentPlan
+    | Authority
     | FrozenInstrument
     | Task
     | ModelReceipt
+    | HumanReceipt
     | Exposure
     | Finding
     | Requirement
@@ -64,10 +68,12 @@ class StoredRecord:
 
 
 _KIND_TO_COLLECTION = {
+    "experiment_plan": "experiment_plans",
     "authority": "authorities",
     "instrument": "instruments",
     "task": "tasks",
     "model_receipt": "model_receipts",
+    "human_receipt": "human_receipts",
     "exposure": "exposures",
     "finding": "findings",
     "requirement": "requirements",
@@ -82,6 +88,8 @@ _KIND_TO_COLLECTION = {
 
 
 def _kind_and_id(value: Record) -> tuple[str, str]:
+    if isinstance(value, ExperimentPlan):
+        return "experiment_plan", value.plan_id
     if isinstance(value, Authority):
         return "authority", value.authority_id
     if isinstance(value, FrozenInstrument):
@@ -90,6 +98,8 @@ def _kind_and_id(value: Record) -> tuple[str, str]:
         return "task", value.task_id
     if isinstance(value, ModelReceipt):
         return "model_receipt", value.receipt_id
+    if isinstance(value, HumanReceipt):
+        return "human_receipt", value.receipt_id
     if isinstance(value, Exposure):
         return "exposure", value.exposure_id
     if isinstance(value, Finding):
@@ -114,7 +124,12 @@ def _kind_and_id(value: Record) -> tuple[str, str]:
 
 
 def _parse(kind: str, value: Mapping[str, Any]) -> Record:
-    if kind == "authority":
+    if kind == "experiment_plan":
+        result: Record = ExperimentPlan(
+            value["experiment_id"], value["profile_id"], value["profile_version"],
+            value["instrument_id"], value["branch"],
+        )
+    elif kind == "authority":
         result: Record = Authority(value["authority_id"], value["kind"], value["role"], value["principal"])
     elif kind == "instrument":
         result = FrozenInstrument(
@@ -148,6 +163,11 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
             replay.get("tool_contract_ref"), replay.get("input_refs", {}),
             value.get("evidence_class"),
         )
+    elif kind == "human_receipt":
+        result = HumanReceipt(
+            value["authority_id"], value["task_id"], value["input_refs"],
+            value["response_ref"], value["evidence_class"],
+        )
     elif kind == "exposure":
         result = Exposure(
             value["authority_id"], value["object_ref"], value["category"],
@@ -169,6 +189,7 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
             tuple(value["judge_authority_ids"]), tuple(value["model_receipt_ids"]),
             value["scores"], tuple(value["finding_ids"]), value["hard_gate_results"],
             value["outcome"], value.get("claimed_standing"),
+            tuple(value.get("human_receipt_ids", ())),
         )
     elif kind == "proposal":
         result = Proposal(
@@ -412,6 +433,33 @@ class ClimbLedger:
             extra_object_refs=(baseline_draft_ref, proposed_data_ref),
         )
 
+    def record_human_observation(
+        self,
+        *,
+        authority_id: str,
+        task_id: str,
+        input_refs: Mapping[str, str],
+        response: Mapping[str, Any],
+        evidence_class: str,
+        actor: str,
+        idempotency_key: str,
+    ) -> StoredRecord:
+        """Persist an exact human observation without representing it as a model call."""
+        response_ref = self.store.put_json(response)
+        receipt = HumanReceipt(
+            authority_id,
+            task_id,
+            input_refs,
+            response_ref,
+            evidence_class,
+        )
+        return self._record(
+            receipt,
+            actor=actor,
+            idempotency_key=idempotency_key,
+            extra_object_refs=(*input_refs.values(), response_ref),
+        )
+
     def apply_approved_transition(
         self,
         *,
@@ -517,6 +565,14 @@ class ClimbLedger:
                         for key, replay_ref in receipt.input_refs.items():
                             if receipt.input_hashes.get(key) != replay_ref:
                                 failures.append(f"model input replay hash differs: {key}")
+                    if isinstance(record.value, HumanReceipt):
+                        for input_ref in record.value.input_refs.values():
+                            if not self.store.verify(input_ref):
+                                failures.append(f"missing human observation input: {input_ref}")
+                        if not self.store.verify(record.value.response_ref):
+                            failures.append(
+                                f"missing human observation response: {record.value.response_ref}"
+                            )
             except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 failures.append(f"record reconstruction failed: {exc}")
         return {

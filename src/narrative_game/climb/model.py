@@ -18,6 +18,32 @@ def _identified(kind: str, material: Mapping[str, Any]) -> str:
 
 
 @dataclass(frozen=True)
+class ExperimentPlan:
+    experiment_id: str
+    profile_id: str
+    profile_version: str
+    instrument_id: str
+    branch: str
+
+    def material(self) -> dict[str, Any]:
+        return {
+            "schema_version": "0.8",
+            "experiment_id": self.experiment_id,
+            "profile_id": self.profile_id,
+            "profile_version": self.profile_version,
+            "instrument_id": self.instrument_id,
+            "branch": self.branch,
+        }
+
+    @property
+    def plan_id(self) -> str:
+        return _identified("experiment-plan", self.material())
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {"plan_id": self.plan_id, **self.material()}
+
+
+@dataclass(frozen=True)
 class Authority:
     authority_id: str
     kind: str
@@ -194,6 +220,35 @@ class ModelReceipt:
 
 
 @dataclass(frozen=True)
+class HumanReceipt:
+    authority_id: str
+    task_id: str
+    input_refs: Mapping[str, str]
+    response_ref: str
+    evidence_class: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "input_refs", _copy(self.input_refs))
+
+    def material(self) -> dict[str, Any]:
+        return {
+            "schema_version": "0.8",
+            "authority_id": self.authority_id,
+            "task_id": self.task_id,
+            "input_refs": dict(self.input_refs),
+            "response_ref": self.response_ref,
+            "evidence_class": self.evidence_class,
+        }
+
+    @property
+    def receipt_id(self) -> str:
+        return _identified("human-receipt", self.material())
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {"receipt_id": self.receipt_id, **self.material()}
+
+
+@dataclass(frozen=True)
 class Exposure:
     authority_id: str
     object_ref: str
@@ -286,14 +341,15 @@ class Evaluation:
     hard_gate_results: Mapping[str, bool]
     outcome: str
     claimed_standing: str | None = None
+    human_receipt_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "scores", _copy(self.scores))
         object.__setattr__(self, "hard_gate_results", _copy(self.hard_gate_results))
 
     def material(self) -> dict[str, Any]:
-        return {
-            "schema_version": "0.6",
+        result = {
+            "schema_version": "0.8" if self.human_receipt_ids else "0.6",
             "task_id": self.task_id,
             "candidate_id": self.candidate_id,
             "instrument_id": self.instrument_id,
@@ -306,6 +362,9 @@ class Evaluation:
             "outcome": self.outcome,
             "claimed_standing": self.claimed_standing,
         }
+        if self.human_receipt_ids:
+            result["human_receipt_ids"] = list(self.human_receipt_ids)
+        return result
 
     @property
     def evaluation_id(self) -> str:
