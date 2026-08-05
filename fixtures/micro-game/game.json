@@ -1,0 +1,248 @@
+{
+  "kernel": {
+    "schema_version": "0.2",
+    "game_id": "vanished-ledger",
+    "title": "The Vanished Ledger",
+    "resources": [
+      {
+        "id": "closing-interview",
+        "media_type": "text/markdown",
+        "content_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "label": "Closing interview"
+      },
+      {
+        "id": "key-register",
+        "media_type": "application/json",
+        "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "label": "Key register"
+      },
+      {
+        "id": "camera-log",
+        "media_type": "text/csv",
+        "content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "label": "Camera log"
+      },
+      {
+        "id": "cash-receipt",
+        "media_type": "application/pdf",
+        "content_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "label": "Cash receipt"
+      }
+    ],
+    "seats": [
+      {"id": "avery", "label": "Avery Shaw", "required": true},
+      {"id": "blake", "label": "Blake Rowan", "required": true}
+    ],
+    "access_policies": [
+      {
+        "id": "interview-access",
+        "resource": "resource:closing-interview",
+        "grantees": ["seat:avery", "seat:blake", "viewer:host"]
+      },
+      {
+        "id": "register-access",
+        "resource": "resource:key-register",
+        "grantees": ["seat:avery", "seat:blake", "viewer:host"]
+      },
+      {
+        "id": "camera-access",
+        "resource": "resource:camera-log",
+        "grantees": ["seat:blake", "viewer:host"]
+      },
+      {
+        "id": "receipt-access",
+        "resource": "resource:cash-receipt",
+        "grantees": ["seat:avery", "viewer:host"]
+      }
+    ],
+    "extensions": [
+      {
+        "namespace": "org.narrativegame.narrative",
+        "version": "0.2.0",
+        "profile": "facilitated-investigation@0.1.0"
+      }
+    ]
+  },
+  "narrative": {
+    "direction": {
+      "premise": "Two trustees determine how the estate ledger vanished before closing.",
+      "experience_targets": [
+        "Each Seat contributes distinct evidence.",
+        "The correct case requires corroboration."
+      ],
+      "content_boundaries": ["No graphic violence."]
+    },
+    "profile": {
+      "id": "facilitated-investigation",
+      "version": "0.1.0",
+      "cast_variants": [
+        {"id": "two-seat", "seat_ids": ["avery", "blake"]}
+      ],
+      "host_required": true
+    },
+    "propositions": [
+      {"id": "ledger-missing", "expression": "The estate ledger was removed before closing."},
+      {"id": "staff-key-used", "expression": "A staff key opened the records room."},
+      {"id": "window-forced", "expression": "An outsider forced the records-room window."},
+      {"id": "cash-payment", "expression": "The clerk received an undeclared cash payment."}
+    ],
+    "truth_model": [
+      {"proposition_id": "ledger-missing", "value": "true"},
+      {"proposition_id": "staff-key-used", "value": "true"},
+      {"proposition_id": "window-forced", "value": "false"},
+      {"proposition_id": "cash-payment", "value": "true"}
+    ],
+    "events": [
+      {
+        "id": "payment-made",
+        "summary": "The clerk accepted cash after the office closed.",
+        "order": 1,
+        "proposition_ids": ["cash-payment"],
+        "causes": []
+      },
+      {
+        "id": "ledger-removed",
+        "summary": "The clerk used a staff key and removed the ledger.",
+        "order": 2,
+        "proposition_ids": ["ledger-missing", "staff-key-used"],
+        "causes": ["payment-made"]
+      }
+    ],
+    "phases": [
+      {"id": "opening", "label": "Opening statements", "order": 1},
+      {"id": "resolution", "label": "Build the case", "order": 2},
+      {"id": "debrief", "label": "Debrief", "order": 3}
+    ],
+    "objectives": [
+      {
+        "id": "verify-register",
+        "description": "Establish which key opened the records room.",
+        "activation_phase_id": "opening"
+      },
+      {
+        "id": "test-outsider-theory",
+        "description": "Determine whether an outsider could have entered.",
+        "activation_phase_id": "opening"
+      }
+    ],
+    "characters": [
+      {
+        "id": "avery-shaw",
+        "name": "Avery Shaw",
+        "seat_id": "avery",
+        "beliefs": [
+          {"proposition_id": "staff-key-used", "stance": "accepts", "basis": "Avery maintains the register."}
+        ],
+        "objective_ids": ["verify-register"]
+      },
+      {
+        "id": "blake-rowan",
+        "name": "Blake Rowan",
+        "seat_id": "blake",
+        "beliefs": [
+          {"proposition_id": "window-forced", "stance": "rejects", "basis": "Blake inspected the intact latch."}
+        ],
+        "objective_ids": ["test-outsider-theory"]
+      }
+    ],
+    "hypotheses": [
+      {
+        "id": "inside-job",
+        "label": "The clerk removed the ledger for payment.",
+        "proposition_ids": ["ledger-missing", "staff-key-used", "cash-payment"]
+      },
+      {
+        "id": "outsider-entry",
+        "label": "An outsider forced entry and took the ledger.",
+        "proposition_ids": ["ledger-missing", "window-forced"]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "interview-evidence",
+        "resource_id": "closing-interview",
+        "summary": "The clerk admits returning after receiving a call.",
+        "relations": [
+          {"target_kind": "hypothesis", "target_id": "inside-job", "relation": "supports"}
+        ]
+      },
+      {
+        "id": "register-evidence",
+        "resource_id": "key-register",
+        "summary": "The clerk signed out the staff key.",
+        "relations": [
+          {"target_kind": "proposition", "target_id": "staff-key-used", "relation": "supports"}
+        ]
+      },
+      {
+        "id": "camera-evidence",
+        "resource_id": "camera-log",
+        "summary": "No one approached the outside window.",
+        "relations": [
+          {"target_kind": "proposition", "target_id": "window-forced", "relation": "contradicts"}
+        ]
+      },
+      {
+        "id": "receipt-evidence",
+        "resource_id": "cash-receipt",
+        "summary": "The receipt records the undeclared payment.",
+        "relations": [
+          {"target_kind": "proposition", "target_id": "cash-payment", "relation": "supports"}
+        ]
+      }
+    ],
+    "proof_paths": [
+      {
+        "id": "key-and-payment",
+        "hypothesis_id": "inside-job",
+        "evidence_ids": ["register-evidence", "receipt-evidence"]
+      },
+      {
+        "id": "interview-and-camera",
+        "hypothesis_id": "inside-job",
+        "evidence_ids": ["interview-evidence", "camera-evidence"]
+      }
+    ],
+    "reveals": [
+      {
+        "id": "reveal-register",
+        "evidence_id": "register-evidence",
+        "phase_id": "opening",
+        "audience_seat_ids": ["avery", "blake"]
+      },
+      {
+        "id": "reveal-interview",
+        "evidence_id": "interview-evidence",
+        "phase_id": "opening",
+        "audience_seat_ids": ["avery", "blake"]
+      },
+      {
+        "id": "reveal-receipt",
+        "evidence_id": "receipt-evidence",
+        "phase_id": "resolution",
+        "audience_seat_ids": ["avery"]
+      },
+      {
+        "id": "reveal-camera",
+        "evidence_id": "camera-evidence",
+        "phase_id": "resolution",
+        "audience_seat_ids": ["blake"]
+      }
+    ],
+    "interventions": [
+      {
+        "id": "host-recovery",
+        "kind": "hint",
+        "phase_id": "resolution",
+        "evidence_ids": ["register-evidence", "camera-evidence"],
+        "instruction": "Ask the trustees to compare physical access with the outside-camera log."
+      }
+    ],
+    "resolution": {
+      "prompt": "Who removed the ledger, and what corroborating evidence proves the case?",
+      "correct_hypothesis_id": "inside-job",
+      "acceptable_proof_path_ids": ["key-and-payment", "interview-and-camera"],
+      "phase_id": "resolution"
+    }
+  }
+}

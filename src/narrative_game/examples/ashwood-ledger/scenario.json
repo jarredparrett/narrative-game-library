@@ -1,0 +1,149 @@
+{
+  "authoring_schema_version": "0.5",
+  "kernel": {
+    "schema_version": "0.5",
+    "game_id": "ashwood-ledger",
+    "title": "The Ashwood Ledger",
+    "resources": [
+      {"id": "host-guide", "media_type": "text/markdown", "label": "Host guide", "source_path": "content/host-guide.md"},
+      {"id": "avery-dossier", "media_type": "text/markdown", "label": "Avery Shaw dossier", "source_path": "content/avery-dossier.md"},
+      {"id": "blake-dossier", "media_type": "text/markdown", "label": "Blake Mercer dossier", "source_path": "content/blake-dossier.md"},
+      {"id": "key-register", "media_type": "text/markdown", "label": "Records-room key register", "source_path": "content/key-register.md"},
+      {"id": "camera-log", "media_type": "text/csv", "label": "Exterior camera log", "source_path": "content/camera-log.csv"},
+      {"id": "closing-interview", "media_type": "text/markdown", "label": "Closing interview", "source_path": "content/closing-interview.md"},
+      {"id": "payment-note", "media_type": "text/markdown", "label": "Recovered payment note", "source_path": "content/payment-note.md"},
+      {"id": "madison-deed-1997", "media_type": "application/pdf", "label": "Recorded 1997 Madison deed", "artifact_request": "madison-deed-1997"},
+      {"id": "deed-accessible", "media_type": "text/plain", "label": "Accessible deed rendition", "source_path": "content/deed-accessible.txt"},
+      {"id": "accusation-form", "media_type": "text/markdown", "label": "Joint finding form", "source_path": "content/accusation-form.md"}
+    ],
+    "seats": [
+      {"id": "avery", "label": "Avery Shaw", "required": true},
+      {"id": "blake", "label": "Blake Mercer", "required": true}
+    ],
+    "access_policies": [
+      {"id": "host-guide-access", "resource": "resource:host-guide", "grantees": ["viewer:host"]},
+      {"id": "avery-dossier-access", "resource": "resource:avery-dossier", "grantees": ["seat:avery", "viewer:host"]},
+      {"id": "blake-dossier-access", "resource": "resource:blake-dossier", "grantees": ["seat:blake", "viewer:host"]},
+      {"id": "register-access", "resource": "resource:key-register", "grantees": ["seat:avery", "seat:blake", "viewer:host"]},
+      {"id": "camera-access", "resource": "resource:camera-log", "grantees": ["seat:blake", "viewer:host"]},
+      {"id": "interview-access", "resource": "resource:closing-interview", "grantees": ["seat:avery", "seat:blake", "viewer:host"]},
+      {"id": "payment-access", "resource": "resource:payment-note", "grantees": ["seat:avery", "viewer:host"]},
+      {"id": "deed-access", "resource": "resource:madison-deed-1997", "grantees": ["seat:avery", "seat:blake", "viewer:host"]},
+      {"id": "deed-accessible-access", "resource": "resource:deed-accessible", "grantees": ["seat:avery", "seat:blake", "viewer:host"]},
+      {"id": "accusation-access", "resource": "resource:accusation-form", "grantees": ["seat:avery", "seat:blake", "viewer:host"]}
+    ],
+    "extensions": [
+      {"namespace": "org.narrativegame.narrative", "version": "0.5.0", "profile": "facilitated-investigation@0.1.0"}
+    ]
+  },
+  "narrative": {
+    "direction": {
+      "premise": "Two estate investigators reconstruct why a property ledger vanished before a redevelopment option was signed.",
+      "experience_targets": [
+        "Each Seat begins with distinct professional knowledge.",
+        "No accusation succeeds without corroboration across access, motive, and transaction evidence.",
+        "A realistic forged document becomes legible narrative evidence without becoming the owner of story truth."
+      ],
+      "content_boundaries": ["No graphic violence.", "All people, firms, and transactions are fictional game material."]
+    },
+    "profile": {
+      "id": "facilitated-investigation",
+      "version": "0.1.0",
+      "cast_variants": [{"id": "two-seat", "seat_ids": ["avery", "blake"]}],
+      "host_required": true
+    },
+    "propositions": [
+      {"id": "ledger-missing", "expression": "The Vale House Archive property ledger was removed before the trustees met."},
+      {"id": "staff-key-used", "expression": "A staff key opened the records room during the relevant period."},
+      {"id": "window-forced", "expression": "An outsider forced the records-room window."},
+      {"id": "clerk-payment", "expression": "Records clerk Noel Voss accepted an undeclared payment to conceal an indexed deed."},
+      {"id": "deed-index-hidden", "expression": "The missing ledger indexed a deed connected to the planned redevelopment option."},
+      {"id": "deed-date", "expression": "The indexed deed was executed on October 17, 1997."},
+      {"id": "deed-consideration", "expression": "The indexed deed states consideration of $425,000.00."}
+    ],
+    "truth_model": [
+      {"proposition_id": "ledger-missing", "value": "true"},
+      {"proposition_id": "staff-key-used", "value": "true"},
+      {"proposition_id": "window-forced", "value": "false"},
+      {"proposition_id": "clerk-payment", "value": "true"},
+      {"proposition_id": "deed-index-hidden", "value": "true"},
+      {"proposition_id": "deed-date", "value": "true"},
+      {"proposition_id": "deed-consideration", "value": "true"}
+    ],
+    "events": [
+      {"id": "payment-offered", "summary": "An intermediary offered Noel Voss payment to keep the Quillstone entry out of the trustees' packet.", "order": 1, "proposition_ids": ["clerk-payment", "deed-index-hidden"], "causes": []},
+      {"id": "ledger-removed", "summary": "Voss used the staff key and removed the property ledger.", "order": 2, "proposition_ids": ["ledger-missing", "staff-key-used"], "causes": ["payment-offered"]},
+      {"id": "trustees-convene", "summary": "The trustees discovered the ledger missing before reviewing the redevelopment option.", "order": 3, "proposition_ids": ["ledger-missing"], "causes": ["ledger-removed"]}
+    ],
+    "phases": [
+      {"id": "opening", "label": "Inventory morning", "order": 1},
+      {"id": "investigation", "label": "Test the entry theories", "order": 2},
+      {"id": "resolution", "label": "The deed envelope", "order": 3},
+      {"id": "debrief", "label": "Canonical reconstruction", "order": 4}
+    ],
+    "objectives": [
+      {"id": "trace-key", "description": "Establish who controlled the records-room key and what was removed.", "activation_phase_id": "opening"},
+      {"id": "identify-transaction", "description": "Identify the transaction someone wanted excluded from the estate inventory.", "activation_phase_id": "investigation"},
+      {"id": "test-outsider", "description": "Test the outsider-entry theory against physical and camera evidence.", "activation_phase_id": "opening"},
+      {"id": "require-corroboration", "description": "Require access, motive, and transaction evidence before accusing anyone.", "activation_phase_id": "investigation"}
+    ],
+    "characters": [
+      {"id": "avery-shaw", "name": "Avery Shaw", "seat_id": "avery", "beliefs": [{"proposition_id": "staff-key-used", "stance": "accepts", "basis": "Avery inspected the undamaged lock and maintains the register."}], "objective_ids": ["trace-key", "identify-transaction"]},
+      {"id": "blake-mercer", "name": "Blake Mercer", "seat_id": "blake", "beliefs": [{"proposition_id": "window-forced", "stance": "rejects", "basis": "Blake inspected the intact latch and paint seal."}], "objective_ids": ["test-outsider", "require-corroboration"]}
+    ],
+    "hypotheses": [
+      {"id": "paid-insider", "label": "Noel Voss removed the ledger after payment to conceal the indexed deed.", "proposition_ids": ["ledger-missing", "staff-key-used", "clerk-payment", "deed-index-hidden"]},
+      {"id": "outsider-entry", "label": "An outsider forced entry and removed the ledger.", "proposition_ids": ["ledger-missing", "window-forced"]},
+      {"id": "filing-error", "label": "The ledger was misplaced during an ordinary inventory error.", "proposition_ids": ["ledger-missing"]}
+    ],
+    "evidence": [
+      {"id": "avery-briefing", "resource_id": "avery-dossier", "summary": "Avery last saw the ledger on the records-room desk and found no lock damage.", "relations": [{"target_kind": "proposition", "target_id": "ledger-missing", "relation": "supports"}, {"target_kind": "proposition", "target_id": "staff-key-used", "relation": "supports"}]},
+      {"id": "blake-briefing", "resource_id": "blake-dossier", "summary": "Blake found the exterior window latch and paint seal intact.", "relations": [{"target_kind": "proposition", "target_id": "window-forced", "relation": "contradicts"}]},
+      {"id": "register-evidence", "resource_id": "key-register", "summary": "The register places the records-room key with Noel Voss.", "relations": [{"target_kind": "proposition", "target_id": "staff-key-used", "relation": "supports"}]},
+      {"id": "camera-evidence", "resource_id": "camera-log", "summary": "The exterior camera recorded no approach to the window.", "relations": [{"target_kind": "proposition", "target_id": "window-forced", "relation": "contradicts"}]},
+      {"id": "interview-evidence", "resource_id": "closing-interview", "summary": "Voss admits returning after nine and answering questions about the old transfer.", "relations": [{"target_kind": "hypothesis", "target_id": "paid-insider", "relation": "supports"}]},
+      {"id": "payment-evidence", "resource_id": "payment-note", "summary": "The recovered note promises Voss money after the Quillstone entry is removed.", "relations": [{"target_kind": "proposition", "target_id": "clerk-payment", "relation": "supports"}, {"target_kind": "proposition", "target_id": "deed-index-hidden", "relation": "supports"}]},
+      {"id": "deed-evidence", "resource_id": "madison-deed-1997", "summary": "The forged deed supplies the pinned transaction date and consideration.", "relations": [{"target_kind": "proposition", "target_id": "deed-date", "relation": "supports"}, {"target_kind": "proposition", "target_id": "deed-consideration", "relation": "supports"}, {"target_kind": "proposition", "target_id": "deed-index-hidden", "relation": "supports"}]},
+      {"id": "deed-accessible-evidence", "resource_id": "deed-accessible", "summary": "The accessible rendition supplies the same game-relevant deed facts.", "relations": [{"target_kind": "proposition", "target_id": "deed-date", "relation": "supports"}, {"target_kind": "proposition", "target_id": "deed-consideration", "relation": "supports"}]},
+      {"id": "accusation-form-evidence", "resource_id": "accusation-form", "summary": "The form records the players' selected hypothesis and proof path.", "relations": [{"target_kind": "hypothesis", "target_id": "paid-insider", "relation": "records"}]}
+    ],
+    "proof_paths": [
+      {"id": "access-payment-deed", "hypothesis_id": "paid-insider", "evidence_ids": ["register-evidence", "payment-evidence", "deed-evidence"]},
+      {"id": "interview-camera-deed", "hypothesis_id": "paid-insider", "evidence_ids": ["interview-evidence", "camera-evidence", "deed-accessible-evidence"]}
+    ],
+    "reveals": [
+      {"id": "reveal-avery", "evidence_id": "avery-briefing", "phase_id": "opening", "audience_seat_ids": ["avery"]},
+      {"id": "reveal-blake", "evidence_id": "blake-briefing", "phase_id": "opening", "audience_seat_ids": ["blake"]},
+      {"id": "reveal-register", "evidence_id": "register-evidence", "phase_id": "opening", "audience_seat_ids": ["avery", "blake"]},
+      {"id": "reveal-interview", "evidence_id": "interview-evidence", "phase_id": "opening", "audience_seat_ids": ["avery", "blake"]},
+      {"id": "reveal-payment", "evidence_id": "payment-evidence", "phase_id": "investigation", "audience_seat_ids": ["avery"]},
+      {"id": "reveal-camera", "evidence_id": "camera-evidence", "phase_id": "investigation", "audience_seat_ids": ["blake"]},
+      {"id": "reveal-deed", "evidence_id": "deed-evidence", "phase_id": "resolution", "audience_seat_ids": ["avery", "blake"]},
+      {"id": "reveal-deed-accessible", "evidence_id": "deed-accessible-evidence", "phase_id": "resolution", "audience_seat_ids": ["avery", "blake"]},
+      {"id": "reveal-accusation", "evidence_id": "accusation-form-evidence", "phase_id": "resolution", "audience_seat_ids": ["avery", "blake"]}
+    ],
+    "interventions": [
+      {"id": "host-recovery", "kind": "hint", "phase_id": "investigation", "evidence_ids": ["register-evidence", "camera-evidence", "payment-evidence"], "instruction": "Ask which record establishes access, which rules out outside entry, and which identifies motive."},
+      {"id": "accessible-deed-recovery", "kind": "accessibility", "phase_id": "resolution", "evidence_ids": ["deed-accessible-evidence"], "instruction": "Offer the accessible deed rendition with the marked visual copy; they are equivalent for game resolution."}
+    ],
+    "resolution": {
+      "prompt": "Who removed the property ledger, why, and which three records establish access, motive, and the concealed transaction?",
+      "correct_hypothesis_id": "paid-insider",
+      "acceptable_proof_path_ids": ["access-payment-deed", "interview-camera-deed"],
+      "phase_id": "resolution"
+    }
+  },
+  "displayed_claims": [
+    {"resource_id": "host-guide", "quote": "The deed was executed on October 17, 1997.", "proposition_id": "deed-date", "source": "material-text"},
+    {"resource_id": "host-guide", "quote": "It states consideration of $425,000.00.", "proposition_id": "deed-consideration", "source": "material-text"},
+    {"resource_id": "key-register", "quote": "a staff key was used to access the records room", "proposition_id": "staff-key-used", "source": "material-text"},
+    {"resource_id": "payment-note", "quote": "accepted an undeclared payment to conceal the indexed deed", "proposition_id": "clerk-payment", "source": "material-text"},
+    {"resource_id": "deed-accessible", "quote": "Execution date: October 17, 1997.", "proposition_id": "deed-date", "source": "material-text"},
+    {"resource_id": "deed-accessible", "quote": "Consideration stated: $425,000.00.", "proposition_id": "deed-consideration", "source": "material-text"},
+    {"resource_id": "madison-deed-1997", "pin": "execution_date", "proposition_id": "deed-date", "source": "artifact-request"},
+    {"resource_id": "madison-deed-1997", "pin": "consideration", "proposition_id": "deed-consideration", "source": "artifact-request"}
+  ],
+  "physical_accessibility_renditions": [
+    {"primary_resource_id": "madison-deed-1997", "accessible_resource_id": "deed-accessible", "equivalence": "game-relevant-facts"}
+  ]
+}
