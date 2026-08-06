@@ -61,7 +61,7 @@ def run(root: str | Path) -> dict:
         },
         rubric={
             "version": "stage0.1",
-            "scorer": "absolute-v0.2",
+            "scorer": "absolute-v0.3",
             "dimensions": [
                 {
                     "id": "public_boundary",
@@ -70,7 +70,7 @@ def run(root: str | Path) -> dict:
                 }
             ],
             "acceptance": {
-                "rules": [{"metric": "overall_min", "operator": ">=", "value": 0}]
+                "rules": [{"metric": "overall_min", "operator": ">=", "value": 80}]
             },
         },
         requirements=[

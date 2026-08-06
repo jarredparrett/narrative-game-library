@@ -32,6 +32,10 @@ class Workspace:
         self.climb = Journal(
             self.root / "journals" / "climb.jsonl", journal_id="agentic-climb"
         )
+        self.qualification = Journal(
+            self.root / "journals" / "qualification.jsonl",
+            journal_id="game-qualification",
+        )
         self.transaction_lock = self.root / "workspace.lock"
         if not self.lineage.read():
             raise FileNotFoundError(f"not a narrative game Workspace: {self.root}")
@@ -101,6 +105,7 @@ class Workspace:
                 "climb": self.climb.head(),
                 "lineage": events[-1]["event_hash"] if events else None,
                 "operational": self.operational.head(),
+                "qualification": self.qualification.head(),
             },
         }
 
@@ -342,13 +347,15 @@ class Workspace:
         lineage_ok, lineage_failures = self.lineage.verify()
         operational_ok, operational_failures = self.operational.verify()
         climb_ok, climb_failures = self.climb.verify()
+        qualification_ok, qualification_failures = self.qualification.verify()
         failures.extend(f"lineage: {item}" for item in lineage_failures)
         failures.extend(f"operational: {item}" for item in operational_failures)
         failures.extend(f"climb: {item}" for item in climb_failures)
+        failures.extend(f"qualification: {item}" for item in qualification_failures)
         objects_ok, corrupt = self.store.verify_all()
         failures.extend(f"corrupt object: {ref}" for ref in corrupt)
         referenced = set()
-        for journal in (self.lineage, self.operational, self.climb):
+        for journal in (self.lineage, self.operational, self.climb, self.qualification):
             for event in journal.read():
                 referenced.update(event.get("object_refs", []))
         pending = list(referenced)
@@ -380,6 +387,9 @@ class Workspace:
             "lineage_events": len(self.lineage.read()) if lineage_ok else 0,
             "operational_events": len(self.operational.read()) if operational_ok else 0,
             "climb_events": len(self.climb.read()) if climb_ok else 0,
+            "qualification_events": (
+                len(self.qualification.read()) if qualification_ok else 0
+            ),
             "all_objects_intact": objects_ok,
         }
 

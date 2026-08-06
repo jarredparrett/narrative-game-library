@@ -36,6 +36,7 @@ from narrative_game.climb import (
 from narrative_game.climb.selection import evaluation_passes
 from narrative_game.contracts import canonical_json
 from narrative_game.workspace import Workspace
+from .standing import ExperimentSpine
 
 
 def _copy(value: Any) -> Any:
@@ -196,6 +197,7 @@ class Experiment:
 
     def __init__(self, workspace: Workspace):
         self.workspace = workspace
+        self.spine = ExperimentSpine(workspace)
         self.ledger = ClimbLedger(workspace)
         plans = self.ledger.snapshot()["experiment_plans"]
         if len(plans) != 1:
@@ -1025,11 +1027,21 @@ class Experiment:
         """Verify the Workspace and climb hash chains plus every referenced object."""
         workspace = self.workspace.verify()
         climb = self.ledger.verify()
+        standing = self.spine.verify()
         return {
-            "ok": workspace["ok"] and climb["ok"],
+            "ok": workspace["ok"] and climb["ok"] and standing["ok"],
             "workspace": workspace,
             "climb": climb,
+            "standing": standing,
         }
+
+    def record_selected_rung(self, **kwargs: Any) -> Mapping[str, Any]:
+        """Persist one exact selected Candidate and export its portable `.ngw`."""
+        return self.spine.record_selected_rung(**kwargs)
+
+    def current_standing(self) -> Mapping[str, Any]:
+        """Rebuild the current qualification projection from journals."""
+        return self.spine.write_projection()
 
     def export_archive(self, target: str | Path) -> None:
         """Write a deterministic, relocatable archive of the complete Experiment."""
