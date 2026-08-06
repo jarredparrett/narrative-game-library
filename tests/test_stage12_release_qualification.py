@@ -7,7 +7,7 @@ from narrative_game.climb import Authority, StandingAttestation, TrialBinding
 from narrative_game.release import (
     PUBLIC_RELEASE_GATES,
     PublicReleasePolicy,
-    PublisherApproval,
+    ReleaseAttestation,
     ReleaseEvidence,
     qualify_public_release,
 )
@@ -37,37 +37,47 @@ class FakeExperiment:
         return {"ok": self.ok}
 
 
-def accepted_fixture():
+def qualified_fixture():
     binding = TrialBinding(CANDIDATE, RELEASE, H, H, H, H, H, {
         "package.verify": True,
     })
-    standing = StandingAttestation(
-        CANDIDATE, "accepted", (H,),
-        ("fresh-human-play", "independent-standing-review", "model-human-comparison"),
-        "reviewer", "accepted after exact human play", ("run-1", "run-2"), H,
-    )
-    authorities = (
-        Authority("reviewer", "human", "reviewer", "reviewer-principal"),
-        Authority("publisher", "human", "publisher", "publisher-principal"),
-        Authority("player-1", "human", "participant", "player-principal"),
-        Authority("host", "human", "facilitator", "host-principal"),
-    )
-    runs = tuple(
+    evaluations = tuple(
         SimpleNamespace(
-            run_id=f"run-{index}", participant_authority_ids=("player-1",),
-            facilitator_authority_id="host", observer_authority_ids=(),
+            evaluation_id=f"evaluation-{index}", candidate_id=CANDIDATE,
+            instrument_id="instrument-1", mode="blind", outcome="pass",
+            judge_authority_ids=(f"judge-{index}",),
         )
         for index in (1, 2)
     )
+    standing = StandingAttestation(
+        CANDIDATE, "machine_qualified",
+        tuple(item.evaluation_id for item in evaluations),
+        ("model-blind-panel", "independent-agentic-review"),
+        "standing-reviewer",
+        "Two independent blind panels passed; an independent agent verified the claim.",
+    )
+    authorities = (
+        Authority("judge-1", "agent", "judge", "judge-principal-1"),
+        Authority("judge-2", "agent", "judge", "judge-principal-2"),
+        Authority("builder", "agent", "builder", "builder-principal"),
+        Authority("standing-reviewer", "agent", "reviewer", "standing-review-principal"),
+        Authority("release-reviewer", "agent", "release-reviewer", "release-review-principal"),
+    )
+    release_receipt = SimpleNamespace(
+        receipt_id="release-receipt", authority_id="release-reviewer",
+        role="release-reviewer", parsed_output_ref=H,
+    )
     snapshot = {
         "trial_bindings": (binding,), "standings": (standing,),
-        "authorities": authorities, "playtest_runs": runs,
+        "authorities": authorities, "evaluations": evaluations,
+        "model_receipts": (release_receipt,),
+        "proposals": (SimpleNamespace(builder_authority_id="builder"),),
     }
     policy = PublicReleasePolicy()
     packages = {"sdist": H, "wheel": H}
-    approval = PublisherApproval(
+    attestation = ReleaseAttestation(
         policy.policy_id, "1.0.0", CANDIDATE, standing.attestation_id,
-        "publisher", packages, H,
+        "release-reviewer", release_receipt.receipt_id, packages, H,
     )
     evidence = ReleaseEvidence(
         "1.0.0", "1", CANDIDATE, RELEASE, H, H,
@@ -78,7 +88,7 @@ def accepted_fixture():
             "release-policy": H, "known-limitations": H,
         },
         ("first public version supports Facilitated Investigation only",), H,
-        approval,
+        attestation,
     )
     return FakeExperiment(snapshot), evidence
 
@@ -97,57 +107,71 @@ def test_policy_freezes_one_owned_gate_for_every_stage_8_through_12_requirement(
     assert policy.gates == PUBLIC_RELEASE_GATES
     assert tuple(item.code for item in policy.gates) == (
         "stage8.portable-experiment", "stage9.reusable-authoring",
-        "stage10.accepted-human-standing", "stage10.independent-verification",
+        "stage10.agentic-standing", "stage10.independent-agentic-verification",
         "stage11.creator-player-print", "stage12.tagged-upstreams",
         "stage12.compatibility", "stage12.support-matrix",
         "stage12.package-artifacts", "stage12.documentation",
-        "stage12.known-limitations", "stage12.publisher-approval",
+        "stage12.known-limitations", "stage12.release-attestation",
     )
+    assert policy.version == "2.0.0"
     assert policy.policy_id.startswith("release-policy:")
 
 
 def test_portable_experiment_gate_requires_verified_exact_package_binding():
     """release.stage8.portable-experiment: failed verification blocks release."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     experiment.ok = False
     assert not gate(qualify(experiment, evidence), "stage8.portable-experiment").passed
 
 
 def test_reusable_authoring_gate_requires_content_addressed_proof():
     """release.stage9.reusable-authoring: Blueprint/adapter proof must be exact."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, authoring_proof_ref="missing"))
     assert not gate(report, "stage9.reusable-authoring").passed
 
 
-def test_human_standing_gate_cannot_be_satisfied_by_build_or_model_evidence():
-    """release.stage10.accepted-human-standing: accepted Playtest Standing is required."""
-    experiment, evidence = accepted_fixture()
-    experiment.ledger.value["standings"] = ()
-    assert not gate(qualify(experiment, evidence), "stage10.accepted-human-standing").passed
-
-
-def test_independent_verification_gate_excludes_the_playtest_roster():
-    """release.stage10.independent-verification: the standing reviewer did not play."""
-    experiment, evidence = accepted_fixture()
+def test_agentic_standing_requires_two_passing_blind_evaluations():
+    """release.stage10.agentic-standing: one panel cannot self-corroborate."""
+    experiment, evidence = qualified_fixture()
     standing = experiment.ledger.value["standings"][0]
-    experiment.ledger.value["authorities"] += (
-        Authority("player-reviewer", "human", "reviewer", "same-person"),
+    experiment.ledger.value["standings"] = (
+        replace(standing, evaluation_ids=(standing.evaluation_ids[0],)),
     )
-    experiment.ledger.value["standings"] = (replace(standing, reviewer_authority_id="player-1"),)
-    assert not gate(qualify(experiment, evidence), "stage10.independent-verification").passed
+    assert not gate(qualify(experiment, evidence), "stage10.agentic-standing").passed
+    experiment, evidence = qualified_fixture()
+    experiment.ledger.value["authorities"] = tuple(
+        replace(item, principal="judge-principal-1")
+        if item.authority_id == "judge-2" else item
+        for item in experiment.ledger.value["authorities"]
+    )
+    assert not gate(qualify(experiment, evidence), "stage10.agentic-standing").passed
+
+
+def test_independent_agentic_verification_excludes_judge_principals():
+    """release.stage10.independent-agentic-verification: a judge cannot review its panel."""
+    experiment, evidence = qualified_fixture()
+    authorities = tuple(
+        replace(item, principal="judge-principal-1")
+        if item.authority_id == "standing-reviewer" else item
+        for item in experiment.ledger.value["authorities"]
+    )
+    experiment.ledger.value["authorities"] = authorities
+    assert not gate(
+        qualify(experiment, evidence), "stage10.independent-agentic-verification"
+    ).passed
 
 
 def test_creator_player_print_gate_requires_one_exact_lineage_proof():
     """release.stage11.creator-player-print: all experience projections share exact proof."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, experience_proof_ref="missing"))
     assert not gate(report, "stage11.creator-player-print").passed
 
 
 def test_tagged_upstream_gate_rejects_git_and_commit_pins():
     """release.stage12.tagged-upstreams: public dependencies are released versions."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     evidence = replace(evidence, upstream_versions={
         "verismill": "git+https://example.test/repo@abc", "mattermill": "1.0.0",
     })
@@ -156,50 +180,65 @@ def test_tagged_upstream_gate_rejects_git_and_commit_pins():
 
 def test_compatibility_gate_requires_stable_epoch_and_exact_policy():
     """release.stage12.compatibility: experimental schema promises cannot qualify."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, contract_epoch="experimental"))
     assert not gate(report, "stage12.compatibility").passed
 
 
 def test_support_matrix_gate_requires_exact_receipt_for_each_supported_python():
     """release.stage12.support-matrix: every promised interpreter is verified."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, test_receipts={"3.11": H}))
     assert not gate(report, "stage12.support-matrix").passed
 
 
 def test_package_gate_requires_exact_sdist_and_wheel_refs():
     """release.stage12.package-artifacts: both public distributions are exact."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, package_artifact_refs={"wheel": H}))
     assert not gate(report, "stage12.package-artifacts").passed
 
 
 def test_documentation_gate_requires_every_public_entry_path():
     """release.stage12.documentation: quickstart through limitations are published."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, documentation_refs={"quickstart": H}))
     assert not gate(report, "stage12.documentation").passed
 
 
 def test_limitations_gate_makes_debt_visible_without_upgrading_standing():
     """release.stage12.known-limitations: an empty disclosure cannot qualify."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify(experiment, replace(evidence, known_limitations=()))
     assert not gate(report, "stage12.known-limitations").passed
 
 
-def test_publisher_gate_requires_distinct_human_approval_over_exact_refs():
-    """release.stage12.publisher-approval: CI or the standing reviewer cannot publish."""
-    experiment, evidence = accepted_fixture()
-    approval = replace(evidence.publisher_approval, publisher_authority_id="reviewer")
-    report = qualify(experiment, replace(evidence, publisher_approval=approval))
-    assert not gate(report, "stage12.publisher-approval").passed
+def test_release_attestation_requires_distinct_agent_and_exact_model_receipt():
+    """release.stage12.release-attestation: builders, judges, and bare CI cannot release."""
+    experiment, evidence = qualified_fixture()
+    experiment.ledger.value["authorities"] = tuple(
+        replace(item, principal="builder-principal")
+        if item.authority_id == "release-reviewer" else item
+        for item in experiment.ledger.value["authorities"]
+    )
+    report = qualify(experiment, evidence)
+    assert not gate(report, "stage12.release-attestation").passed
+    experiment, evidence = qualified_fixture()
+    attestation = replace(evidence.release_attestation, model_receipt_id="missing")
+    report = qualify(experiment, replace(evidence, release_attestation=attestation))
+    assert not gate(report, "stage12.release-attestation").passed
+
+
+def test_human_play_is_optional_evidence_not_a_release_gate():
+    """release.human-optionality: no human object is required for agentic qualification."""
+    experiment, evidence = qualified_fixture()
+    assert "playtest_runs" not in experiment.ledger.value
+    assert qualify(experiment, evidence).status == "qualified"
 
 
 def test_all_twelve_gates_are_required_and_report_identity_is_deterministic():
     """release.qualification: no partial pass is called a public release."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     first = qualify(experiment, evidence)
     second = qualify(experiment, ReleaseEvidence.from_mapping(evidence.to_mapping()))
     assert first.status == "qualified"
@@ -210,7 +249,7 @@ def test_all_twelve_gates_are_required_and_report_identity_is_deterministic():
 
 def test_dangling_or_corrupt_hash_strings_are_not_evidence():
     """release.evidence-availability: every claimed ref is rehashed from supplied bytes."""
-    experiment, evidence = accepted_fixture()
+    experiment, evidence = qualified_fixture()
     report = qualify_public_release(
         experiment, evidence, evidence_objects={H: b"different bytes"}
     )

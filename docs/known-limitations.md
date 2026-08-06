@@ -1,11 +1,12 @@
 # Known limitations
 
-Version 0.17 is an experimental library release candidate, not a qualified
+Version 0.18 is an experimental library release candidate, not a qualified
 public 1.0 release.
 
 - Winter Observatory has deterministic packages, deep dossiers, model-blind
-  measurement, and a frozen human protocol, but no completed exact-version
-  six-player Playtest Runs or accepted human Standing.
+  measurement, and a frozen human protocol. No completed exact-version
+  six-player Playtest Run exists, so no claim about observed human experience
+  is made; this does not block agentic qualification.
 - Facilitated Investigation is the only first-party profile with an end-to-end
   example. The extension boundary is designed but not yet proven by a second
   genre.
@@ -18,5 +19,5 @@ public 1.0 release.
   matchmaking, billing, or a marketplace.
 - Artifact realism Standing belongs to each exact document class and candidate;
   it does not transfer automatically to a game package or new emitter.
-- Human evidence is first order. Model panels can find defects and qualify
-  machine evidence, but cannot confer accepted human-play Standing.
+- Human evidence is optional and first order. Model panels can qualify agentic
+  evidence, but cannot confer or impersonate human-play Standing.

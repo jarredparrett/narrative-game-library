@@ -15,7 +15,7 @@ from narrative_game.contracts import canonical_json
 from narrative_game.workspace.io import atomic_write
 
 
-HUMAN_BOUNDARIES = (
+AUTHORIZATION_BOUNDARIES = (
     "target_and_instrument",
     "repair_tranche",
     "completed_exact_candidate",
@@ -29,31 +29,31 @@ def _authorization(
     try:
         value = json.loads(data)
     except (TypeError, json.JSONDecodeError) as exc:
-        raise ValueError("human authorization must be exact JSON bytes") from exc
+        raise ValueError("boundary authorization must be exact JSON bytes") from exc
     if not isinstance(value, Mapping) or value.get("schema_version") != "0.13":
-        raise ValueError("human authorization contract is incomplete")
+        raise ValueError("boundary authorization contract is incomplete")
     if value.get("plan_id") != plan.plan_id:
-        raise ValueError("human authorization names another efficiency plan")
-    if value.get("boundary") != expected_boundary or expected_boundary not in HUMAN_BOUNDARIES:
-        raise ValueError("human authorization names another transition boundary")
+        raise ValueError("boundary authorization names another efficiency plan")
+    if value.get("boundary") != expected_boundary or expected_boundary not in AUTHORIZATION_BOUNDARIES:
+        raise ValueError("boundary authorization names another transition boundary")
     if value.get("decision") != "approved" or not isinstance(value.get("scope"), Mapping):
-        raise ValueError("human authorization decision or scope is invalid")
+        raise ValueError("boundary authorization decision or scope is invalid")
     if expected_boundary == "target_and_instrument" and (
         value["scope"].get("primary_target") != plan.primary_target
         or value["scope"].get("instrument_id") != plan.instrument_id
     ):
-        raise ValueError("human authorization does not freeze the selected target and instrument")
+        raise ValueError("boundary authorization does not freeze the selected target and instrument")
     if expected_boundary == "repair_tranche" and (
         value["scope"].get("selected_loop") != plan.selected_loop
         or sorted(value["scope"].get("representative_units", ()))
         != sorted(plan.representative_units)
     ):
-        raise ValueError("human authorization does not cover the repair tranche")
+        raise ValueError("boundary authorization does not cover the repair tranche")
     if expected_boundary == "completed_exact_candidate" and (
         not plan.exact_candidate_id
         or value["scope"].get("candidate_id") != plan.exact_candidate_id
     ):
-        raise ValueError("human authorization does not cover the exact Candidate")
+        raise ValueError("boundary authorization does not cover the exact Candidate")
     return dict(value)
 
 
@@ -100,7 +100,7 @@ class EfficiencyController:
         plan: EfficiencyPlan,
         *,
         target_authorization_bytes: bytes,
-        actor: str = "human:operator",
+        actor: str = "system:efficiency-policy",
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         approval = _authorization(
@@ -133,7 +133,7 @@ class EfficiencyController:
         *,
         boundary: str,
         authorization_bytes: bytes,
-        actor: str = "human:operator",
+        actor: str = "system:efficiency-policy",
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         if boundary == "target_and_instrument":
@@ -152,7 +152,7 @@ class EfficiencyController:
         _authorization(authorization_bytes, plan=plan, expected_boundary=boundary)
         approval_ref = self.workspace.store.put_bytes(authorization_bytes)
         event = self.journal.append(
-            "efficiency_human_boundary_recorded",
+            "efficiency_boundary_authorized",
             actor=actor,
             payload={
                 "schema_version": self.schema_version,
@@ -190,7 +190,7 @@ class EfficiencyController:
         if plan.mode != "formal_measurement":
             raise ValueError("preflight evidence cannot be recorded as formal measurement")
         if "completed_exact_candidate" not in self.authorized_boundaries(plan_id):
-            raise ValueError("formal measurement requires exact Candidate human review")
+            raise ValueError("formal measurement requires exact Candidate review")
         if candidate_id != plan.exact_candidate_id or instrument_id != plan.instrument_id:
             raise ValueError("formal evidence names another Candidate or Instrument")
         if tuple(sorted(judge_authority_ids)) != tuple(
@@ -225,7 +225,10 @@ class EfficiencyController:
                 continue
             if event["event_type"] == "efficiency_plan_recorded":
                 boundaries.append("target_and_instrument")
-            elif event["event_type"] == "efficiency_human_boundary_recorded":
+            elif event["event_type"] in {
+                "efficiency_boundary_authorized",
+                "efficiency_human_boundary_recorded",
+            }:
                 boundaries.append(event["payload"]["boundary"])
         return tuple(boundaries)
 
@@ -288,20 +291,20 @@ class EfficiencyController:
         boundaries = self.authorized_boundaries(plan.plan_id)
         state = self.state(plan.plan_id) if plan.mode == "bounded_preflight" else None
         if plan.mode == "bounded_preflight" and "repair_tranche" not in boundaries:
-            next_transition = "human_review:repair_tranche"
+            next_transition = "independent_review:repair_tranche"
         elif plan.mode == "bounded_preflight":
             assert state is not None
             next_transition = (
-                "human_review:create_formal_plan_for_completed_candidate"
+                "independent_review:create_formal_plan_for_completed_candidate"
                 if state.status == "ready_for_formal_measurement"
                 else state.next_transition
             )
         elif "completed_exact_candidate" not in boundaries:
-            next_transition = "human_review:completed_exact_candidate"
+            next_transition = "independent_review:completed_exact_candidate"
         elif not self.formal_measurement_events(plan.plan_id):
             next_transition = "run_complete_blind_instrument_once"
         elif "disposition" not in boundaries:
-            next_transition = "human_review:disposition"
+            next_transition = "independent_review:disposition"
         else:
             next_transition = "qualification_transition_complete"
         remaining = None
@@ -377,7 +380,10 @@ class EfficiencyController:
                         best_score=plan.baseline_score
                     )
                     boundaries[plan.plan_id] = {"target_and_instrument"}
-                elif event["event_type"] == "efficiency_human_boundary_recorded":
+                elif event["event_type"] in {
+                    "efficiency_boundary_authorized",
+                    "efficiency_human_boundary_recorded",
+                }:
                     plan = plans[payload["plan_id"]]
                     boundary = payload["boundary"]
                     _authorization(
@@ -392,7 +398,7 @@ class EfficiencyController:
                     if boundary in {"completed_exact_candidate", "disposition"} and (
                         plan.mode != "formal_measurement"
                     ):
-                        raise ValueError("preflight contains a formal human boundary")
+                        raise ValueError("preflight contains a formal review boundary")
                     if boundary == "disposition" and plan.plan_id not in formal_seen:
                         raise ValueError("disposition preceded formal measurement")
                     boundaries[plan.plan_id].add(boundary)

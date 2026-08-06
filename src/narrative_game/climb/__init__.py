@@ -13,6 +13,7 @@ from .execution import (
 from .drivers import JsonCommandDriver
 from .ledger import ClimbLedger, ClimbRejected, StoredRecord
 from .model import (
+    AgentReview,
     Authority,
     Dimension,
     Evaluation,
@@ -59,6 +60,7 @@ from .planning import (
 from .validation import ClimbFinding, validate_climb_bundle
 
 __all__ = [
+    "AgentReview",
     "Authority",
     "CHANGE_KINDS",
     "BlindTrial",

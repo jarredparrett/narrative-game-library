@@ -498,7 +498,7 @@ def advance_preflight(
     next_transition = "continue_bounded_preflight"
     if observation.passed:
         status = "ready_for_formal_measurement"
-        next_transition = "human_review:completed_exact_candidate"
+        next_transition = "independent_review:completed_exact_candidate"
     elif failures.get(observation.structural_class, 0) >= (
         plan.budget.repeated_failure_threshold
     ):

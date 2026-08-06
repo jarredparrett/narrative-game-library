@@ -17,6 +17,7 @@ from narrative_game.playtest.model import (
 )
 
 from .model import (
+    AgentReview,
     Authority,
     Dimension,
     Evaluation,
@@ -51,6 +52,7 @@ Record = (
     | Evaluation
     | Proposal
     | HumanReview
+    | AgentReview
     | Transition
     | StandingAttestation
     | TrialBinding
@@ -91,6 +93,7 @@ _KIND_TO_COLLECTION = {
     "evaluation": "evaluations",
     "proposal": "proposals",
     "human_review": "reviews",
+    "agent_review": "reviews",
     "transition": "transitions",
     "standing": "standings",
     "trial_binding": "trial_bindings",
@@ -126,6 +129,8 @@ def _kind_and_id(value: Record) -> tuple[str, str]:
         return "proposal", value.proposal_id
     if isinstance(value, HumanReview):
         return "human_review", value.review_id
+    if isinstance(value, AgentReview):
+        return "agent_review", value.review_id
     if isinstance(value, Transition):
         return "transition", value.transition_id
     if isinstance(value, StandingAttestation):
@@ -221,6 +226,12 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
         result = HumanReview(
             value["proposal_id"], value["reviewer_authority_id"], value["decision"],
             value["reason"], tuple(value["approved_requirement_ids"]),
+        )
+    elif kind == "agent_review":
+        result = AgentReview(
+            value["proposal_id"], value["reviewer_authority_id"],
+            value["model_receipt_id"], value["decision"], value["reason"],
+            tuple(value["approved_requirement_ids"]),
         )
     elif kind == "transition":
         result = Transition(
@@ -542,19 +553,27 @@ class ClimbLedger:
         idempotency_key: str,
     ) -> Transition:
         proposal_record = self.get("proposal", proposal_id)
-        review_record = self.get("human_review", review_id)
+        matches = [
+            item for item in self._records()
+            if item.kind in {"human_review", "agent_review"}
+            and item.record_id == review_id
+        ]
+        if len(matches) != 1:
+            raise KeyError(f"expected one review record {review_id!r}, found {len(matches)}")
+        review_record = matches[0]
         proposal = proposal_record.value
         review = review_record.value
         assert isinstance(proposal, Proposal)
-        assert isinstance(review, HumanReview)
+        assert isinstance(review, (HumanReview, AgentReview))
         reviewer_record = self.get("authority", review.reviewer_authority_id)
         reviewer = reviewer_record.value
         assert isinstance(reviewer, Authority)
         blockers: list[ClimbFinding] = []
         if review.proposal_id != proposal.proposal_id or review.decision != "approved":
             blockers.append(ClimbFinding("climb.unauthorized-transition", "blocker", review.review_id, review.decision, "Only an approved Review of this Proposal may advance canonical state"))
-        if reviewer.kind != "human" or reviewer.role != "reviewer":
-            blockers.append(ClimbFinding("climb.human-authority-required", "blocker", reviewer.authority_id, reviewer.kind, "Canonical movement requires a human reviewer"))
+        expected_kind = "human" if isinstance(review, HumanReview) else "agent"
+        if reviewer.kind != expected_kind or reviewer.role != "reviewer":
+            blockers.append(ClimbFinding("climb.review-authority-required", "blocker", reviewer.authority_id, reviewer.kind, "Canonical movement requires a typed reviewer matching the Review evidence"))
         if set(review.approved_requirement_ids) != set(proposal.requirement_ids):
             blockers.append(ClimbFinding("climb.partial-approval", "blocker", review.review_id, str(review.approved_requirement_ids), "Approval must cover every Proposal Requirement"))
         if blockers:
@@ -565,13 +584,13 @@ class ClimbLedger:
             expected_head=proposal.baseline_draft_ref,
             data=proposed_data,
             reason=review.reason,
-            actor=f"human:{reviewer.principal}",
+            actor=f"{reviewer.kind}:{reviewer.principal}",
             component_lock=dict(component_lock),
             operation_receipt={
                 "operation": "agentic-transition",
                 "task": self.get("task", proposal.task_id).record_ref,
                 "proposal": proposal_record.record_ref,
-                "human_review": review_record.record_ref,
+                "review": review_record.record_ref,
                 "model_receipt": self.get("model_receipt", proposal.model_receipt_id).record_ref,
                 "requirements": [self.get("requirement", item).record_ref for item in proposal.requirement_ids],
             },
@@ -588,7 +607,7 @@ class ClimbLedger:
         )
         self._record(
             transition,
-            actor=f"human:{reviewer.principal}",
+            actor=f"{reviewer.kind}:{reviewer.principal}",
             idempotency_key=idempotency_key,
             extra_object_refs=(proposal_record.record_ref, review_record.record_ref, child),
         )

@@ -28,8 +28,10 @@ def sha(character: str) -> str:
 
 def valid_bundle() -> dict:
     builder = Authority("agent-builder", "agent", "builder", "fixture-builder")
-    judge = Authority("agent-judge", "agent", "judge", "fixture-blind-judge")
-    reviewer = Authority("human-reviewer", "human", "reviewer", "repository-owner")
+    judge = Authority("agent-judge", "agent", "judge", "fixture-blind-judge-a")
+    second_judge = Authority("agent-judge-b", "agent", "judge", "fixture-blind-judge-b")
+    standing_reviewer = Authority("agent-reviewer", "agent", "reviewer", "fixture-standing-reviewer")
+    human_reviewer = Authority("human-reviewer", "human", "reviewer", "repository-owner")
     instrument = FrozenInstrument(
         name="complete-experience",
         version="1.0.0",
@@ -62,6 +64,16 @@ def valid_bundle() -> dict:
         {"trial_tree": sha("d")},
         "Judge only the anonymous complete-experience trial tree.",
     )
+    second_blind_task = Task(
+        "judge-child-b",
+        "blind-measure",
+        sha("c"),
+        instrument.instrument_id,
+        second_judge.authority_id,
+        (builder.authority_id, judge.authority_id),
+        {"trial_tree": sha("d")},
+        "Independently judge only the anonymous complete-experience trial tree.",
+    )
     builder_receipt = ModelReceipt(
         builder.authority_id,
         "fixture",
@@ -92,6 +104,21 @@ def valid_bundle() -> dict:
         sha("f"),
         23,
     )
+    second_judge_receipt = ModelReceipt(
+        second_judge.authority_id,
+        "fixture",
+        "judge-model-b",
+        "judge-model-b-v1",
+        "judge",
+        sha("a"),
+        sha("b"),
+        sha("c"),
+        {"trial": sha("d")},
+        (),
+        sha("1"),
+        sha("2"),
+        29,
+    )
     finding = Finding(
         "artifact.period-language",
         "major",
@@ -118,7 +145,7 @@ def valid_bundle() -> dict:
     )
     review = HumanReview(
         proposal.proposal_id,
-        reviewer.authority_id,
+        human_reviewer.authority_id,
         "approved",
         "The change is bounded to the approved requirement.",
         proposal.requirement_ids,
@@ -126,7 +153,7 @@ def valid_bundle() -> dict:
     transition = Transition(
         proposal.proposal_id,
         review.review_id,
-        reviewer.authority_id,
+        human_reviewer.authority_id,
         "main",
         proposal.baseline_draft_ref,
         proposal.proposed_data_ref,
@@ -145,6 +172,19 @@ def valid_bundle() -> dict:
         "pass",
         "machine_qualified",
     )
+    second_evaluation = Evaluation(
+        second_blind_task.task_id,
+        second_blind_task.candidate_id,
+        instrument.instrument_id,
+        "blind",
+        (second_judge.authority_id,),
+        (second_judge_receipt.receipt_id,),
+        {"realism": 80, "playability": 86},
+        (),
+        {"stage5.access": True, "stage5.rebuild": True},
+        "pass",
+        "machine_qualified",
+    )
     exposure = Exposure(
         judge.authority_id,
         sha("d"),
@@ -152,23 +192,30 @@ def valid_bundle() -> dict:
         "blind complete-experience measurement",
         blind_task.task_id,
     )
+    second_exposure = Exposure(
+        second_judge.authority_id,
+        sha("d"),
+        "trial-tree",
+        "independent blind complete-experience measurement",
+        second_blind_task.task_id,
+    )
     standing = StandingAttestation(
         blind_task.candidate_id,
         "machine_qualified",
-        (evaluation.evaluation_id,),
-        ("model-blind-panel",),
-        reviewer.authority_id,
-        "Machine-qualified by the frozen blind instrument; no human-play standing claimed.",
+        (evaluation.evaluation_id, second_evaluation.evaluation_id),
+        ("model-blind-panel", "independent-agentic-review"),
+        standing_reviewer.authority_id,
+        "Machine-qualified by two independent blind evaluations and an independent review agent; no human-play standing claimed.",
     )
     return {
-        "authorities": (builder, judge, reviewer),
+        "authorities": (builder, judge, second_judge, standing_reviewer, human_reviewer),
         "instruments": (instrument,),
-        "tasks": (build_task, blind_task),
-        "model_receipts": (builder_receipt, judge_receipt),
-        "exposures": (exposure,),
+        "tasks": (build_task, blind_task, second_blind_task),
+        "model_receipts": (builder_receipt, judge_receipt, second_judge_receipt),
+        "exposures": (exposure, second_exposure),
         "findings": (finding,),
         "requirements": (requirement,),
-        "evaluations": (evaluation,),
+        "evaluations": (evaluation, second_evaluation),
         "proposals": (proposal,),
         "reviews": (review,),
         "transitions": (transition,),
@@ -227,13 +274,13 @@ def test_requirement_translation_does_not_leak_quote_or_locus():
     assert "climb.answer-leak" in codes(bundle)
 
 
-def test_only_human_reviewer_can_approve_proposal():
-    """stage6.human-authority: agent approval never authorizes canonical change."""
+def test_review_type_and_authority_must_match():
+    """stage6.review-authority: an Agent cannot impersonate a Human Review."""
     bundle = valid_bundle()
     agent_review = replace(bundle["reviews"][0], reviewer_authority_id="agent-judge")
     bundle["reviews"] = (agent_review,)
     bundle["transitions"] = ()
-    assert "climb.human-authority-required" in codes(bundle)
+    assert "climb.review-authority-required" in codes(bundle)
 
 
 def test_rejected_review_cannot_authorize_transition():

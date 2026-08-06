@@ -27,8 +27,8 @@ class ReleaseGate:
 PUBLIC_RELEASE_GATES = (
     ReleaseGate("stage8.portable-experiment", 8, "experiment", "portable Experiment verifies and binds the exact reference package"),
     ReleaseGate("stage9.reusable-authoring", 9, "authoring", "reusable Game Blueprint and profile-adapter proof is published"),
-    ReleaseGate("stage10.accepted-human-standing", 10, "human-play", "reference Candidate has accepted exact-version human standing"),
-    ReleaseGate("stage10.independent-verification", 10, "human-review", "standing reviewer is human and independent of supporting play"),
+    ReleaseGate("stage10.agentic-standing", 10, "agentic-measurement", "reference Candidate has exact-version machine-qualified standing from two independent blind evaluations"),
+    ReleaseGate("stage10.independent-agentic-verification", 10, "agentic-review", "standing reviewer is an agent independent of builders and blind judges"),
     ReleaseGate("stage11.creator-player-print", 11, "experience", "maker, host, player, and print projections share one Release and Session lineage"),
     ReleaseGate("stage12.tagged-upstreams", 12, "distribution", "Verismill and Mattermill use immutable release versions rather than repository pins"),
     ReleaseGate("stage12.compatibility", 12, "public-api", "stable contract epoch and compatibility promise are published"),
@@ -36,14 +36,14 @@ PUBLIC_RELEASE_GATES = (
     ReleaseGate("stage12.package-artifacts", 12, "distribution", "sdist and wheel have exact content references"),
     ReleaseGate("stage12.documentation", 12, "documentation", "quickstart, tutorial, extension, release, and limitations documents are exact"),
     ReleaseGate("stage12.known-limitations", 12, "publisher", "known limitations are disclosed rather than converted into standing claims"),
-    ReleaseGate("stage12.publisher-approval", 12, "publisher", "an independent human publisher approves this version and its exact package refs"),
+    ReleaseGate("stage12.release-attestation", 12, "release-review", "an independent release agent attests this policy, version, standing, and exact package refs"),
 )
 
 
 @dataclass(frozen=True)
 class PublicReleasePolicy:
     name: str = "narrative-game-public-release"
-    version: str = "1.0.0"
+    version: str = "2.0.0"
     stable_contract_epoch: str = "1"
     supported_python_versions: tuple[str, ...] = ("3.11", "3.13")
     required_upstreams: tuple[str, ...] = ("verismill", "mattermill")
@@ -71,12 +71,13 @@ class PublicReleasePolicy:
 
 
 @dataclass(frozen=True)
-class PublisherApproval:
+class ReleaseAttestation:
     policy_id: str
     library_version: str
     reference_candidate_id: str
     standing_attestation_id: str
-    publisher_authority_id: str
+    reviewer_authority_id: str
+    model_receipt_id: str
     package_artifact_refs: Mapping[str, str]
     response_ref: str
 
@@ -84,12 +85,13 @@ class PublisherApproval:
         object.__setattr__(self, "package_artifact_refs", dict(sorted(self.package_artifact_refs.items())))
 
     @classmethod
-    def from_mapping(cls, value: Mapping[str, Any]) -> "PublisherApproval":
+    def from_mapping(cls, value: Mapping[str, Any]) -> "ReleaseAttestation":
         return cls(
             str(value["policy_id"]), str(value["library_version"]),
             str(value["reference_candidate_id"]),
             str(value["standing_attestation_id"]),
-            str(value["publisher_authority_id"]),
+            str(value["reviewer_authority_id"]),
+            str(value["model_receipt_id"]),
             {str(key): str(item) for key, item in value["package_artifact_refs"].items()},
             str(value["response_ref"]),
         )
@@ -100,7 +102,8 @@ class PublisherApproval:
             "library_version": self.library_version,
             "reference_candidate_id": self.reference_candidate_id,
             "standing_attestation_id": self.standing_attestation_id,
-            "publisher_authority_id": self.publisher_authority_id,
+            "reviewer_authority_id": self.reviewer_authority_id,
+            "model_receipt_id": self.model_receipt_id,
             "package_artifact_refs": dict(self.package_artifact_refs),
             "response_ref": self.response_ref,
         }
@@ -120,7 +123,7 @@ class ReleaseEvidence:
     documentation_refs: Mapping[str, str]
     known_limitations: tuple[str, ...]
     compatibility_ref: str
-    publisher_approval: PublisherApproval | None = None
+    release_attestation: ReleaseAttestation | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -131,7 +134,7 @@ class ReleaseEvidence:
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "ReleaseEvidence":
-        approval = value.get("publisher_approval")
+        attestation = value.get("release_attestation")
         return cls(
             str(value["library_version"]), str(value["contract_epoch"]),
             str(value["reference_candidate_id"]), str(value["reference_release_id"]),
@@ -142,7 +145,7 @@ class ReleaseEvidence:
             {str(key): str(item) for key, item in value["documentation_refs"].items()},
             tuple(str(item) for item in value["known_limitations"]),
             str(value["compatibility_ref"]),
-            PublisherApproval.from_mapping(approval) if approval is not None else None,
+            ReleaseAttestation.from_mapping(attestation) if attestation is not None else None,
         )
 
     def to_mapping(self) -> dict[str, Any]:
@@ -159,8 +162,8 @@ class ReleaseEvidence:
             "documentation_refs": dict(self.documentation_refs),
             "known_limitations": list(self.known_limitations),
             "compatibility_ref": self.compatibility_ref,
-            "publisher_approval": (
-                self.publisher_approval.to_mapping() if self.publisher_approval else None
+            "release_attestation": (
+                self.release_attestation.to_mapping() if self.release_attestation else None
             ),
         }
 
@@ -242,24 +245,39 @@ def qualify_public_release(
     ]
     standings = [
         item for item in snapshot["standings"]
-        if item.candidate_id == evidence.reference_candidate_id and item.level == "accepted"
+        if item.candidate_id == evidence.reference_candidate_id
+        and item.level == "machine_qualified"
     ]
-    accepted = standings[-1] if standings else None
+    standing = standings[-1] if standings else None
     authorities = {item.authority_id: item for item in snapshot["authorities"]}
-    runs = {item.run_id: item for item in snapshot["playtest_runs"]}
-    roster = {
+    evaluations = {item.evaluation_id: item for item in snapshot["evaluations"]}
+    model_receipts = {item.receipt_id: item for item in snapshot["model_receipts"]}
+    linked_evaluations = tuple(
+        evaluations[item]
+        for item in (standing.evaluation_ids if standing else ())
+        if item in evaluations
+    )
+    judge_ids = {
         authority_id
-        for run_id in (accepted.playtest_run_ids if accepted else ())
-        if run_id in runs
-        for authority_id in (
-            *runs[run_id].participant_authority_ids,
-            runs[run_id].facilitator_authority_id,
-            *runs[run_id].observer_authority_ids,
-        )
+        for evaluation in linked_evaluations
+        for authority_id in evaluation.judge_authority_ids
     }
-    reviewer = authorities.get(accepted.reviewer_authority_id) if accepted else None
-    approval = evidence.publisher_approval
-    publisher = authorities.get(approval.publisher_authority_id) if approval else None
+    judge_principals = {
+        authorities[item].principal for item in judge_ids if item in authorities
+    }
+    builder_principals = {
+        authorities[item.builder_authority_id].principal
+        for item in snapshot.get("proposals", ())
+        if item.builder_authority_id in authorities
+    }
+    reviewer = authorities.get(standing.reviewer_authority_id) if standing else None
+    attestation = evidence.release_attestation
+    release_reviewer = (
+        authorities.get(attestation.reviewer_authority_id) if attestation else None
+    )
+    release_receipt = (
+        model_receipts.get(attestation.model_receipt_id) if attestation else None
+    )
 
     def result(code: str, passed: bool, refs: tuple[str, ...], explanation: str, remediation: str) -> GateResult:
         gate = next(item for item in policy.gates if item.code == code)
@@ -269,14 +287,20 @@ def qualify_public_release(
     portable_ok = bool(verification.get("ok")) and exact_binding is not None
     authoring_ok = evidence.authoring_proof_ref in available_refs
     standing_ok = (
-        accepted is not None
-        and len(accepted.playtest_run_ids) >= 2
-        and {"fresh-human-play", "independent-standing-review", "model-human-comparison"}
-        <= set(accepted.evidence_kinds)
+        standing is not None
+        and len(standing.evaluation_ids) >= 2
+        and len(linked_evaluations) == len(standing.evaluation_ids)
+        and {"model-blind-panel", "independent-agentic-review"}
+        <= set(standing.evidence_kinds)
+        and all(item.mode == "blind" and item.outcome == "pass" for item in linked_evaluations)
+        and len({item.instrument_id for item in linked_evaluations}) == 1
+        and len(judge_principals) >= 2
     )
     independent_ok = (
-        standing_ok and reviewer is not None and reviewer.kind == "human"
-        and reviewer.role == "reviewer" and reviewer.authority_id not in roster
+        standing_ok and reviewer is not None and reviewer.kind == "agent"
+        and reviewer.role == "reviewer" and reviewer.authority_id not in judge_ids
+        and reviewer.principal not in judge_principals
+        and reviewer.principal not in builder_principals
     )
     experience_ok = evidence.experience_proof_ref in available_refs
     upstream_ok = (
@@ -299,22 +323,29 @@ def qualify_public_release(
     limitations_ok = bool(evidence.known_limitations) and all(
         item.strip() for item in evidence.known_limitations
     )
-    publisher_ok = (
-        approval is not None and publisher is not None and publisher.kind == "human"
-        and publisher.role == "publisher" and publisher.authority_id not in roster
-        and (reviewer is None or publisher.authority_id != reviewer.authority_id)
-        and approval.policy_id == policy.policy_id
-        and approval.library_version == evidence.library_version
-        and approval.reference_candidate_id == evidence.reference_candidate_id
-        and accepted is not None and approval.standing_attestation_id == accepted.attestation_id
-        and dict(approval.package_artifact_refs) == dict(evidence.package_artifact_refs)
-        and approval.response_ref in available_refs
+    release_attestation_ok = (
+        attestation is not None and release_reviewer is not None
+        and release_reviewer.kind == "agent" and release_reviewer.role == "release-reviewer"
+        and release_receipt is not None
+        and release_receipt.authority_id == release_reviewer.authority_id
+        and release_receipt.role == "release-reviewer"
+        and release_receipt.parsed_output_ref == attestation.response_ref
+        and release_reviewer.principal not in judge_principals
+        and release_reviewer.principal not in builder_principals
+        and (reviewer is None or release_reviewer.principal != reviewer.principal)
+        and attestation.policy_id == policy.policy_id
+        and attestation.library_version == evidence.library_version
+        and attestation.reference_candidate_id == evidence.reference_candidate_id
+        and standing is not None
+        and attestation.standing_attestation_id == standing.attestation_id
+        and dict(attestation.package_artifact_refs) == dict(evidence.package_artifact_refs)
+        and attestation.response_ref in available_refs
     )
     gate_results = (
         result("stage8.portable-experiment", portable_ok, tuple(item for item in (getattr(exact_binding, "binding_id", ""),) if item), "portable lineage and exact package verify" if portable_ok else "portable lineage or exact package binding is missing", "verify the Experiment and bind the exact reference Candidate, Release, Physical Export, and Blind Trial"),
         result("stage9.reusable-authoring", authoring_ok, (evidence.authoring_proof_ref,) if authoring_ok else (), "reusable authoring proof is exact" if authoring_ok else "authoring proof is missing", "publish a content-addressed Game Blueprint and profile-adapter example"),
-        result("stage10.accepted-human-standing", standing_ok, (accepted.attestation_id,) if accepted else (), "accepted exact-version human standing exists" if standing_ok else "reference Candidate lacks accepted human standing", "complete the frozen fresh-human Playtest Runs, model comparison, and accepted Standing Attestation"),
-        result("stage10.independent-verification", independent_ok, (accepted.attestation_id,) if independent_ok else (), "standing was independently reviewed" if independent_ok else "independent human standing review is missing", "have a human reviewer who did not play, facilitate, or observe attest standing"),
+        result("stage10.agentic-standing", standing_ok, (standing.attestation_id,) if standing else (), "two passing blind evaluations support exact machine-qualified standing" if standing_ok else "reference Candidate lacks independently corroborated agentic standing", "run two independent blind evaluations and record machine-qualified Standing with exact model receipts"),
+        result("stage10.independent-agentic-verification", independent_ok, (standing.attestation_id,) if independent_ok and standing else (), "standing was independently reviewed by an agent outside the blind panels" if independent_ok else "independent agentic standing review is missing", "have a separate review agent attest the standing without participating as builder or blind judge"),
         result("stage11.creator-player-print", experience_ok, (evidence.experience_proof_ref,) if experience_ok else (), "experience-boundary proof is exact" if experience_ok else "experience-boundary proof is missing", "publish one exact maker/host/player/print lineage proof"),
         result("stage12.tagged-upstreams", upstream_ok, tuple(evidence.upstream_versions.values()) if upstream_ok else (), "upstreams are immutable release versions" if upstream_ok else "one or more upstreams still use a repository pin or invalid version", "publish Verismill and Mattermill releases and depend on their versions"),
         result("stage12.compatibility", compatibility_ok, (evidence.compatibility_ref,) if compatibility_ok else (), "stable compatibility epoch is documented" if compatibility_ok else "stable contract epoch or compatibility evidence is missing", "declare contract epoch 1 and publish the supported public-API compatibility policy"),
@@ -322,7 +353,7 @@ def qualify_public_release(
         result("stage12.package-artifacts", packages_ok, tuple(evidence.package_artifact_refs.values()) if packages_ok else (), "sdist and wheel are content-addressed" if packages_ok else "sdist or wheel evidence is incomplete", "build and hash both required distribution artifacts"),
         result("stage12.documentation", docs_ok, tuple(evidence.documentation_refs.values()) if docs_ok else (), "required public documentation is exact" if docs_ok else "required public documentation is incomplete", "publish and hash the quickstart, tutorial, extension guide, release policy, and known limitations"),
         result("stage12.known-limitations", limitations_ok, (), "known limitations are disclosed" if limitations_ok else "known limitations are not disclosed", "publish the current limitations even when the list is short"),
-        result("stage12.publisher-approval", publisher_ok, (approval.response_ref,) if publisher_ok and approval else (), "independent human publisher approved the exact version" if publisher_ok else "exact independent publisher approval is missing", "after every other gate passes, record approval by a distinct human publisher over this policy, version, standing, and package refs"),
+        result("stage12.release-attestation", release_attestation_ok, (attestation.response_ref,) if release_attestation_ok and attestation else (), "independent release agent attested the exact version" if release_attestation_ok else "exact independent release attestation is missing", "record a distinct release-review agent receipt over this policy, version, standing, and package refs"),
     )
     status = "qualified" if all(item.passed for item in gate_results) else "not_qualified"
     return ReleaseQualificationReport(

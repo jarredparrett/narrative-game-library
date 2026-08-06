@@ -14,7 +14,7 @@ from .api import (
     ScoreAggregator,
 )
 from .standing import ExperimentSpine
-from .efficiency import EfficiencyController, HUMAN_BOUNDARIES
+from .efficiency import AUTHORIZATION_BOUNDARIES, EfficiencyController
 from .migration import (
     migrate_winter_observatory_candidate_6,
     read_external_evidence,
@@ -28,7 +28,7 @@ __all__ = [
     "Experiment",
     "ExperimentSpine",
     "EfficiencyController",
-    "HUMAN_BOUNDARIES",
+    "AUTHORIZATION_BOUNDARIES",
     "migrate_winter_observatory_candidate_6",
     "GameProfileAdapter",
     "HumanPanelMember",

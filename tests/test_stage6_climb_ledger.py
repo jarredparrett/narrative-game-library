@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from narrative_game.climb import (
+    AgentReview,
     Authority,
     ClimbLedger,
     ClimbRejected,
@@ -134,7 +135,7 @@ def test_proposal_is_inert_until_exact_human_approval_advances_workspace(tmp_pat
     builder, judge, reviewer, _, _, requirement, receipt, proposal = seed_proposal(ledger, baseline)
     assert workspace.branches["main"] == baseline
 
-    with pytest.raises(ClimbRejected, match="human-authority-required"):
+    with pytest.raises(ClimbRejected, match="review-authority-required"):
         ledger.register(
             HumanReview(proposal.record_id, judge.authority_id, "approved", "agent says yes", (requirement.requirement_id,)),
             actor="agent:judge",
@@ -185,6 +186,56 @@ def test_proposal_is_inert_until_exact_human_approval_advances_workspace(tmp_pat
     assert workspace.lineage.read()[-1]["actor"] == "human:jarredparrett"
     assert ledger.verify()["ok"]
     assert workspace.verify()["ok"]
+
+
+def test_independent_agent_review_can_advance_without_a_human_gate(tmp_path):
+    """stage6.agentic-transition: exact independent Model Receipt can authorize change."""
+    workspace, baseline = make_workspace(tmp_path)
+    ledger = ClimbLedger(workspace)
+    builder, _, _, _, _, requirement, _, proposal = seed_proposal(ledger, baseline)
+    reviewer = Authority("agent-reviewer", "agent", "reviewer", "independent-reviewer")
+    ledger.register(reviewer, actor="system:test", idempotency_key="agent-reviewer")
+    receipt = ledger.record_model_invocation(
+        authority_id=reviewer.authority_id,
+        provider="fixture-provider",
+        requested_model="review-model",
+        resolved_model="review-model-2026-08-06",
+        role="reviewer",
+        prompt_hash=digest_bytes(b"review prompt"),
+        context_hash=digest_bytes(b"proposal and requirements"),
+        tool_contract_hash=digest_bytes(b"review schema"),
+        input_hashes={"proposal": proposal.record_ref},
+        tool_receipt_hashes=(),
+        raw_output=b'{"decision":"approved"}',
+        parsed_output={"decision": "approved"},
+        seed=31,
+        actor="agent:independent-reviewer",
+        idempotency_key="agent-review-receipt",
+    )
+    review = AgentReview(
+        proposal.record_id,
+        reviewer.authority_id,
+        receipt.record_id,
+        "approved",
+        "The bounded change covers the requirement and preserves hard gates.",
+        (requirement.requirement_id,),
+    )
+    ledger.register(
+        review,
+        actor="agent:independent-reviewer",
+        idempotency_key="agent-review",
+    )
+    transition = ledger.apply_approved_transition(
+        proposal_id=proposal.record_id,
+        review_id=review.review_id,
+        branch="main",
+        component_lock=component_lock(),
+        idempotency_key="agent-transition",
+    )
+    assert transition.child_draft_ref != baseline
+    assert workspace.lineage.read()[-1]["actor"] == "agent:independent-reviewer"
+    assert builder.principal != reviewer.principal
+    assert ledger.verify()["ok"]
 
 
 def test_climb_reopens_archives_and_preserves_exact_model_outputs(tmp_path):

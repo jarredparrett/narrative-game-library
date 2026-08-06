@@ -1,4 +1,4 @@
-"""Deterministically materialize a resolved live Session from a host transcript."""
+"""Deterministically materialize a resolved live or simulated Session transcript."""
 
 from __future__ import annotations
 
@@ -28,13 +28,20 @@ def record_session_plan(
     plan: Mapping[str, Any],
 ) -> tuple[SessionHistory, dict[str, Any]]:
     """Apply one completed host transcript in memory and return exact history."""
-    if plan.get("schema_version") != "1.0" or plan.get("mode") != "live":
-        raise ValueError("Session recording plan requires schema_version 1.0 and live mode")
+    mode = str(plan.get("mode", ""))
+    if plan.get("schema_version") != "1.0" or mode not in {"live", "simulation"}:
+        raise ValueError(
+            "Session recording plan requires schema_version 1.0 and live or simulation mode"
+        )
     release = load_release(release_bytes)
     bindings = tuple(
         ActorBinding(
             str(item["binding_id"]),
-            Actor(str(item["actor_id"]), "human", str(item["label"])),
+            Actor(
+                str(item["actor_id"]),
+                str(item.get("actor_kind", "human" if mode == "live" else "model")),
+                str(item["label"]),
+            ),
             str(item["seat_id"]),
             1,
         )
@@ -53,7 +60,7 @@ def record_session_plan(
     history = create_session(
         release=release,
         session_id=str(plan["session_id"]),
-        mode="live",
+        mode=mode,
         bindings=bindings,
         viewers=viewers,
     )
@@ -106,6 +113,7 @@ def record_session_plan(
         "schema_version": "1.0",
         "session_id": history.session_id,
         "release_id": history.release_id,
+        "mode": history.mode,
         "session_history_ref": history.content_hash,
         "event_count": len(history.ordered_events),
         "receipt_count": len(history.receipts),

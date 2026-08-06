@@ -260,7 +260,7 @@ def test_formal_measurement_freezes_child_and_excludes_its_fixer():
 
 
 def test_formal_panel_runs_once_between_candidate_review_and_disposition(tmp_path):
-    """stage11.human-boundaries: exact review and disposition bracket formal evidence."""
+    """stage11.review-boundaries: exact review and disposition bracket formal evidence."""
     ws = workspace(tmp_path)
     preflight, _ = winter_observatory_efficiency_proof()
     values = preflight.to_mapping()
@@ -283,7 +283,7 @@ def test_formal_panel_runs_once_between_candidate_review_and_disposition(tmp_pat
             plan, "target_and_instrument", target_scope(plan)
         ),
     )
-    with pytest.raises(ValueError, match="Candidate human review"):
+    with pytest.raises(ValueError, match="Candidate review"):
         controller.record_formal_measurement(
             plan.plan_id,
             candidate_id=plan.exact_candidate_id,
@@ -308,7 +308,7 @@ def test_formal_panel_runs_once_between_candidate_review_and_disposition(tmp_pat
         evidence_bytes=b"formal panel evidence",
     )
     assert controller.derive_projection()["next_authorized_transition"] == (
-        "human_review:disposition"
+        "independent_review:disposition"
     )
     controller.authorize_boundary(
         plan.plan_id,

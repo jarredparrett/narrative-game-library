@@ -134,12 +134,12 @@ def tutorial_projection(
             ("Frozen Instrument", "Playtest Protocol"),
         ),
         TutorialStep(
-            "human-control",
-            "Human direction and standing",
-            "Agents propose; humans approve canonical changes and independently confer only supported standing.",
-            ("Review", "Transition", "publication authority"),
+            "independent-control",
+            "Independent review and standing",
+            "Agents may complete the loop, but builders cannot approve or measure their own changes; human direction remains optional first-order evidence.",
+            ("Review", "Transition", "release authority"),
             ("selected child", "Standing Attestation"),
-            ("Proposal", "Human Review", "Standing"),
+            ("Proposal", "Agent Review", "Standing"),
         ),
     )
     return TutorialProjection(

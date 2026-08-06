@@ -1,6 +1,6 @@
 # Public release requires accepted reference-game standing
 
-- Status: accepted
+- Status: superseded by ADR 0007
 - Date: 2026-08-06
 
 ## Context

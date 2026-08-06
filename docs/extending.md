@@ -30,7 +30,7 @@ second game engine.
 2. Add one attributable capability test.
 3. Preserve seeded, offline, cross-process determinism.
 4. Build a complete package and replay every affected hard gate.
-5. Let agents propose changes; require human approval for canonical transitions.
+5. Require an independent receipted Review; human review remains optional.
 6. Measure the child under the unchanged Instrument before selecting it.
 7. State Standing only at the evidence tier actually earned.
 

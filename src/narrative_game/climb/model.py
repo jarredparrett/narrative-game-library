@@ -438,6 +438,34 @@ class HumanReview:
 
 
 @dataclass(frozen=True)
+class AgentReview:
+    proposal_id: str
+    reviewer_authority_id: str
+    model_receipt_id: str
+    decision: str
+    reason: str
+    approved_requirement_ids: tuple[str, ...]
+
+    def material(self) -> dict[str, Any]:
+        return {
+            "schema_version": "0.18",
+            "proposal_id": self.proposal_id,
+            "reviewer_authority_id": self.reviewer_authority_id,
+            "model_receipt_id": self.model_receipt_id,
+            "decision": self.decision,
+            "reason": self.reason,
+            "approved_requirement_ids": list(self.approved_requirement_ids),
+        }
+
+    @property
+    def review_id(self) -> str:
+        return _identified("agent-review", self.material())
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {"review_id": self.review_id, **self.material()}
+
+
+@dataclass(frozen=True)
 class Transition:
     proposal_id: str
     review_id: str

@@ -2,7 +2,8 @@
 
 Every accepted requirement links its source decision to an owning package,
 fixture, capability test, and evidence. Agents may assemble this evidence; a
-human Stage Reviewer decides whether the gate is accepted.
+the frozen policy decides whether the gate is accepted; human evidence remains
+separately attributable when present.
 
 ## Stage 0 — dependency-boundary spike
 
@@ -113,6 +114,7 @@ rendered package, deterministic release evidence, and honest realism standing.
 |---|---|---|---|---|---|---|
 | [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.closed-bundle` | `climb.model` + `climb.validation` | closed climb bundle | `test_valid_native_climb_bundle_has_no_findings` | immutable typed Tasks, receipts, Findings, Requirements, Evaluations, Reviews, Transitions, and Standing | accepted 2026-08-05 |
 | [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.human-transition` | `climb.ledger` + `workspace` | rejected and approved Ashwood Proposals | `test_proposal_is_inert_until_exact_human_approval_advances_workspace` | agent approval and rejected review are inert; exact human approval advances once | accepted 2026-08-05 |
+| [Agentic policy](adr/0007-agentic-qualification-keeps-human-evidence-optional.md) | `stage6.agentic-transition` | `climb.ledger` + `workspace` | independent Agent Review | `test_independent_agent_review_can_advance_without_a_human_gate` | exact reviewer Model Receipt and principal separation authorize once | implemented |
 | [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.blind-inputs` | `climb.validation` | blind judge receipt/exposure defects | `test_blind_evaluation_requires_exact_judge_receipts_and_exposure_ledger` | exact judge receipts and task-scoped Exposure Ledger | accepted 2026-08-05 |
 | [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.role-blindness` | `climb.validation` | excluded builder as judge | `test_builder_or_fixer_cannot_judge_its_candidate` | explicit self-judging blocker | accepted 2026-08-05 |
 | [Stage 6 implementation](https://github.com/jarredparrett/narrative-game-library/issues/2) | `stage6.harvest-honesty` | `climb.validation` | scored harvest | `test_harvest_cannot_claim_a_score_or_standing` | harvest cannot move a rung | accepted 2026-08-05 |
@@ -157,7 +159,7 @@ artifact-specific measurement applicability, and objective host checkpoints.
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
 |---|---|---|---|---|---|---|
 | [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.plan` | `experiment.Experiment` + `climb.ExperimentPlan` | relocated fixture Experiment | `test_experiment_plan_persists_profile_instrument_and_archive_identity` | one portable plan freezes profile identity, version, Instrument, and branch | accepted 2026-08-05 |
-| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.profile-adapter` | `experiment.GameProfileAdapter` | fixture investigation profile | `test_profile_adapter_builds_answer_safe_proposal_but_human_moves_branch` | profile builds and revises; Proposal remains inert until exact human Review | accepted 2026-08-05 |
+| [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.profile-adapter` | `experiment.GameProfileAdapter` | fixture investigation profile | `test_profile_adapter_builds_answer_safe_proposal_and_agent_review_moves_branch` | profile builds and revises; Proposal remains inert until an exact independent receipted Review | implemented |
 | [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.human-evidence` | `climb.HumanReceipt` + `experiment.Experiment` | model baseline and human child panels | `test_model_and_human_judges_are_distinct_first_order_receipts` | exact human observations participate without impersonating Model Receipts | accepted 2026-08-05 |
 | [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.frozen-strategy` | `experiment.ScoreAggregator` | attempted aggregator/profile swaps | `test_frozen_aggregation_and_profile_identity_cannot_be_swapped` | alternate strategies and adapter versions require explicit contract changes | accepted 2026-08-05 |
 | [Stage 8 implementation](https://github.com/jarredparrett/narrative-game-library/issues/6) | `stage8.selection` | `experiment.Experiment` + `climb.selection` | mixed model/human evidence | `test_model_and_human_judges_are_distinct_first_order_receipts` | frozen evidence classes select the qualifying child without granting Standing | accepted 2026-08-05 |
@@ -244,15 +246,16 @@ issue 17.
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-ingest-cli` | Playtest recorder | completed file bundle | `test_operator_bundle_records_and_verifies_exact_run_idempotently` | offline repeat records one identical verified Run | implemented |
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.session-release` | Release loader | compiled and corrupt archives | `test_exact_release_loader_round_trips_compiled_archive_and_rejects_corruption` | exact files and manifest rehash before runtime | implemented |
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.session-transcript` | Session recorder | complete host plan | `test_host_transcript_materializes_same_resolved_live_history_twice` | repeated physical transcript yields identical live history | implemented |
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.agentic-session` | Session recorder | complete model-seat plan | `test_same_transcript_can_record_an_exact_agentic_play_run` | model Actors use the same exact replayable Session Authority | implemented |
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.session-cli` | Session recorder | rejected command | `test_session_cli_writes_only_after_every_transcript_command_passes` | no partial history is written | implemented |
 
 Prepared exact package: Candidate `sha256:f1d0425d…fc767`, Release
 `sha256:5d170735…b998`, Physical Export `sha256:9cd7267b…b463`, and Protocol
 `playtest-protocol:1bd2ef94…ea0f`. The portable Workspace verifies cleanly.
 
-Human Stage Review: waiting for six distinct human players and one distinct
-host. Issue #17 remains open; preparation does not impersonate the required
-first-order evidence or confer human-play standing.
+Optional Human Stage Review: no completed six-player Run exists. Preparation
+does not impersonate first-order human evidence or confer human-play standing;
+the missing Run does not block agentic qualification.
 
 ## Stage 12 - public-release qualification
 
@@ -262,8 +265,9 @@ first-order evidence or confer human-play standing.
 | [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.evidence-availability` | Evidence bundle | corrupt object map | `test_dangling_or_corrupt_hash_strings_are_not_evidence` | claimed bytes are supplied and rehashed | implemented |
 | [Roadmap](https://github.com/jarredparrett/narrative-game-library/issues/5) | `release.stage8.portable-experiment` | Experiment | exact binding | `test_portable_experiment_gate_requires_verified_exact_package_binding` | Workspace and ledger verification | implemented |
 | [Roadmap](https://github.com/jarredparrett/narrative-game-library/issues/5) | `release.stage9.reusable-authoring` | Authoring | exact proof ref | `test_reusable_authoring_gate_requires_content_addressed_proof` | Blueprint/adapter proof | implemented |
-| [Human play](https://github.com/jarredparrett/narrative-game-library/issues/17) | `release.stage10.accepted-human-standing` | Playtest | accepted Standing | `test_human_standing_gate_cannot_be_satisfied_by_build_or_model_evidence` | fresh Runs and comparison required | implemented; evidence pending |
-| [Human play](https://github.com/jarredparrett/narrative-game-library/issues/17) | `release.stage10.independent-verification` | Human reviewer | exact roster | `test_independent_verification_gate_excludes_the_playtest_roster` | reviewer cannot occupy a Run role | implemented; evidence pending |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage10.agentic-standing` | Agentic measurement | two blind evaluations | `test_agentic_standing_requires_two_passing_blind_evaluations` | one panel cannot self-corroborate | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage10.independent-agentic-verification` | Agentic review | distinct authority principals | `test_independent_agentic_verification_excludes_judge_principals` | review agent cannot be a blind judge | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.human-optionality` | Evidence policy | agent-only fixture | `test_human_play_is_optional_evidence_not_a_release_gate` | complete qualification uses no human object | implemented |
 | [Human play](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.model-human-operator-path` | Playtest operator | configured model panel and approved review manifests | `test_operator_model_baseline_records_exact_evaluation_for_later_human_comparison`; `test_operator_review_preflights_comparison_and_standing_without_partial_writes` | exact blind Evaluation precedes two fresh cohorts; comparison and independent Standing need no custom Python | implemented; evidence pending |
 | [Human play](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.codex-driver` | Model provider adapter | isolated anonymous ZIP | `test_codex_driver_isolates_trial_and_returns_replay_receipts`; `test_codex_driver_rejects_archive_path_escape_before_invocation` | explicit model, byte-exact quote instruction, ephemeral workspace, CLI trace, and path confinement | implemented; valid v7 Evaluation `evaluation:5b1fdbed784e9c3a4a76f760e69c72331ec9fae00e5dece63f9b9178c5b250d9` |
 | [Experience](https://github.com/jarredparrett/narrative-game-library/issues/9) | `release.stage11.creator-player-print` | Experience | exact proof ref | `test_creator_player_print_gate_requires_one_exact_lineage_proof` | one Release/Session lineage | implemented |
@@ -273,11 +277,11 @@ first-order evidence or confer human-play standing.
 | [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.package-artifacts` | Distribution | package refs | `test_package_gate_requires_exact_sdist_and_wheel_refs` | exact sdist and wheel | implemented |
 | [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.documentation` | Documentation | document refs | `test_documentation_gate_requires_every_public_entry_path` | five required entry paths | implemented |
 | [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.known-limitations` | Publisher | disclosure | `test_limitations_gate_makes_debt_visible_without_upgrading_standing` | nonempty honest limitations | implemented |
-| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.publisher-approval` | Publisher | exact approval | `test_publisher_gate_requires_distinct_human_approval_over_exact_refs` | separate human and exact refs | implemented; evidence pending |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.release-attestation` | Release review | exact agent receipt | `test_release_attestation_requires_distinct_agent_and_exact_model_receipt` | distinct principal, policy/version/standing/package binding | implemented |
 
-The evaluator is complete and intentionally reports `not_qualified` for the
-current version. Qualification waits for first-order human play, upstream
-release versions, contract epoch 1, and independent Publisher Approval.
+The evaluator is complete. The agent-only capability fixture qualifies, while
+the current real release remains `not_qualified` until its exact agentic
+evidence, upstream release versions, and contract epoch 1 exist.
 
 ## Stage 11 - portable qualification spine and Candidate 6 migration
 
@@ -307,7 +311,7 @@ are recorded in the [Winter Observatory retrospective](retrospectives/winter-obs
 | [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.active-projection` | `experiment.EfficiencyController` | relocated bounded plan | `test_active_projection_is_portable_replayable_and_detects_staleness` | target, route, invalidation, approvals, budget, stop state, and next transition replay after relocation | implemented |
 | [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.current-experiment` | `ExperimentSpine` + `EfficiencyController` | Candidate 6 with active handwriting plan | `test_current_standing_embeds_the_active_efficiency_plan` | current standing contains the derived active plan and next human boundary | implemented |
 | [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.formal-boundary` | `climb.EfficiencyPlan` | exact Candidate 7 measurement | `test_formal_measurement_freezes_child_and_excludes_its_fixer` | standing is allowed only for an exact child with independent judges | implemented |
-| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.human-boundaries` | `experiment.EfficiencyController` | exact Candidate 7 formal lifecycle | `test_formal_panel_runs_once_between_candidate_review_and_disposition` | completed-Candidate review precedes exact evidence; disposition follows it | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.review-boundaries` | `experiment.EfficiencyController` | exact Candidate 7 formal lifecycle | `test_formal_panel_runs_once_between_candidate_review_and_disposition` | completed-Candidate review precedes exact evidence; disposition follows it | implemented |
 
 The worked Winter Observatory plan replaces 76 builds across four full-suite
 preflights and 111 historical full artifact-judge calls with at most three

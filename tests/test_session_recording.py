@@ -93,6 +93,24 @@ def test_host_transcript_materializes_same_resolved_live_history_twice():
     assert first.ordered_events[-1].event_type == "resolution-recorded"
 
 
+def test_same_transcript_can_record_an_exact_agentic_play_run():
+    """stage11.agentic-session: model Actors use the same replayable Session Authority."""
+    release = package()
+    simulation = plan()
+    simulation["session_id"] = "agentic-table-01"
+    simulation["mode"] = "simulation"
+    for binding in simulation["bindings"]:
+        binding["actor_kind"] = "model"
+    history, summary = record_session_plan(release.bundle_bytes, simulation)
+    assert history.mode == "simulation"
+    assert summary["mode"] == "simulation"
+    assert {
+        item["actor"]["kind"]
+        for item in history.ordered_events[0].payload["bindings"]
+    } == {"model"}
+    assert history.ordered_events[-1].event_type == "resolution-recorded"
+
+
 def test_session_cli_writes_only_after_every_transcript_command_passes(tmp_path):
     """stage11.session-cli: a rejected transcript does not leave partial history."""
     release = package()

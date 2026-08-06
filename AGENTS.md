@@ -12,7 +12,10 @@ Verismill. Keep these boundaries intact:
 - every accepted requirement has one attributable capability test.
 - same version, component lock, seed, and inputs must produce byte-identical
   deterministic outputs across processes and offline.
-- agents propose; humans approve canonical changes and standing.
+- independent agents may propose, review, measure, and qualify; every role leaves
+  an exact receipt and builders never certify their own work.
+- human feedback is first-order evidence when supplied, but never a mandatory
+  transition, standing, or release gate.
 - never let a builder or fixer certify its own blind measurement.
 
 Before committing, run `uv run pytest -q` and verify the current stage against

@@ -1,4 +1,4 @@
-"""Deterministic narrative game building with human-governed lineage."""
+"""Deterministic narrative game building with agentic, inspectable lineage."""
 
 from .contracts.artifacts import ArtifactRequest, ArtifactResult
 from .authoring import parse_game_definition
@@ -43,7 +43,7 @@ from .playtest.review import finalize_review
 from .profiles import FacilitatedInvestigationAuthoringAdapter
 from .release import (
     PublicReleasePolicy,
-    PublisherApproval,
+    ReleaseAttestation,
     ReleaseEvidence,
     ReleaseQualificationReport,
     qualify_public_release,
@@ -74,7 +74,7 @@ __all__ = [
     "PlaytestProtocol",
     "PlaytestRun",
     "PublicReleasePolicy",
-    "PublisherApproval",
+    "ReleaseAttestation",
     "ReleaseEvidence",
     "ReleaseQualificationReport",
     "TutorialProjection",
@@ -107,4 +107,4 @@ __all__ = [
     "validate_blueprint",
 ]
 
-__version__ = "0.17.0"
+__version__ = "0.18.0"
