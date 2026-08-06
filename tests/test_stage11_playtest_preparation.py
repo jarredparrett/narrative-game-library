@@ -72,3 +72,14 @@ def test_review_forms_cover_six_roles_every_phase_and_every_rubric_item():
         "playtest-protocol:1bd2ef9487895b3453de0ffe0aeb91ea2e6e66a1ba9b84ea3ea7ba8266c3ea0f"
     )
     assert set(manifest["scores"]) == {item[0] for item in RUBRIC}
+    session_plan = json.loads(first["session-plan.example.json"])
+    assert len(session_plan["bindings"]) == 6
+    assert session_plan["commands"][0]["action"] == "open-session"
+    assert session_plan["commands"][-1]["action"] == "record-resolution"
+    submit_index = next(
+        index for index, item in enumerate(session_plan["commands"])
+        if item["action"] == "submit-resolution"
+    )
+    assert session_plan["commands"][submit_index - 1]["payload"]["phase_id"] == (
+        game.resolution.phase_id
+    )

@@ -1,6 +1,6 @@
 """Pure Candidate freeze and deterministic Game Release compilation."""
 
-from .compiler import compile_candidate, freeze_candidate, reference_component_lock
+from .compiler import compile_candidate, freeze_candidate, load_release, reference_component_lock
 from .model import (
     BundledFile,
     Candidate,
@@ -21,5 +21,6 @@ __all__ = [
     "MaterialInput",
     "compile_candidate",
     "freeze_candidate",
+    "load_release",
     "reference_component_lock",
 ]

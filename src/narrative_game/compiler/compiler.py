@@ -60,6 +60,55 @@ def reference_component_lock() -> dict[str, Any]:
     }
 
 
+def load_release(bundle_bytes: bytes) -> GameRelease:
+    """Load and verify one compiled Game Release from its exact archive bytes."""
+    try:
+        with zipfile.ZipFile(BytesIO(bundle_bytes)) as archive:
+            names = [item.filename for item in archive.infolist() if not item.is_dir()]
+            if len(names) != len(set(names)) or "release.json" not in names:
+                raise ValueError("Game Release archive has duplicate paths or no manifest")
+            manifest_bytes = archive.read("release.json")
+            manifest = json.loads(manifest_bytes)
+            core = dict(manifest)
+            release_id = str(core.pop("release_id"))
+            if digest_json(core) != release_id:
+                raise ValueError("Game Release identity differs from its manifest")
+            descriptors = manifest.get("files")
+            if not isinstance(descriptors, list):
+                raise ValueError("Game Release manifest has no file descriptors")
+            expected = {"release.json"}
+            files = []
+            for descriptor in descriptors:
+                path = str(descriptor["path"])
+                if path in expected or path.startswith("/") or ".." in path.split("/"):
+                    raise ValueError(f"Game Release contains an invalid path: {path}")
+                expected.add(path)
+                data = archive.read(path)
+                if (
+                    len(data) != int(descriptor["bytes"])
+                    or digest_bytes(data) != descriptor["content_hash"]
+                ):
+                    raise ValueError(f"Game Release file differs from its descriptor: {path}")
+                files.append(BundledFile(
+                    path, str(descriptor["media_type"]), data, str(descriptor["audience"])
+                ))
+            if set(names) != expected:
+                raise ValueError("Game Release archive contains unmanifested files")
+    except (KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
+        raise ValueError("Game Release archive is invalid") from exc
+    release_file = BundledFile(
+        "release.json", "application/json", manifest_bytes, "public-metadata"
+    )
+    return GameRelease(
+        release_id,
+        str(manifest["candidate_id"]),
+        manifest,
+        tuple(sorted((release_file, *files), key=lambda item: item.path)),
+        bundle_bytes,
+        digest_bytes(bundle_bytes),
+    )
+
+
 def _copy_json(value: Any) -> Any:
     return json.loads(canonical_json(value))
 

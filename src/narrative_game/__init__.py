@@ -12,7 +12,7 @@ from .blueprint import (
     apply_blueprint_proposal,
     validate_blueprint,
 )
-from .compiler import compile_candidate, freeze_candidate
+from .compiler import compile_candidate, freeze_candidate, load_release
 from .experiment import (
     EfficiencyController,
     Experiment,
@@ -47,6 +47,7 @@ from .release import (
     qualify_public_release,
 )
 from .runtime import apply_command, create_session, replay, seat_snapshot
+from .playtest.session_recording import record_session_plan
 from .workspace import Workspace
 
 __all__ = [
@@ -85,6 +86,7 @@ __all__ = [
     "create_session",
     "freeze_candidate",
     "host_projection",
+    "load_release",
     "maker_projection",
     "player_projection",
     "print_projection",
@@ -95,6 +97,7 @@ __all__ = [
     "replay",
     "render_reference_html",
     "record_playtest_bundle",
+    "record_session_plan",
     "seat_snapshot",
     "validate_facilitated_investigation",
     "validate_blueprint",
