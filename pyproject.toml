@@ -36,6 +36,7 @@ narrative-game-playtest-record = "narrative_game.playtest.ingestion:main"
 narrative-game-playtest-session = "narrative_game.playtest.session_recording:main"
 narrative-game-playtest-model-baseline = "narrative_game.playtest.model_baseline:main"
 narrative-game-playtest-review = "narrative_game.playtest.review:main"
+narrative-game-codex-judge-driver = "narrative_game.playtest.codex_driver:main"
 narrative-game-release-qualify = "narrative_game.stage12_qualification:main"
 
 [tool.setuptools.packages.find]

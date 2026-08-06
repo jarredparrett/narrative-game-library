@@ -657,6 +657,13 @@ uv run narrative-game-playtest-review \
 The preparation includes model-panel and standing-review manifests. Every
 panel member selects its own provider, requested model, and JSON-command driver,
 so comparison evidence is model-portable without hard-coding a provider.
+For Codex users, the bundled `narrative-game-codex-judge-driver` is a conforming
+adapter: set the member command to that executable and provide an explicit
+Codex model. It extracts only the anonymous trial into an ephemeral read-only
+workspace and records the CLI event trace as a replay receipt. Other providers
+remain ordinary JSON-command adapters. If a provider returns an invalid quote
+or schema, its Task and receipt remain trace evidence but no Evaluation is
+issued; retry under a fresh Task and Authority rather than rewriting history.
 
 ## Public-release qualification
 
