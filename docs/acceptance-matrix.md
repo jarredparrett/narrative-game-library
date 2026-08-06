@@ -213,3 +213,19 @@ scores do not confer standing on a public game Release.
 Human Stage Review: pending review and merge of the Stage 11 implementation.
 The reference HTML demonstrates the application boundary; it does not claim a
 production web service, completed dossier depth, or six-player human standing.
+
+## Stage 11 - portable qualification spine and Candidate 6 migration
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.portable-spine` | `experiment.ExperimentSpine` + Workspace | selected Candidate with 19 external measurements | `test_candidate_6_standing_is_separate_derived_and_portable` | exact Release, Physical Export, approval, evidence, accessibility contracts, external capsules, and separated standing survive relocation | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.derived-standing` | `experiment.ExperimentSpine` | stale projection and removed external object | `test_projection_is_replaced_from_journal_and_mutation_is_detected` | journal replay replaces stale status and content verification rejects missing evidence | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.rung-integrity` | qualification journal | missing parent and forged approval | `test_parentage_and_exact_approval_scope_cannot_be_forged` | historical parent anchors and exact Candidate/collection approval scope are mandatory | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.evidence-invariants` | `contracts.evidence` | incomplete claim trace and interpreted accessible rendition | `test_claim_and_accessibility_contracts_reject_missing_or_interpreted_evidence` | every accepted proof path is licensed; native and accessible propositions match; artifact interpretation remains empty | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.cross-system-reference` | `experiment.migration` | public Verismill facade stub | `test_external_verismill_reference_uses_only_the_verified_public_facade` | path-free capsule seals verified replay, bus head, manifest, and attestation and rejects identity mismatch | implemented |
+
+The real Candidate 6 migration was also executed against all 19 historical
+Verismill Experiments and imported into a new directory. Both Workspace and
+qualification verification passed. This preserves historical evidence and
+creates no new Candidate or standing claim. The exact results and limitations
+are recorded in the [Winter Observatory retrospective](retrospectives/winter-observatory-hill-climb.md).
