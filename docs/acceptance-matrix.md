@@ -239,10 +239,12 @@ issue 17.
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-trace` | Play Observation | exact response metadata | `test_response_contract_preserves_stage_timestamp_rubric_and_defect_owner` | stage, timestamp, rubric item, exact response ref, and defect owner round-trip | implemented |
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-kit` | worked preparation | selected Candidate 6 child | `test_review_forms_cover_six_roles_every_phase_and_every_rubric_item` | six assignments, all Phases, all rubric items, consent, host log, and debrief are deterministic | implemented |
 | [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-boundary` | Playtest Program | strict Micro Run | `test_strict_protocol_requires_individual_stages_and_timestamped_facilitation` | valid first-order Run includes individual pre/post responses, timestamped facilitation, and group debrief | implemented |
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-ingest-atomicity` | Climb Ledger | invalid late-stage Run | `test_closed_run_preflight_rejects_without_partial_lineage_or_objects` | closed-set preflight leaves journals and object store unchanged | implemented |
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-ingest-cli` | Playtest recorder | completed file bundle | `test_operator_bundle_records_and_verifies_exact_run_idempotently` | offline repeat records one identical verified Run | implemented |
 
 Prepared exact package: Candidate `sha256:f1d0425d…fc767`, Release
 `sha256:5d170735…b998`, Physical Export `sha256:9cd7267b…b463`, and Protocol
-`playtest-protocol:fc4699da…cf11`. The portable Workspace verifies cleanly.
+`playtest-protocol:1bd2ef94…ea0f`. The portable Workspace verifies cleanly.
 
 Human Stage Review: waiting for six distinct human players and one distinct
 host. Issue #17 remains open; preparation does not impersonate the required

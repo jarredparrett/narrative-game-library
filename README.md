@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.16.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.17.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -603,6 +603,21 @@ must still consent and complete the live Session. The library refuses to record
 a rich Run without all frozen rubric categories, individual pre/post responses,
 timestamped facilitator observations for every played Phase, and attributable
 response objects. See the [exact prepared lineage](docs/playtests/winter-observatory-six-player-preparation.md).
+
+Completed forms enter that same Experiment through an offline operator bundle,
+not a custom Python session:
+
+```bash
+uv run narrative-game-playtest-record \
+  ./winter-playtest/experiment \
+  ./winter-playtest/recording-manifest.json
+```
+
+The preparation includes manifest and completed-file templates. The recorder
+loads the exact live Session, production receipt, consent responses,
+observations, and scores; preflights the complete future ledger without writes;
+then persists the Run idempotently. A rejected submission leaves journals and
+the object store unchanged.
 
 ## Public-release qualification
 

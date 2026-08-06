@@ -131,7 +131,13 @@ def _child_package(parent_release_bytes: bytes):
     return manifest, frozen.candidate, compiled.release, physical, trial, page_counts
 
 
-def _forms(game, instrument: FrozenInstrument, protocol: PlaytestProtocol) -> dict[str, bytes]:
+def _forms(
+    game,
+    instrument: FrozenInstrument,
+    protocol: PlaytestProtocol,
+    release_id: str,
+    physical_export_id: str,
+) -> dict[str, bytes]:
     phases = sorted(game.phases, key=lambda item: item.order)
     seats = sorted(game.kernel.seats, key=lambda item: item.id)
     roster = ["seat_id,character,participant_authority_id,participant_name"] + [
@@ -163,7 +169,48 @@ def _forms(game, instrument: FrozenInstrument, protocol: PlaytestProtocol) -> di
     }
     consent = """# Human playtest consent v1\n\nI consent to participate in or facilitate this fictional game playtest. I permit the experiment to retain my role assignment, structured responses, timestamps, scores, and anonymized exact quotes. I may stop at any time. My responses are first-order human evidence and will not be rewritten as model judgments.\n\nDecision: [ ] consented  [ ] declined\nAuthority ID: ____________________\nName/signature: ____________________\nDate: ____________________\n"""
     debrief = """# Group debrief\n\nRecord exact quotes and speakers. Discuss, in order: the first move; secrets after exposure; relationship-driven exchanges; bargains and accusations; evidence load; reveal guidance; host interventions; each ending choice; enjoyment; and desire to replay. Classify every actionable defect as dossier, evidence, hosting, pacing, or UI. Do not convert a finding into a child Candidate until a human review approves an answer-safe requirement.\n"""
-    guide = """# Facilitator run order\n\n1. Verify the package identities in `playtest-preparation.json`.\n2. Assign six distinct humans to the frozen Seats and one distinct host.\n3. Collect consent before distributing private Dossiers.\n4. Time the Quick Start and capture every player's pre-game responses.\n5. Open the live Session and record one timestamped host observation in every Phase.\n6. Preserve interventions as Session Events and in the host log.\n7. Complete individual post-game forms before the group debrief.\n8. Record exact quotes, scores, response files, and defect owners through `PlaytestProgram.record_run`.\n9. Treat the run as development evidence until an independent human review and required remeasurement support standing.\n"""
+    participant_rows = [
+        {
+            "authority_id": f"participant-{seat.id}",
+            "principal": f"REPLACE_WITH_SESSION_ACTOR_ID_FOR_{seat.id}",
+        }
+        for seat in seats
+    ]
+    facilitator_row = {
+        "authority_id": "facilitator-host",
+        "principal": "REPLACE_WITH_SESSION_HOST_VIEWER_ID",
+    }
+    consent_paths = {
+        item["authority_id"]: f"completed/consent-{item['authority_id']}.json"
+        for item in (*participant_rows, facilitator_row)
+    }
+    recording_manifest = {
+        "schema_version": "1.0",
+        "protocol_id": protocol.protocol_id,
+        "run_key": "REPLACE_WITH_FRESH_COHORT_KEY",
+        "idempotency_key": "REPLACE_WITH_UNIQUE_RUN_KEY",
+        "session_history_path": "completed/session-history.json",
+        "production_receipt_path": "completed/production-receipt.json",
+        "participants": participant_rows,
+        "facilitator": facilitator_row,
+        "observers": [],
+        "consent_paths": consent_paths,
+        "observations_path": "completed/observations.json",
+        "scores": {identifier: None for identifier, _ in RUBRIC},
+    }
+    production_receipt = {
+        "release_id": release_id,
+        "physical_export_id": physical_export_id,
+        "prepared_copy_count": 1,
+    }
+    consent_response = {
+        "consent_version": protocol.consent_version,
+        "decision": "REPLACE_WITH_consented_OR_declined",
+        "scopes": [
+            "participate", "record-observations", "retain-anonymized-quotes",
+        ],
+    }
+    guide = """# Facilitator run order\n\n1. Verify the package identities in `playtest-preparation.json`.\n2. Assign six distinct humans to the frozen Seats and one distinct host.\n3. Collect consent before distributing private Dossiers.\n4. Time the Quick Start and capture every player's pre-game responses.\n5. Open the live Session and record one timestamped host observation in every Phase.\n6. Preserve interventions as Session Events and in the host log.\n7. Complete individual post-game forms before the group debrief.\n8. Copy `recording-manifest.example.json`, complete every `REPLACE_` value, and place the exact Session, production, consent, and observation JSON files under `completed/`.\n9. Run `narrative-game-playtest-record ./experiment ./recording-manifest.json`. The command preflights the closed ledger before persisting anything.\n10. Treat the Run as development evidence until an independent human review and required remeasurement support standing.\n"""
     return {
         "forms/consent-v1.md": consent.encode(),
         "forms/roster.csv": ("\n".join(roster) + "\n").encode(),
@@ -171,6 +218,10 @@ def _forms(game, instrument: FrozenInstrument, protocol: PlaytestProtocol) -> di
         "forms/pre-game.json": canonical_json(pre),
         "forms/post-game.json": canonical_json(post),
         "forms/group-debrief.md": debrief.encode(),
+        "recording-manifest.example.json": canonical_json(recording_manifest),
+        "completed/production-receipt.example.json": canonical_json(production_receipt),
+        "completed/consent-response.example.json": canonical_json(consent_response),
+        "completed/observations.example.json": canonical_json([]),
         "RUN.md": guide.encode(),
         "rubric.json": canonical_json({
             "instrument": instrument.to_mapping(),
@@ -229,11 +280,14 @@ def run(root: str | Path, parent_release: str | Path) -> dict[str, Any]:
     (packages / "game-release.zip").write_bytes(release.bundle_bytes)
     (packages / "physical-package.zip").write_bytes(physical.archive_bytes)
     (packages / "blind-audit-package.zip").write_bytes(trial.archive_bytes)
-    for path, data in _forms(winter_observatory_game(), instrument, protocol).items():
+    for path, data in _forms(
+        winter_observatory_game(), instrument, protocol,
+        release.release_id, physical.export_id,
+    ).items():
         target = root / path; target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(data)
     experiment.export_archive(root / "winter-observatory-playtest.ngw")
     summary = {
-        "schema_version": "0.15",
+        "schema_version": "0.17",
         "status": "awaiting-six-distinct-human-players-and-one-host",
         "parent_candidate_id": parent["candidate_id"],
         "parent_release_id": parent["release_id"],

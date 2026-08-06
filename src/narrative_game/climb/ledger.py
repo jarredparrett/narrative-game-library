@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from narrative_game.contracts import canonical_json
 from narrative_game.workspace import Workspace
@@ -322,6 +322,27 @@ class ClimbLedger:
         if len(matches) != 1:
             raise KeyError(f"expected one {kind} record {record_id!r}, found {len(matches)}")
         return matches[0]
+
+    def preflight(self, values: Iterable[Record]) -> None:
+        """Validate a closed set of records without mutating journals or objects."""
+        current = self.snapshot()
+        for value in values:
+            kind, record_id = _kind_and_id(value)
+            collection = _KIND_TO_COLLECTION[kind]
+            matches = [
+                item for item in current[collection]
+                if _kind_and_id(item)[1] == record_id
+            ]
+            if matches:
+                if len(matches) != 1 or matches[0].to_mapping() != value.to_mapping():
+                    raise ValueError(
+                        f"{kind} identity already names different content: {record_id}"
+                    )
+                continue
+            current[collection] = (*current[collection], value)
+        findings = validate_climb_bundle(**current)
+        if findings:
+            raise ClimbRejected(findings)
 
     def _record(
         self,

@@ -29,7 +29,7 @@ to its local evidence file; each file is rehashed before its reference can pass.
 
 ## Version boundaries
 
-- Version 0.16 remains in the experimental contract epoch. Public schema
+- Version 0.17 remains in the experimental contract epoch. Public schema
   compatibility is not promised.
 - Public 1.0 requires contract epoch `1` and Semantic Versioning for the public
   import and serialized-contract surfaces named by the compatibility policy.

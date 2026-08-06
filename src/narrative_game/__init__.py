@@ -31,7 +31,12 @@ from .experience import (
 )
 from .narrative import CharacterProgram, GameDefinition, validate_facilitated_investigation
 from .physical import PhysicalExport, PhysicalExportProfile, export_physical, render_dossier_pdf
-from .playtest import EvidenceComparison, PlaytestProtocol, PlaytestRun
+from .playtest import (
+    EvidenceComparison,
+    PlaytestProtocol,
+    PlaytestRun,
+)
+from .playtest.ingestion import record_playtest_bundle
 from .playtest.program import PlaytestProgram
 from .profiles import FacilitatedInvestigationAuthoringAdapter
 from .release import (
@@ -89,9 +94,10 @@ __all__ = [
     "parse_game_definition",
     "replay",
     "render_reference_html",
+    "record_playtest_bundle",
     "seat_snapshot",
     "validate_facilitated_investigation",
     "validate_blueprint",
 ]
 
-__version__ = "0.16.0"
+__version__ = "0.17.0"

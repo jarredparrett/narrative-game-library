@@ -13,6 +13,7 @@ from narrative_game.climb import (
     StandingAttestation,
 )
 from narrative_game.climb.selection import evaluation_passes
+from narrative_game.contracts import digest_bytes, digest_json
 from narrative_game.experiment import Experiment
 from narrative_game.runtime import SessionHistory
 from narrative_game.runtime.runtime import verify_history
@@ -120,7 +121,10 @@ class PlaytestProgram:
         ) != binding.physical_export_id:
             raise ValueError("production receipt differs from the frozen playtest package")
         authorities = (*participants, facilitator, *observers)
-        if len({item.principal for item in authorities}) != len(authorities):
+        if (
+            len({item.principal for item in authorities}) != len(authorities)
+            or len({item.authority_id for item in authorities}) != len(authorities)
+        ):
             raise ValueError("one human cannot occupy multiple Playtest Run roles")
         authority_ids = {item.authority_id for item in authorities}
         genesis = session_history.ordered_events[0]
@@ -136,12 +140,6 @@ class PlaytestProgram:
             raise ValueError("participant Authorities must identify the Session Actors")
         if facilitator.principal not in host_viewer_ids:
             raise ValueError("facilitator Authority must identify the Session host")
-        for authority in authorities:
-            self.ledger.register(
-                authority,
-                actor="human:playtest-operator",
-                idempotency_key=f"playtest-authority-{authority.authority_id}",
-            )
         if set(consent_responses) != {item.authority_id for item in authorities}:
             raise ValueError("every Playtest Run human requires one consent response")
         consents = []
@@ -149,7 +147,17 @@ class PlaytestProgram:
             response = consent_responses[authority.authority_id]
             if response.get("decision") != "consented":
                 raise ValueError(f"Playtest consent is not affirmative: {authority.authority_id}")
-            response_ref = self.store.put_json(response)
+            required_scopes = {"record-observations", "retain-anonymized-quotes"}
+            if authority.role == "participant":
+                required_scopes.add("participate")
+            if (
+                response.get("consent_version") != protocol.consent_version
+                or not required_scopes <= set(response.get("scopes", ()))
+            ):
+                raise ValueError(
+                    f"Playtest consent version or scope is incomplete: {authority.authority_id}"
+                )
+            response_ref = digest_json(response)
             consents.append(
                 ParticipantConsent(
                     authority.authority_id,
@@ -158,15 +166,16 @@ class PlaytestProgram:
                     response_ref,
                 )
             )
-        session_ref = self.store.put_bytes(session_history.to_bytes())
-        production_ref = self.store.put_json(production_receipt)
+        session_bytes = session_history.to_bytes()
+        session_ref = digest_bytes(session_bytes)
+        production_ref = digest_json(production_receipt)
         phase_ids = {item.represented_phase_id for item in session_history.ordered_events}
         play_observations = []
-        finding_ids = []
+        finding_values = []
         for index, raw in enumerate(observations):
             if str(raw["phase_id"]) not in phase_ids:
                 raise ValueError(f"Play Observation names a Phase absent from the Session: {raw['phase_id']}")
-            response_ref = self.store.put_json(raw)
+            response_ref = digest_json(raw)
             observation = PlayObservation(
                 str(raw["authority_id"]),
                 str(raw["observer_role"]),
@@ -206,16 +215,7 @@ class PlaytestProgram:
                     str(value["quote"]),
                     str(value["message"]),
                 )
-                existing = {
-                    item.finding_id for item in self.ledger.snapshot()["findings"]
-                }
-                if finding.finding_id not in existing:
-                    self.ledger.register(
-                        finding,
-                        actor=f"human:{observation.authority_id}",
-                        idempotency_key=f"playtest-finding-{idempotency_key}-{index}",
-                    )
-                finding_ids.append(finding.finding_id)
+                finding_values.append((index, observation.authority_id, finding))
         observed_categories = {item.category for item in play_observations}
         if not set(protocol.required_observation_categories) <= observed_categories:
             raise ValueError("Playtest Run does not cover every frozen observation category")
@@ -240,6 +240,17 @@ class PlaytestProgram:
             if not phase_ids <= observed_phases:
                 raise ValueError("facilitator requires a timestamped observation in every played Phase")
         hard_gates = dict(binding.hard_gate_results)
+        expected_scores = {
+            item.dimension_id for item in self.experiment.instrument.dimensions
+        }
+        if (
+            set(scores) != expected_scores
+            or any(
+                isinstance(item, bool) or not isinstance(item, int) or not 0 <= item <= 100
+                for item in scores.values()
+            )
+        ):
+            raise ValueError("Playtest scores must cover the frozen 0-100 Instrument")
         synthetic = Evaluation(
             "playtest",
             binding.candidate_id,
@@ -270,10 +281,47 @@ class PlaytestProgram:
             tuple(consents),
             tuple(play_observations),
             scores,
-            tuple(finding_ids),
+            tuple(item.finding_id for _, _, item in finding_values),
             hard_gates,
             outcome,
         )
+        unique_findings = {
+            finding.finding_id: (index, authority_id, finding)
+            for index, authority_id, finding in finding_values
+        }
+        self.ledger.preflight(
+            (*authorities, *(item[2] for item in unique_findings.values()), run)
+        )
+        for response, consent in zip(
+            (consent_responses[item.authority_id] for item in authorities),
+            consents,
+            strict=True,
+        ):
+            if self.store.put_json(response) != consent.response_ref:
+                raise RuntimeError("consent content identity changed after preflight")
+        if self.store.put_bytes(session_bytes) != session_ref:
+            raise RuntimeError("Session content identity changed after preflight")
+        if self.store.put_json(production_receipt) != production_ref:
+            raise RuntimeError("production content identity changed after preflight")
+        for raw, observation in zip(observations, play_observations, strict=True):
+            if self.store.put_json(raw) != observation.response_ref:
+                raise RuntimeError("observation content identity changed after preflight")
+        for authority in authorities:
+            self.ledger.register(
+                authority,
+                actor="human:playtest-operator",
+                idempotency_key=f"playtest-authority-{authority.authority_id}",
+            )
+        existing_finding_ids = {
+            item.finding_id for item in self.ledger.snapshot()["findings"]
+        }
+        for index, authority_id, finding in unique_findings.values():
+            if finding.finding_id not in existing_finding_ids:
+                self.ledger.register(
+                    finding,
+                    actor=f"human:{authority_id}",
+                    idempotency_key=f"playtest-finding-{idempotency_key}-{index}",
+                )
         return self.ledger.register(
             run,
             actor="human:playtest-facilitator",

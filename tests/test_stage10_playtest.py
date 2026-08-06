@@ -27,6 +27,7 @@ from narrative_game.contracts import canonical_json, digest_bytes
 from narrative_game.experiment import Experiment, ProposedRevision
 from narrative_game.examples import vanished_ledger_blueprint
 from narrative_game.playtest.program import PlaytestProgram
+from narrative_game.playtest.ingestion import record_playtest_bundle
 from narrative_game.profiles import FacilitatedInvestigationAuthoringAdapter
 from narrative_game.runtime import (
     Actor,
@@ -290,6 +291,112 @@ def record_passing_run(program, protocol, binding, release, prefix, scores):
         scores=scores,
         idempotency_key=f"run-{prefix}",
     )
+
+
+def test_closed_run_preflight_rejects_without_partial_lineage_or_objects(tmp_path):
+    """stage11.human-ingest-atomicity: a rejected Run leaves no partial evidence."""
+    experiment, binding, release, _ = prepared_experiment(tmp_path)
+    program = PlaytestProgram(experiment)
+    protocol = program.freeze_protocol(
+        binding_id=binding.binding_id,
+        name="atomic human trace",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+    )
+    participants, facilitator, observers = authorities("atomic")
+    invalid = list(observations("atomic"))
+    invalid[0] = {**invalid[0], "observer_role": "observer"}
+    before_snapshot = experiment.ledger.snapshot()
+    before_objects = experiment.workspace.store.references()
+    before_heads = dict(experiment.workspace.manifest["journal_heads"])
+    with pytest.raises(ClimbRejected):
+        program.record_run(
+            protocol_id=protocol.protocol_id,
+            run_key="atomic",
+            session_history=complete_session(release, prefix="atomic"),
+            production_receipt={
+                "release_id": binding.release_id,
+                "physical_export_id": binding.physical_export_id,
+            },
+            participants=participants,
+            facilitator=facilitator,
+            observers=observers,
+            consent_responses=consent_for(participants, facilitator, observers),
+            observations=tuple(invalid),
+            scores={"world_realism": 84, "playability": 82},
+            idempotency_key="atomic-run",
+        )
+    assert experiment.ledger.snapshot() == before_snapshot
+    assert experiment.workspace.store.references() == before_objects
+    assert experiment.workspace.manifest["journal_heads"] == before_heads
+    assert experiment.verify()["ok"]
+
+
+def test_operator_bundle_records_and_verifies_exact_run_idempotently(tmp_path):
+    """stage11.human-ingest-cli: completed files enter the exact Experiment offline."""
+    experiment, binding, release, _ = prepared_experiment(tmp_path)
+    protocol = PlaytestProgram(experiment).freeze_protocol(
+        binding_id=binding.binding_id,
+        name="operator bundle",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+    )
+    participants, facilitator, observers = authorities("bundle")
+    bundle = tmp_path / "bundle"
+    completed = bundle / "completed"
+    completed.mkdir(parents=True)
+    (completed / "session-history.json").write_bytes(
+        complete_session(release, prefix="bundle").to_bytes()
+    )
+    (completed / "production.json").write_bytes(canonical_json({
+        "release_id": binding.release_id,
+        "physical_export_id": binding.physical_export_id,
+        "prepared_copy_count": 2,
+    }))
+    consent_paths = {}
+    for authority_id, response in consent_for(
+        participants, facilitator, observers
+    ).items():
+        path = f"completed/consent-{authority_id}.json"
+        (bundle / path).write_bytes(canonical_json(response))
+        consent_paths[authority_id] = path
+    (completed / "observations.json").write_bytes(
+        canonical_json(list(observations("bundle")))
+    )
+    manifest = {
+        "schema_version": "1.0",
+        "protocol_id": protocol.protocol_id,
+        "run_key": "bundle-cohort",
+        "idempotency_key": "bundle-cohort-run",
+        "session_history_path": "completed/session-history.json",
+        "production_receipt_path": "completed/production.json",
+        "participants": [
+            {"authority_id": item.authority_id, "principal": item.principal}
+            for item in participants
+        ],
+        "facilitator": {
+            "authority_id": facilitator.authority_id,
+            "principal": facilitator.principal,
+        },
+        "observers": [
+            {"authority_id": item.authority_id, "principal": item.principal}
+            for item in observers
+        ],
+        "consent_paths": consent_paths,
+        "observations_path": "completed/observations.json",
+        "scores": {"world_realism": 84, "playability": 82},
+    }
+    manifest_path = bundle / "recording-manifest.json"
+    manifest_path.write_bytes(canonical_json(manifest))
+    first = record_playtest_bundle(experiment.workspace.root, manifest_path)
+    second = record_playtest_bundle(experiment.workspace.root, manifest_path)
+    assert first == second
+    assert first["evidence_class"] == "fresh-human-play"
+    assert first["outcome"] == "pass"
+    assert (bundle / "playtest-run-record.json").read_bytes() == canonical_json(first)
+    reopened = Experiment.open(experiment.workspace.root)
+    assert len(reopened.ledger.snapshot()["playtest_runs"]) == 1
+    assert reopened.verify()["ok"]
 
 
 def test_playtest_run_binds_live_session_package_roles_consent_and_observations(tmp_path):
