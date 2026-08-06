@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.12.0` remains in the experimental contract epoch. Stages 0-11 form one
+Version `0.13.0` remains in the experimental contract epoch. Stages 0-11 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -28,6 +28,12 @@ The qualification spine added in 0.12 keeps gameplay, accessibility, artifact
 realism, human play, and public release as separate evidence classes. A game can
 therefore pass development gameplay while remaining honestly unaccepted for
 artifact realism and unqualified for public release.
+
+Version 0.13 adds impact-scoped experiment planning. A climb names exactly one
+qualification target, routes each finding to its owning loop, derives rebuild
+and replay scope from contract changes, and persists a bounded preflight or a
+formal measurement plan. Independent blind judges run concurrently, while
+their replay receipts and aggregation remain deterministically ordered.
 
 ## Repository boundary
 
@@ -244,6 +250,64 @@ recorded result: coherent build passed, development gameplay passed, critical
 accessibility parity passed, artifact realism `0/19` accepted, human play
 unmeasured, and public release unclaimed. See the
 [full retrospective](docs/retrospectives/winter-observatory-hill-climb.md).
+
+## Efficient climbs: diagnose narrowly, measure formally once
+
+`EfficiencyPlan` separates cheap diagnosis from evidence that may change
+standing:
+
+1. A human approves one qualification target and frozen instrument.
+2. The route table assigns findings to the smallest owning loop. A broader
+   loop requires a persisted reason.
+3. `assess_impact` carries content-identical outputs forward and derives only
+   the rebuild, remeasurement, and replay obligations caused by changed
+   contracts.
+4. A human approves one repair tranche. Agents may run its one- or two-unit
+   bounded preflight autonomously until it passes, exhausts its budget, or
+   repeats the same structural failure three times.
+5. A human reviews the completed exact Candidate. Only then does a fresh,
+   independent blind panel run the complete formal instrument once.
+6. A human selects, retains, parks, or escalates from the formal evidence.
+
+Preflight scores are diagnostic and cannot confer standing. Instrument changes
+start a new standing lineage; fixers cannot judge their own child. The
+Workspace stores plans, approvals, observations, budgets, stop decisions, and
+object hashes in its operational journal. `active-experiment.json` and the
+`active_experiment` field in `current-standing.json` are replaceable projections
+that answer: what are we improving, why this loop, what was invalidated, what
+budget remains, and what transition is authorized next?
+
+```python
+from narrative_game.contracts import canonical_json
+from narrative_game.experiment import EfficiencyController
+from narrative_game.stage11_efficiency_fixture import (
+    winter_observatory_efficiency_proof,
+)
+
+plan, comparison = winter_observatory_efficiency_proof()
+approval_bytes = canonical_json({
+    "schema_version": "0.13",
+    "plan_id": plan.plan_id,
+    "boundary": "target_and_instrument",
+    "decision": "approved",
+    "scope": {
+        "primary_target": plan.primary_target,
+        "instrument_id": plan.instrument_id,
+    },
+})
+controller = EfficiencyController(experiment.workspace)
+controller.record_plan(plan, target_authorization_bytes=approval_bytes)
+```
+
+The complete worked policy is
+[`winter_observatory_efficiency_proof`](src/narrative_game/stage11_efficiency_fixture.py).
+It routes the shared historical handwriting tell first to
+`night_observing_log` as a representative renderer benchmark: at most three
+diagnostic builds and six diagnostic calls, followed by one three-judge formal
+panel if the preflight passes. The other eighteen artifact results carry
+forward only when their content hashes are identical. This proves reduced work
+and preserved authority—not quality, which remains unclaimed until formal
+measurement.
 
 ## Game authoring
 
