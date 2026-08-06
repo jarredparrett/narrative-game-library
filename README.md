@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.13.0` remains in the experimental contract epoch. Stages 0-11 form one
+Version `0.14.0` remains in the experimental contract epoch. Stages 0-11 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -564,3 +564,24 @@ History yields identical state and Seat Snapshots. Live Sessions allow human
 Actors; model Actors use isolated simulation forks over a verified Event
 prefix. Actor replacement, physical disclosure grades, hints, planned recovery,
 and exceptional host actions remain explicit Events.
+
+### Build deep, phase-aware characters
+
+Version 0.14 adds canonical deep Dossiers and phase-aware Character Programs.
+Every supported Seat can receive a layered 3–5 page private Dossier with a
+two-minute Quick Start, relationships, knowledge boundaries, reveal windows,
+phase choices, fallbacks, and ending choices. Human and model Actors use the
+same Session Authority; human direction and evolving Character State persist
+without changing world truth.
+
+To inspect the complete six-role Winter Observatory example:
+
+```bash
+uv run narrative-game-character-example ./winter-character-example
+open ./winter-character-example/dossiers/eleanor-vale.pdf
+```
+
+The command writes six deterministic Markdown/PDF pairs, the exact canonical
+game with its Character Program, and a hash-bearing summary. The validator
+blocks cross-role leakage, host-only solution knowledge, unreachable private
+truths, future-phase moves, and phase states with no fallback.
