@@ -18,9 +18,10 @@ The exact human-play package was prepared on 2026-08-06 from selected Candidate 
 
 The preparation Workspace verifies cleanly. Dossier page counts are Eleanor 4, Felix 5, Lillian 4, Ruth 4, Samuel 4, and Thomas 4.
 
-Preparation v2 supersedes v1. The Candidate and produced game bytes did not
-change; v2 freezes the clarified positive-direction cognitive-load wording and
-adds the closed-ledger recording manifest.
+Preparation v4 supersedes v1-v3. The Candidate and produced game bytes did not
+change; v2 froze the clarified positive-direction cognitive-load wording, v3
+added the closed-ledger recording path, and v4 orders the host transcript so
+players submit in the authored Resolution Phase before debrief.
 
 ## Human boundary
 
@@ -29,6 +30,15 @@ The kit freezes all ten issue #17 rubric dimensions, consent v1, six Seat assign
 The next authorized action is recruitment and scheduling. A `PlaytestRun` may be recorded only after actual humans supply affirmative consent, a resolved live Session history, exact responses and quotes, scores for every dimension, and the production receipt. Findings require human review before becoming answer-safe Requirements; a child needs fresh remeasurement before improved standing.
 
 ## Record a completed Run
+
+First copy `session-plan.example.json`, preserve the actual Phase changes,
+disclosures, Interventions, and chosen resolution, and materialize its exact
+history:
+
+```bash
+narrative-game-playtest-session packages/game-release.zip session-plan.json \
+  --output completed/session-history.json
+```
 
 Copy `recording-manifest.example.json` to `recording-manifest.json`, replace
 every placeholder with the actual Session principals and cohort key, and place

@@ -616,13 +616,20 @@ Completed forms enter that same Experiment through an offline operator bundle,
 not a custom Python session:
 
 ```bash
+uv run narrative-game-playtest-session \
+  ./winter-playtest/packages/game-release.zip \
+  ./winter-playtest/session-plan.json \
+  --output ./winter-playtest/completed/session-history.json
+
 uv run narrative-game-playtest-record \
   ./winter-playtest/experiment \
   ./winter-playtest/recording-manifest.json
 ```
 
-The preparation includes manifest and completed-file templates. The recorder
-loads the exact live Session, production receipt, consent responses,
+The preparation includes host-transcript, recording-manifest, and completed-file
+templates. The session command verifies the Release and applies every recorded
+host/Seat command in memory, writing only a fully resolved live history. The recorder
+then loads that Session, production receipt, consent responses,
 observations, and scores; preflights the complete future ledger without writes;
 then persists the Run idempotently. A rejected submission leaves journals and
 the object store unchanged.

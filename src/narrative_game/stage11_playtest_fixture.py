@@ -198,6 +198,72 @@ def _forms(
         "observations_path": "completed/observations.json",
         "scores": {identifier: None for identifier, _ in RUBRIC},
     }
+    resolution_index = next(
+        index for index, phase in enumerate(phases)
+        if phase.id == game.resolution.phase_id
+    )
+    session_plan = {
+        "schema_version": "1.0",
+        "session_id": "REPLACE_WITH_UNIQUE_LIVE_SESSION_ID",
+        "mode": "live",
+        "bindings": [
+            {
+                "binding_id": f"binding-{seat.id}",
+                "actor_id": f"REPLACE_WITH_SESSION_ACTOR_ID_FOR_{seat.id}",
+                "label": f"{seat.label} participant",
+                "seat_id": seat.id,
+            }
+            for seat in seats
+        ],
+        "viewers": [{
+            "viewer_id": "REPLACE_WITH_SESSION_HOST_VIEWER_ID",
+            "role": "host",
+        }],
+        "commands": [
+            {
+                "command_id": "open-session",
+                "authority": {"kind": "host"},
+                "action": "open-session",
+                "payload": {},
+            },
+            *(
+                {
+                    "command_id": f"advance-{phase.id}",
+                    "authority": {"kind": "host"},
+                    "action": "advance-phase",
+                    "payload": {"phase_id": phase.id},
+                }
+                for phase in phases[1:resolution_index + 1]
+            ),
+            {
+                "command_id": "submit-resolution",
+                "authority": {
+                    "kind": "seat",
+                    "seat_id": "REPLACE_WITH_SUBMITTING_SEAT_ID",
+                },
+                "action": "submit-resolution",
+                "payload": {
+                    "hypothesis_id": "REPLACE_WITH_CHOSEN_HYPOTHESIS_ID",
+                    "proof_path_id": "REPLACE_WITH_CHOSEN_PROOF_PATH_ID",
+                },
+            },
+            *(
+                {
+                    "command_id": f"advance-{phase.id}",
+                    "authority": {"kind": "host"},
+                    "action": "advance-phase",
+                    "payload": {"phase_id": phase.id},
+                }
+                for phase in phases[resolution_index + 1:]
+            ),
+            {
+                "command_id": "record-resolution",
+                "authority": {"kind": "host"},
+                "action": "record-resolution",
+                "payload": {"submission_sequence": "last-resolution-submission"},
+            },
+        ],
+    }
     production_receipt = {
         "release_id": release_id,
         "physical_export_id": physical_export_id,
@@ -210,7 +276,7 @@ def _forms(
             "participate", "record-observations", "retain-anonymized-quotes",
         ],
     }
-    guide = """# Facilitator run order\n\n1. Verify the package identities in `playtest-preparation.json`.\n2. Assign six distinct humans to the frozen Seats and one distinct host.\n3. Collect consent before distributing private Dossiers.\n4. Time the Quick Start and capture every player's pre-game responses.\n5. Open the live Session and record one timestamped host observation in every Phase.\n6. Preserve interventions as Session Events and in the host log.\n7. Complete individual post-game forms before the group debrief.\n8. Copy `recording-manifest.example.json`, complete every `REPLACE_` value, and place the exact Session, production, consent, and observation JSON files under `completed/`.\n9. Run `narrative-game-playtest-record ./experiment ./recording-manifest.json`. The command preflights the closed ledger before persisting anything.\n10. Treat the Run as development evidence until an independent human review and required remeasurement support standing.\n"""
+    guide = """# Facilitator run order\n\n1. Verify the package identities in `playtest-preparation.json`.\n2. Assign six distinct humans to the frozen Seats and one distinct host.\n3. Collect consent before distributing private Dossiers.\n4. Time the Quick Start and capture every player's pre-game responses.\n5. Use `session-plan.example.json` as the host transcript: copy it, replace every placeholder, preserve actual Phase advances, disclosures, Interventions, and the players' chosen resolution, then run `narrative-game-playtest-session packages/game-release.zip session-plan.json --output completed/session-history.json`.\n6. Record one timestamped host observation in every Phase and preserve interventions in the host log.\n7. Complete individual post-game forms before the group debrief.\n8. Copy `recording-manifest.example.json`, complete every `REPLACE_` value, and place the exact production, consent, and observation JSON files under `completed/`.\n9. Run `narrative-game-playtest-record ./experiment ./recording-manifest.json`. The command preflights the closed ledger before persisting anything.\n10. Treat the Run as development evidence until an independent human review and required remeasurement support standing.\n"""
     return {
         "forms/consent-v1.md": consent.encode(),
         "forms/roster.csv": ("\n".join(roster) + "\n").encode(),
@@ -219,6 +285,7 @@ def _forms(
         "forms/post-game.json": canonical_json(post),
         "forms/group-debrief.md": debrief.encode(),
         "recording-manifest.example.json": canonical_json(recording_manifest),
+        "session-plan.example.json": canonical_json(session_plan),
         "completed/production-receipt.example.json": canonical_json(production_receipt),
         "completed/consent-response.example.json": canonical_json(consent_response),
         "completed/observations.example.json": canonical_json([]),

@@ -33,6 +33,7 @@ narrative-game-experience = "narrative_game.stage11_fixture:main"
 narrative-game-character-example = "narrative_game.stage11_character_fixture:main"
 narrative-game-playtest-prepare = "narrative_game.stage11_playtest_fixture:main"
 narrative-game-playtest-record = "narrative_game.playtest.ingestion:main"
+narrative-game-playtest-session = "narrative_game.playtest.session_recording:main"
 narrative-game-release-qualify = "narrative_game.stage12_qualification:main"
 
 [tool.setuptools.packages.find]
