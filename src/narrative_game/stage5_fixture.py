@@ -114,8 +114,8 @@ def _forge_deed(root: Path, *, artifact_pins: dict[str, Any] | None = None):
             },
         },
         rubric={
-            "version": "ashwood-artifact.1",
-            "scorer": "absolute-v0.2",
+            "version": "ashwood-artifact.2",
+            "scorer": "absolute-v0.3",
             "dimensions": [
                 {
                     "id": "artifact_boundary",
@@ -123,7 +123,7 @@ def _forge_deed(root: Path, *, artifact_pins: dict[str, Any] | None = None):
                     "anchors": {"0": "unverified bytes", "100": "verified result and attestation"},
                 }
             ],
-            "acceptance": {"rules": [{"metric": "overall_min", "operator": ">=", "value": 0}]},
+            "acceptance": {"rules": [{"metric": "overall_min", "operator": ">=", "value": 80}]},
         },
         requirements=[
             {

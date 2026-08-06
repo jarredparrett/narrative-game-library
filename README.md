@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-11 now form one
+Version `0.12.0` remains in the experimental contract epoch. Stages 0-11 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -23,6 +23,11 @@ maker workspace, host control room, authorized character view, and print
 operator projection over the same exact Release and Session identities. Public
 schema compatibility is not promised yet, but hashes, receipts, dependency
 direction, human authorization, and reproducible outputs are never optional.
+
+The qualification spine added in 0.12 keeps gameplay, accessibility, artifact
+realism, human play, and public release as separate evidence classes. A game can
+therefore pass development gameplay while remaining honestly unaccepted for
+artifact realism and unqualified for public release.
 
 ## Repository boundary
 
@@ -195,6 +200,50 @@ and adapter identity are frozen in the Experiment contract, so changing either
 is explicit rather than an ambient behavior change. Profile adapters may be
 added for other game genres—or domains such as insurance and accounting—without
 placing their authoring rules in the experiment core.
+
+## Portable qualification and current standing
+
+`ExperimentSpine` records each selected rung in a fourth hash-chained Workspace
+journal. It stores the exact Release, Physical Export, artifact collection,
+scoped human approvals, game evidence, accessibility contracts, and opaque
+content-addressed references to external Verismill Experiments. Every selection
+automatically exports a relocatable `.ngw` and replaces two derived projections:
+`current-standing.json` for tools and `current-standing.md` for people.
+
+The projections are never edited as state. Reopening the Workspace rebuilds
+them from the journal, and verification detects stale projections, corrupt or
+missing objects, broken parentage, incomplete proof paths, unequal accessible
+evidence, and approval scope mismatches.
+
+```python
+from narrative_game import ExperimentSpine, Workspace
+
+workspace = Workspace.open("/path/to/user-data/my-game")
+spine = ExperimentSpine(workspace)
+assert spine.verify()["ok"]
+standing = spine.derive_projection()
+print(standing["standings"]["artifact_realism"]["status"])
+```
+
+The first historical migration is the exact Winter Observatory Candidate 6
+baseline. It uses only Verismill's public `Experiment` facade and does not read
+its private bus or object store:
+
+```python
+from narrative_game.experiment import migrate_winter_observatory_candidate_6
+
+migrate_winter_observatory_candidate_6(
+    "/path/to/winter-observatory",
+    workspace_root="/path/to/user-data/experiments/winter-observatory-candidate-6",
+    archive_path="/path/to/user-data/experiments/winter-observatory-candidate-6.ngw",
+)
+```
+
+That migration creates no candidate and no new standing. It preserves the
+recorded result: coherent build passed, development gameplay passed, critical
+accessibility parity passed, artifact realism `0/19` accepted, human play
+unmeasured, and public release unclaimed. See the
+[full retrospective](docs/retrospectives/winter-observatory-hill-climb.md).
 
 ## Game authoring
 

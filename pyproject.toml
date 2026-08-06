@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.11.0"
+version = "0.12.0"
 description = "Deterministic narrative game building with human-governed hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,8 +16,8 @@ dependencies = [
 
 [project.optional-dependencies]
 forge = [
-  "verismill @ git+https://github.com/jarredparrett/verismill-lean.git@c2b02fdf2faa28ac869dafcd119bf65d1a32e87c",
-  "mattermill @ git+https://github.com/jarredparrett/verismill-lean.git@c2b02fdf2faa28ac869dafcd119bf65d1a32e87c#subdirectory=libs/mattermill",
+  "verismill @ git+https://github.com/jarredparrett/verismill-lean.git@7d3e4e7",
+  "mattermill @ git+https://github.com/jarredparrett/verismill-lean.git@7d3e4e7#subdirectory=libs/mattermill",
 ]
 
 [dependency-groups]

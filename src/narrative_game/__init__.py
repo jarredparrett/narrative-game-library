@@ -13,7 +13,7 @@ from .blueprint import (
     validate_blueprint,
 )
 from .compiler import compile_candidate, freeze_candidate
-from .experiment import Experiment, GameProfileAdapter
+from .experiment import Experiment, ExperimentSpine, GameProfileAdapter
 from .experience import (
     ExperienceProjection,
     TutorialProjection,
@@ -40,6 +40,7 @@ __all__ = [
     "BlueprintProposal",
     "DisplayedClaim",
     "Experiment",
+    "ExperimentSpine",
     "EvidenceComparison",
     "ExperienceProjection",
     "GameDefinition",
@@ -73,4 +74,4 @@ __all__ = [
     "validate_blueprint",
 ]
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"

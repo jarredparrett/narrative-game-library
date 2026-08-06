@@ -96,8 +96,8 @@ wheels = [
 
 [[package]]
 name = "mattermill"
-version = "0.18.0"
-source = { git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c#c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" }
+version = "0.27.0"
+source = { git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=7d3e4e7#7d3e4e7810dc26484492dc2efe95480b07f3803f" }
 dependencies = [
     { name = "pillow" },
     { name = "pypdfium2" },
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "narrative-game-library"
-version = "0.11.0"
+version = "0.12.0"
 source = { editable = "." }
 dependencies = [
     { name = "pypdf" },
@@ -126,10 +126,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mattermill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" },
+    { name = "mattermill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=7d3e4e7" },
     { name = "pypdf", specifier = ">=5,<7" },
     { name = "reportlab", specifier = ">=4,<5" },
-    { name = "verismill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" },
+    { name = "verismill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?rev=7d3e4e7" },
 ]
 provides-extras = ["forge"]
 
@@ -316,5 +316,5 @@ wheels = [
 
 [[package]]
 name = "verismill"
-version = "0.7.0"
-source = { git = "https://github.com/jarredparrett/verismill-lean.git?rev=c2b02fdf2faa28ac869dafcd119bf65d1a32e87c#c2b02fdf2faa28ac869dafcd119bf65d1a32e87c" }
+version = "0.9.0"
+source = { git = "https://github.com/jarredparrett/verismill-lean.git?rev=7d3e4e7#7d3e4e7810dc26484492dc2efe95480b07f3803f" }
