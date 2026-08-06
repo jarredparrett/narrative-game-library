@@ -366,6 +366,25 @@ class PlaytestProgram:
         playtest_run_ids: tuple[str, ...],
     ) -> EvidenceComparison:
         """Persist deterministic divergence without treating model scores as human play."""
+        comparison = self._build_comparison(
+            protocol_id=protocol_id,
+            model_evaluation_id=model_evaluation_id,
+            playtest_run_ids=playtest_run_ids,
+        )
+        return self.ledger.register(
+            comparison,
+            actor="system:evidence-comparison",
+            idempotency_key=f"evidence-comparison-{comparison.comparison_id}",
+        ).value
+
+    def _build_comparison(
+        self,
+        *,
+        protocol_id: str,
+        model_evaluation_id: str,
+        playtest_run_ids: tuple[str, ...],
+    ) -> EvidenceComparison:
+        """Materialize the exact comparison without mutating the Experiment."""
         if not playtest_run_ids:
             raise ValueError("Evidence Comparison requires at least one Playtest Run")
         protocol = self.ledger.get("playtest_protocol", protocol_id).value
@@ -402,34 +421,17 @@ class PlaytestProgram:
             dimensions,
             conclusion,
         )
-        return self.ledger.register(
-            comparison,
-            actor="system:evidence-comparison",
-            idempotency_key=f"evidence-comparison-{comparison.comparison_id}",
-        ).value
+        return comparison
 
-    def issue_accepted_standing(
-        self,
-        *,
-        comparison_id: str,
+    @staticmethod
+    def _build_accepted_standing(
+        comparison: EvidenceComparison,
         reviewer: Authority,
         statement: str,
     ) -> StandingAttestation:
-        """Issue accepted Standing only through independent human review."""
-        existing = {
-            item.authority_id: item for item in self.ledger.snapshot()["authorities"]
-        }
-        if reviewer.authority_id in existing:
-            if existing[reviewer.authority_id] != reviewer:
-                raise ValueError("Standing reviewer identity conflicts with an existing Authority")
-        else:
-            self.ledger.register(
-                reviewer,
-                actor="human:playtest-operator",
-                idempotency_key=f"standing-reviewer-{reviewer.authority_id}",
-            )
-        comparison = self.ledger.get("evidence_comparison", comparison_id).value
-        standing = StandingAttestation(
+        if not statement.strip():
+            raise ValueError("Standing review requires a nonempty human statement")
+        return StandingAttestation(
             comparison.candidate_id,
             "accepted",
             (comparison.model_evaluation_id,),
@@ -443,8 +445,75 @@ class PlaytestProgram:
             comparison.playtest_run_ids,
             comparison.comparison_id,
         )
+
+    def _reviewer_is_new(self, reviewer: Authority) -> bool:
+        existing = {
+            item.authority_id: item for item in self.ledger.snapshot()["authorities"]
+        }
+        if reviewer.authority_id in existing:
+            if existing[reviewer.authority_id] != reviewer:
+                raise ValueError(
+                    "Standing reviewer identity conflicts with an existing Authority"
+                )
+            return False
+        return True
+
+    def issue_accepted_standing(
+        self,
+        *,
+        comparison_id: str,
+        reviewer: Authority,
+        statement: str,
+    ) -> StandingAttestation:
+        """Issue accepted Standing only through independent human review."""
+        reviewer_is_new = self._reviewer_is_new(reviewer)
+        comparison = self.ledger.get("evidence_comparison", comparison_id).value
+        standing = self._build_accepted_standing(comparison, reviewer, statement)
+        self.ledger.preflight((reviewer, standing))
+        if reviewer_is_new:
+            self.ledger.register(
+                reviewer,
+                actor="human:playtest-operator",
+                idempotency_key=f"standing-reviewer-{reviewer.authority_id}",
+            )
         return self.ledger.register(
             standing,
             actor=f"human:{reviewer.principal}",
             idempotency_key=f"accepted-standing-{standing.attestation_id}",
         ).value
+
+    def finalize_accepted_standing(
+        self,
+        *,
+        protocol_id: str,
+        model_evaluation_id: str,
+        playtest_run_ids: tuple[str, ...],
+        reviewer: Authority,
+        statement: str,
+    ) -> tuple[EvidenceComparison, StandingAttestation]:
+        """Preflight and persist comparison plus independent accepted Standing."""
+        reviewer_is_new = self._reviewer_is_new(reviewer)
+        comparison = self._build_comparison(
+            protocol_id=protocol_id,
+            model_evaluation_id=model_evaluation_id,
+            playtest_run_ids=playtest_run_ids,
+        )
+        standing = self._build_accepted_standing(comparison, reviewer, statement)
+        self.ledger.preflight((reviewer, comparison, standing))
+        if reviewer_is_new:
+            self.ledger.register(
+                reviewer,
+                actor="human:playtest-operator",
+                idempotency_key=f"standing-reviewer-{reviewer.authority_id}",
+            )
+        persisted_comparison = self.ledger.register(
+            comparison,
+            actor="system:evidence-comparison",
+            idempotency_key=f"evidence-comparison-{comparison.comparison_id}",
+        ).value
+        persisted_standing = self.ledger.register(
+            standing,
+            actor=f"human:{reviewer.principal}",
+            idempotency_key=f"accepted-standing-{standing.attestation_id}",
+        ).value
+        return persisted_comparison, persisted_standing

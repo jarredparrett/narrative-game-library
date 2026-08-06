@@ -83,3 +83,12 @@ def test_review_forms_cover_six_roles_every_phase_and_every_rubric_item():
     assert session_plan["commands"][submit_index - 1]["payload"]["phase_id"] == (
         game.resolution.phase_id
     )
+    model_panel = json.loads(first["model-panel.example.json"])
+    assert model_panel["binding_id"] == protocol(instrument).binding_id
+    assert model_panel["members"][0]["assigned_lens"] == (
+        "first-order-human-experience"
+    )
+    standing_review = json.loads(first["standing-review.example.json"])
+    assert standing_review["protocol_id"] == protocol(instrument).protocol_id
+    assert len(standing_review["playtest_run_ids"]) == 2
+    assert b"distinct participant cohorts" in first["RUN.md"]

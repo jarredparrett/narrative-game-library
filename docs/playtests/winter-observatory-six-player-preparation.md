@@ -1,6 +1,6 @@
 # Winter Observatory six-player playtest preparation
 
-Status: **awaiting six distinct human players and one host**
+Status: **awaiting an exact blind model baseline and two distinct six-player cohorts**
 
 The exact human-play package was prepared on 2026-08-06 from selected Candidate 6. It is a child Candidate because the six deep Dossiers replace the earlier short dossier Resources. No human responses, scores, findings, or standing have been invented.
 
@@ -18,16 +18,32 @@ The exact human-play package was prepared on 2026-08-06 from selected Candidate 
 
 The preparation Workspace verifies cleanly. Dossier page counts are Eleanor 4, Felix 5, Lillian 4, Ruth 4, Samuel 4, and Thomas 4.
 
-Preparation v4 supersedes v1-v3. The Candidate and produced game bytes did not
+Preparation v6 supersedes v1-v5. The Candidate and produced game bytes did not
 change; v2 froze the clarified positive-direction cognitive-load wording, v3
 added the closed-ledger recording path, and v4 orders the host transcript so
-players submit in the authored Resolution Phase before debrief.
+players submit in the authored Resolution Phase before debrief. Version 5
+exposed the previously missing comparison gap; v6 adds the configured blind
+model baseline and independent Standing-review operator manifests.
 
 ## Human boundary
 
 The kit freezes all ten issue #17 rubric dimensions, consent v1, six Seat assignments, pre-game comprehension, timestamped host observations in every Phase, individual post-game responses, group debrief, and the defect-owner taxonomy: dossier, evidence, hosting, pacing, and UI.
 
-The next authorized action is recruitment and scheduling. A `PlaytestRun` may be recorded only after actual humans supply affirmative consent, a resolved live Session history, exact responses and quotes, scores for every dimension, and the production receipt. Findings require human review before becoming answer-safe Requirements; a child needs fresh remeasurement before improved standing.
+The next authorized action is an independent blind model baseline under this
+same Instrument, followed by recruitment and scheduling. Copy
+`model-panel.example.json`, configure the operator-selected provider, model, and
+JSON-command driver, and run:
+
+```bash
+narrative-game-playtest-model-baseline ./experiment ./model-panel.json
+```
+
+The resulting exact Evaluation ID is required for later model-human comparison.
+It cannot confer human standing. A `PlaytestRun` may be recorded only after
+actual humans supply affirmative consent, a resolved live Session history,
+exact responses and quotes, scores for every dimension, and the production
+receipt. The frozen Protocol requires two Runs with distinct participant
+cohorts and distinct Session histories.
 
 ## Record a completed Run
 
@@ -53,6 +69,22 @@ The command rejects paths outside the bundle, preflights all Authorities,
 Findings, and the Run as one closed ledger, and writes nothing when validation
 fails. A successful idempotent replay returns the same Run ID and leaves one
 Run in the Experiment.
+
+Repeat the complete Session and ingestion workflow with a distinct participant
+cohort. Then give both Run records, their attributable evidence, Findings, and
+the blind Evaluation to an independent human who did not play, host, or observe
+either Run. An approval is materialized without custom Python through:
+
+```bash
+narrative-game-playtest-review ./experiment ./standing-review.json
+```
+
+The command computes the frozen dimension-by-dimension model-human comparison,
+preflights the reviewer, comparison, and accepted Standing together, and writes
+nothing if the reviewer is not independent. A non-approved review remains
+feedback: it must not be converted into accepted Standing. Findings require
+human direction before becoming answer-safe Requirements; a changed child needs
+fresh blind and human remeasurement before improved standing.
 
 ## Reproduce the preparation
 

@@ -276,7 +276,37 @@ def _forms(
             "participate", "record-observations", "retain-anonymized-quotes",
         ],
     }
-    guide = """# Facilitator run order\n\n1. Verify the package identities in `playtest-preparation.json`.\n2. Assign six distinct humans to the frozen Seats and one distinct host.\n3. Collect consent before distributing private Dossiers.\n4. Time the Quick Start and capture every player's pre-game responses.\n5. Use `session-plan.example.json` as the host transcript: copy it, replace every placeholder, preserve actual Phase advances, disclosures, Interventions, and the players' chosen resolution, then run `narrative-game-playtest-session packages/game-release.zip session-plan.json --output completed/session-history.json`.\n6. Record one timestamped host observation in every Phase and preserve interventions in the host log.\n7. Complete individual post-game forms before the group debrief.\n8. Copy `recording-manifest.example.json`, complete every `REPLACE_` value, and place the exact production, consent, and observation JSON files under `completed/`.\n9. Run `narrative-game-playtest-record ./experiment ./recording-manifest.json`. The command preflights the closed ledger before persisting anything.\n10. Treat the Run as development evidence until an independent human review and required remeasurement support standing.\n"""
+    model_panel = {
+        "schema_version": "1.0",
+        "binding_id": protocol.binding_id,
+        "task_key": "winter-human-comparison-model-baseline-v1",
+        "seed": 19370117,
+        "members": [{
+            "authority_id": "winter-human-experience-judge-v1",
+            "principal": "REPLACE_WITH_INDEPENDENT_MODEL_PRINCIPAL",
+            "provider": "REPLACE_WITH_PROVIDER",
+            "requested_model": "REPLACE_WITH_REQUESTED_MODEL",
+            "assigned_lens": "first-order-human-experience",
+            "command": ["REPLACE_WITH_JSON_COMMAND_DRIVER"],
+            "timeout_seconds": 600,
+        }],
+    }
+    standing_review = {
+        "schema_version": "1.0",
+        "protocol_id": protocol.protocol_id,
+        "model_evaluation_id": "REPLACE_WITH_MODEL_PANEL_EVALUATION_ID",
+        "playtest_run_ids": [
+            "REPLACE_WITH_FIRST_FRESH_RUN_ID",
+            "REPLACE_WITH_SECOND_FRESH_RUN_ID",
+        ],
+        "reviewer": {
+            "authority_id": "REPLACE_WITH_INDEPENDENT_REVIEWER_AUTHORITY_ID",
+            "principal": "REPLACE_WITH_INDEPENDENT_REVIEWER_PRINCIPAL",
+        },
+        "decision": "REPLACE_WITH_approved_OR_not_approved",
+        "statement": "REPLACE_WITH_EXACT_INDEPENDENT_HUMAN_REVIEW_STATEMENT",
+    }
+    guide = """# Facilitator run order\n\n1. Verify the package identities in `playtest-preparation.json`.\n2. Before recruiting, copy `model-panel.example.json`, configure an independent JSON-command model driver, and run `narrative-game-playtest-model-baseline ./experiment ./model-panel.json`. Retain its exact Evaluation ID; model evidence cannot substitute for human play.\n3. Conduct the following Session workflow twice with distinct participant cohorts. Each Session also requires one distinct host, affirmative consent, and unique Actor, Session, command, and Run IDs.\n4. Assign six distinct humans to the frozen Seats and one distinct host.\n5. Collect consent before distributing private Dossiers.\n6. Time the Quick Start and capture every player's pre-game responses.\n7. Use `session-plan.example.json` as the host transcript: copy it, replace every placeholder, preserve actual Phase advances, disclosures, Interventions, and the players' chosen resolution, then run `narrative-game-playtest-session packages/game-release.zip session-plan.json --output completed/session-history.json`.\n8. Record one timestamped host observation in every Phase and preserve interventions in the host log.\n9. Complete individual post-game forms before the group debrief.\n10. Copy `recording-manifest.example.json`, complete every `REPLACE_` value, and place the exact production, consent, and observation JSON files under `completed/`.\n11. Run `narrative-game-playtest-record ./experiment ./recording-manifest.json`. The command preflights the closed ledger before persisting anything. Archive that Run bundle, then repeat steps 4-11 for the second distinct cohort.\n12. Give an independent human reviewer—someone who did not play, host, or observe either Run—the exact model Evaluation, both Run records, Findings, and raw attributable evidence.\n13. If the reviewer does not approve, preserve the feedback and revise through a child Candidate; do not issue accepted Standing. If approved, complete `standing-review.example.json` and run `narrative-game-playtest-review ./experiment ./standing-review.json`.\n14. Rerun public-release qualification. Accepted human Standing is still not Publisher Approval.\n"""
     return {
         "forms/consent-v1.md": consent.encode(),
         "forms/roster.csv": ("\n".join(roster) + "\n").encode(),
@@ -286,6 +316,8 @@ def _forms(
         "forms/group-debrief.md": debrief.encode(),
         "recording-manifest.example.json": canonical_json(recording_manifest),
         "session-plan.example.json": canonical_json(session_plan),
+        "model-panel.example.json": canonical_json(model_panel),
+        "standing-review.example.json": canonical_json(standing_review),
         "completed/production-receipt.example.json": canonical_json(production_receipt),
         "completed/consent-response.example.json": canonical_json(consent_response),
         "completed/observations.example.json": canonical_json([]),
@@ -355,7 +387,7 @@ def run(root: str | Path, parent_release: str | Path) -> dict[str, Any]:
     experiment.export_archive(root / "winter-observatory-playtest.ngw")
     summary = {
         "schema_version": "0.17",
-        "status": "awaiting-six-distinct-human-players-and-one-host",
+        "status": "awaiting-blind-model-baseline-and-two-distinct-six-player-cohorts",
         "parent_candidate_id": parent["candidate_id"],
         "parent_release_id": parent["release_id"],
         "candidate_id": candidate.candidate_id,
