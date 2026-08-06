@@ -587,7 +587,7 @@ truths, future-phase moves, and phase states with no fallback.
 
 ### Prepare first-order six-player evidence
 
-Version 0.15 freezes the exact human-play boundary for the six-role Winter
+Version 0.17 freezes the exact human-play boundary for the six-role Winter
 Observatory package. Given the selected Candidate 6 Release, it builds the
 deep-Dossier child Release and Physical Export, persists a portable Experiment,
 and writes consent, roster, pre-game, host-observation, post-game, and group
@@ -598,8 +598,18 @@ uv run narrative-game-playtest-prepare ./winter-playtest \
   --parent-release ./candidate-6/game-release.zip
 ```
 
-Preparation is not a Playtest Run. Six distinct humans and one distinct host
-must still consent and complete the live Session. The library refuses to record
+Preparation is not a Playtest Run. First run an independent blind model panel
+under the same Instrument; its exact Evaluation is the comparison baseline,
+not a substitute for play:
+
+```bash
+uv run narrative-game-playtest-model-baseline \
+  ./winter-playtest/experiment \
+  ./winter-playtest/model-panel.json
+```
+
+Then two distinct six-person cohorts and their hosts must consent and complete
+separate live Sessions. The library refuses to record
 a rich Run without all frozen rubric categories, individual pre/post responses,
 timestamped facilitator observations for every played Phase, and attributable
 response objects. See the [exact prepared lineage](docs/playtests/winter-observatory-six-player-preparation.md).
@@ -625,6 +635,20 @@ then loads that Session, production receipt, consent responses,
 observations, and scores; preflights the complete future ledger without writes;
 then persists the Run idempotently. A rejected submission leaves journals and
 the object store unchanged.
+
+After both fresh Runs, a human who did not play, host, or observe reviews their
+raw evidence and the model comparison. Only an explicit approval may issue
+accepted Standing:
+
+```bash
+uv run narrative-game-playtest-review \
+  ./winter-playtest/experiment \
+  ./winter-playtest/standing-review.json
+```
+
+The preparation includes model-panel and standing-review manifests. Every
+panel member selects its own provider, requested model, and JSON-command driver,
+so comparison evidence is model-portable without hard-coding a provider.
 
 ## Public-release qualification
 

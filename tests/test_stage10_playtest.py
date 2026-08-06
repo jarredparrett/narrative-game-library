@@ -28,6 +28,7 @@ from narrative_game.experiment import Experiment, ProposedRevision
 from narrative_game.examples import vanished_ledger_blueprint
 from narrative_game.playtest.program import PlaytestProgram
 from narrative_game.playtest.ingestion import record_playtest_bundle
+from narrative_game.playtest.review import finalize_review
 from narrative_game.profiles import FacilitatedInvestigationAuthoringAdapter
 from narrative_game.runtime import (
     Actor,
@@ -634,6 +635,61 @@ def test_two_fresh_runs_and_independent_review_can_support_accepted_standing(tmp
     )
     assert standing.level == "accepted"
     assert standing.playtest_run_ids == (first.run_id, second.run_id)
+    assert experiment.verify()["ok"]
+
+
+def test_operator_review_preflights_comparison_and_standing_without_partial_writes(tmp_path):
+    """stage11.review-cli: exact Runs become Standing only after independent approval."""
+    experiment, binding, release, model_evaluation = prepared_experiment(tmp_path)
+    program = PlaytestProgram(experiment)
+    protocol = program.freeze_protocol(
+        binding_id=binding.binding_id,
+        name="two-seat facilitated play",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+    )
+    first = record_passing_run(
+        program, protocol, binding, release, "run-one",
+        {"world_realism": 84, "playability": 82},
+    )
+    second = record_passing_run(
+        program, protocol, binding, release, "run-two",
+        {"world_realism": 88, "playability": 86},
+    )
+    participant = experiment.ledger.get(
+        "authority", first.participant_authority_ids[0]
+    ).value
+    before_events = experiment.workspace.climb.read()
+    before_objects = experiment.workspace.store.references()
+    with pytest.raises(ClimbRejected, match="nonindependent-standing-review"):
+        program.finalize_accepted_standing(
+            protocol_id=protocol.protocol_id,
+            model_evaluation_id=model_evaluation.evaluation_id,
+            playtest_run_ids=(first.run_id, second.run_id),
+            reviewer=participant,
+            statement="A participant cannot approve the Standing.",
+        )
+    assert experiment.workspace.climb.read() == before_events
+    assert experiment.workspace.store.references() == before_objects
+
+    review_path = tmp_path / "standing-review.json"
+    review_path.write_bytes(canonical_json({
+        "schema_version": "1.0",
+        "protocol_id": protocol.protocol_id,
+        "model_evaluation_id": model_evaluation.evaluation_id,
+        "playtest_run_ids": [first.run_id, second.run_id],
+        "reviewer": {
+            "authority_id": "independent-standing-reviewer",
+            "principal": "independent-standing-reviewer-person",
+        },
+        "decision": "approved",
+        "statement": "Accepted after reviewing both exact cohorts and model divergence.",
+    }))
+    result = finalize_review(experiment.workspace.root, review_path)
+    repeated = finalize_review(experiment.workspace.root, review_path)
+    assert repeated == result
+    assert result["comparison_conclusion"] == "divergent"
+    assert result["standing_level"] == "accepted"
     assert experiment.verify()["ok"]
 
 

@@ -37,7 +37,9 @@ from .playtest import (
     PlaytestRun,
 )
 from .playtest.ingestion import record_playtest_bundle
+from .playtest.model_baseline import measure_model_baseline
 from .playtest.program import PlaytestProgram
+from .playtest.review import finalize_review
 from .profiles import FacilitatedInvestigationAuthoringAdapter
 from .release import (
     PublicReleasePolicy,
@@ -85,9 +87,11 @@ __all__ = [
     "apply_blueprint_proposal",
     "create_session",
     "freeze_candidate",
+    "finalize_review",
     "host_projection",
     "load_release",
     "maker_projection",
+    "measure_model_baseline",
     "player_projection",
     "print_projection",
     "qualify_public_release",
