@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.14.0` remains in the experimental contract epoch. Stages 0-11 form one
+Version `0.15.0` remains in the experimental contract epoch. Stages 0-11 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -585,3 +585,22 @@ The command writes six deterministic Markdown/PDF pairs, the exact canonical
 game with its Character Program, and a hash-bearing summary. The validator
 blocks cross-role leakage, host-only solution knowledge, unreachable private
 truths, future-phase moves, and phase states with no fallback.
+
+### Prepare first-order six-player evidence
+
+Version 0.15 freezes the exact human-play boundary for the six-role Winter
+Observatory package. Given the selected Candidate 6 Release, it builds the
+deep-Dossier child Release and Physical Export, persists a portable Experiment,
+and writes consent, roster, pre-game, host-observation, post-game, and group
+debrief instruments:
+
+```bash
+uv run narrative-game-playtest-prepare ./winter-playtest \
+  --parent-release ./candidate-6/game-release.zip
+```
+
+Preparation is not a Playtest Run. Six distinct humans and one distinct host
+must still consent and complete the live Session. The library refuses to record
+a rich Run without all frozen rubric categories, individual pre/post responses,
+timestamped facilitator observations for every played Phase, and attributable
+response objects. See the [exact prepared lineage](docs/playtests/winter-observatory-six-player-preparation.md).

@@ -317,6 +317,96 @@ def test_playtest_run_binds_live_session_package_roles_consent_and_observations(
     assert experiment.verify()["ok"]
 
 
+def test_strict_protocol_requires_individual_stages_and_timestamped_facilitation(tmp_path):
+    """stage11.human-boundary: a rich Run cannot omit pre/post responses or phase notes."""
+    experiment, binding, release, _ = prepared_experiment(tmp_path)
+    program = PlaytestProgram(experiment)
+    protocol = program.freeze_protocol(
+        binding_id=binding.binding_id,
+        name="strict human trace",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+        required_observation_categories=("comprehension", "agency", "pacing"),
+        required_response_stages=("pre_game", "in_play", "post_game", "group_debrief"),
+        individual_response_stages=("pre_game", "post_game"),
+        require_facilitator_phase_observations=True,
+        defect_owner_taxonomy=("dossier", "evidence", "hosting", "pacing", "ui"),
+    )
+    participants, facilitator, observers = authorities("strict")
+    enriched = tuple(
+        {
+            **item,
+            "response_stage": "in_play",
+            "elapsed_seconds": 10 + index,
+            "instrument_item_id": item["category"],
+            **({"defect_owner": "pacing"} if item.get("finding") else {}),
+        }
+        for index, item in enumerate(observations("strict"))
+    )
+    extras = tuple(
+        {
+            "authority_id": participant.authority_id,
+            "observer_role": "participant",
+            "phase_id": phase,
+            "category": "comprehension" if stage == "pre_game" else "agency",
+            "quote": f"Exact {stage} response from {participant.authority_id}.",
+            "note": "Required individual response.",
+            "response_stage": stage,
+            "instrument_item_id": f"{stage}.required",
+        }
+        for participant in participants
+        for stage, phase in (("pre_game", "opening"), ("post_game", "resolution"))
+    ) + (
+        {
+            "authority_id": facilitator.authority_id,
+            "observer_role": "facilitator",
+            "phase_id": "opening",
+            "category": "pacing",
+            "quote": "Opening observed.",
+            "note": "Timestamped host note.",
+            "response_stage": "in_play",
+            "elapsed_seconds": 0,
+            "instrument_item_id": "host.opening",
+        },
+        {
+            "authority_id": facilitator.authority_id,
+            "observer_role": "facilitator",
+            "phase_id": "resolution",
+            "category": "pacing",
+            "quote": "Resolution observed.",
+            "note": "Timestamped host note.",
+            "response_stage": "in_play",
+            "elapsed_seconds": 60,
+            "instrument_item_id": "host.resolution",
+        },
+        {
+            "authority_id": observers[0].authority_id,
+            "observer_role": "observer",
+            "phase_id": "resolution",
+            "category": "agency",
+            "quote": "The group compared their experiences.",
+            "note": "Group debrief response.",
+            "response_stage": "group_debrief",
+            "instrument_item_id": "debrief.agency",
+        },
+    )
+    run = program.record_run(
+        protocol_id=protocol.protocol_id,
+        run_key="strict",
+        session_history=complete_session(release, prefix="strict"),
+        production_receipt={"release_id": binding.release_id, "physical_export_id": binding.physical_export_id},
+        participants=participants,
+        facilitator=facilitator,
+        observers=observers,
+        consent_responses=consent_for(participants, facilitator, observers),
+        observations=(*enriched, *extras),
+        scores={"world_realism": 84, "playability": 82},
+        idempotency_key="strict-run",
+    )
+    assert run.evidence_class == "fresh-human-play"
+    assert experiment.verify()["ok"]
+
+
 def test_playtest_findings_translate_to_answer_safe_requirements(tmp_path):
     """stage10.harvest: quoted human play tells become attributable builder Requirements."""
     experiment, binding, release, _ = prepared_experiment(tmp_path)

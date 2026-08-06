@@ -490,6 +490,15 @@ def validate_climb_bundle(
         categories = protocol.required_observation_categories
         if not categories or len(categories) != len(set(categories)) or any(not item.strip() for item in categories):
             result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(categories), "Playtest Protocol requires unique observation categories"))
+        for label, values in (
+            ("response stages", protocol.required_response_stages),
+            ("individual response stages", protocol.individual_response_stages),
+            ("defect owners", protocol.defect_owner_taxonomy),
+        ):
+            if len(values) != len(set(values)) or any(not item.strip() for item in values):
+                result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(values), f"Playtest Protocol requires unique {label}"))
+        if not set(protocol.individual_response_stages) <= set(protocol.required_response_stages):
+            result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(protocol.individual_response_stages), "individual response stages must be frozen response stages"))
 
     for protocol in playtest_protocols:
         protocol_runs = [item for item in playtest_runs if item.protocol_id == protocol.protocol_id]
@@ -559,12 +568,23 @@ def validate_climb_bundle(
         observed_categories = {item.category for item in run.observations}
         if not set(protocol.required_observation_categories) <= observed_categories:
             result.append(_finding("climb.incomplete-playtest-observation", run.run_id, str(sorted(observed_categories)), "Playtest Run must cover every frozen observation category"))
+        observed_stages = {item.response_stage for item in run.observations}
+        if not set(protocol.required_response_stages) <= observed_stages:
+            result.append(_finding("climb.incomplete-playtest-observation", run.run_id, str(sorted(observed_stages)), "Playtest Run must cover every frozen response stage"))
+        for participant_id in run.participant_authority_ids:
+            participant_stages = {item.response_stage for item in run.observations if item.authority_id == participant_id}
+            if not set(protocol.individual_response_stages) <= participant_stages:
+                result.append(_finding("climb.incomplete-playtest-observation", run.run_id, participant_id, "participant lacks a frozen individual response stage"))
         for observation in run.observations:
             authority = authority_by_id.get(observation.authority_id)
             if observation.authority_id not in roster or authority is None or observation.observer_role != authority.role:
                 result.append(_finding("climb.playtest-observer-mismatch", run.run_id, observation.authority_id, "Play Observation must come from a human occupying its declared Run role"))
             if observation.category not in protocol.required_observation_categories or not observation.phase_id.strip() or not observation.quote.strip() or not observation.note.strip() or not _HASH.fullmatch(observation.response_ref):
                 result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.quote, "Play Observation requires a frozen category, Phase, exact quote, note, and response object"))
+            if observation.response_stage not in (protocol.required_response_stages or ("in_play",)) or (observation.elapsed_seconds is not None and observation.elapsed_seconds < 0) or (protocol.required_response_stages and not observation.instrument_item_id.strip()):
+                result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.quote, "Play Observation requires a frozen response stage, nonnegative optional timestamp, and rubric item"))
+            if observation.defect_owner is not None and observation.defect_owner not in protocol.defect_owner_taxonomy:
+                result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.defect_owner, "Play Observation defect owner is outside the frozen taxonomy"))
         if set(run.scores) != {item.dimension_id for item in instrument.dimensions} or any(not 0 <= item <= 100 for item in run.scores.values()):
             result.append(_finding("climb.invalid-score", run.run_id, str(dict(run.scores)), "Playtest scores must cover every frozen dimension from 0 to 100"))
         if set(run.hard_gate_results) != set(instrument.hard_gate_codes):
