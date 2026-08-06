@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.15.0` remains in the experimental contract epoch. Stages 0-11 form one
+Version `0.16.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -21,7 +21,10 @@ the reusable Game Blueprint and first-party authoring adapter; Stage 10 makes
 live human play the primary acceptance evidence. Stage 11 adds a tutorial-led
 maker workspace, host control room, authorized character view, and print
 operator projection over the same exact Release and Session identities. Public
-schema compatibility is not promised yet, but hashes, receipts, dependency
+schema compatibility is not promised yet. Stage 12 freezes public-release
+qualification as twelve independently reported gates; the current version is
+deliberately `not_qualified` until exact-version human play, tagged upstreams,
+a stable compatibility epoch, and independent publisher approval exist. Hashes, receipts, dependency
 direction, human authorization, and reproducible outputs are never optional.
 
 The qualification spine added in 0.12 keeps gameplay, accessibility, artifact
@@ -34,6 +37,10 @@ qualification target, routes each finding to its owning loop, derives rebuild
 and replay scope from contract changes, and persists a bounded preflight or a
 formal measurement plan. Independent blind judges run concurrently, while
 their replay receipts and aggregation remain deterministically ordered.
+
+Version 0.16 distinguishes Distribution Readiness from Public Release
+Qualification. A green test matrix and reproducible wheel are necessary, but
+they cannot substitute for accepted Reference Game Standing.
 
 ## Repository boundary
 
@@ -596,3 +603,22 @@ must still consent and complete the live Session. The library refuses to record
 a rich Run without all frozen rubric categories, individual pre/post responses,
 timestamped facilitator observations for every played Phase, and attributable
 response objects. See the [exact prepared lineage](docs/playtests/winter-observatory-six-player-preparation.md).
+
+## Public-release qualification
+
+Stage 12 evaluates one exact library version and reference Experiment against a
+content-addressed policy. It reports all gates and never upgrades game Standing:
+
+```bash
+uv run narrative-game-release-qualify \
+  ./winter-playtest/experiment \
+  ./release-evidence.json \
+  --output ./release-qualification.json \
+  --allow-not-qualified
+```
+
+Omit `--allow-not-qualified` in release CI so any failed gate returns a nonzero
+exit status. The exact policy, evidence shape, current limitations, and path to
+qualification are documented in
+[Public-release qualification](docs/public-release-qualification.md). The first
+profile-extension pattern is in [Extending the library](docs/extending.md).
