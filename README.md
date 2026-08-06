@@ -6,20 +6,23 @@ hill-climb lineage.
 This repository is the implementation of the approved
 [Verismill narrative-game specification](https://github.com/jarredparrett/verismill-lean/issues/3).
 It is intentionally a library first: a pure domain Kernel, deterministic Game
-Release compiler, authorized Session runtime, physical exporter, and persisted
-experiment lineage. Polished maker and player interfaces come later.
+Release compiler, authorized Session runtime, physical exporter, persisted
+experiment lineage, and renderer-independent experience projections. Optional
+applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.x` is an experimental contract epoch. Stages 0-10 now form one
+Version `0.x` is an experimental contract epoch. Stages 0-11 now form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
 agentic hill-climb ledger exercised by a real blind model panel. Stage 9 adds
 the reusable Game Blueprint and first-party authoring adapter; Stage 10 makes
-live human play the primary acceptance evidence. Public schema compatibility
-is not promised yet, but hashes, receipts, dependency direction, human
-authorization, and reproducible outputs are never optional.
+live human play the primary acceptance evidence. Stage 11 adds a tutorial-led
+maker workspace, host control room, authorized character view, and print
+operator projection over the same exact Release and Session identities. Public
+schema compatibility is not promised yet, but hashes, receipts, dependency
+direction, human authorization, and reproducible outputs are never optional.
 
 ## Repository boundary
 
@@ -288,6 +291,37 @@ two into a synthetic voice. Accepted Standing requires the protocol's minimum
 number of passing fresh Runs, the exact comparison, and a human publisher who
 did not participate in, facilitate, or observe those Runs. Model disagreement
 remains visible but does not overrule observed human play.
+
+## Tutorial-led product experience
+
+Stage 11 keeps interface policy outside the deterministic domain model. The
+library projects four deliberately different surfaces from the same exact
+objects:
+
+- the maker sees editable intent, package custody, hill-climb lineage, and a
+  guided explanation of the game components;
+- the host sees a dense live Session control room and only authorized commands;
+- each player sees that Actor Binding's character, evidence, notes, events, and
+  available actions without trusted truth or another Seat's private material;
+- the print operator sees the immutable Physical Export plan, files, and
+  preflight evidence.
+
+The tutorial walks one real game through Blueprint, world and truth, cast and
+Seats, Evidence and Materials, Arc and Phases, Candidate and Release, delivery,
+Session authority, measurement, Proposal and Review, and supported Standing.
+It is a deterministic projection contract rather than UI-owned explanatory
+state.
+
+```bash
+uv run narrative-game-experience /tmp/narrative-game-experience
+```
+
+The command writes standalone offline HTML and JSON projections, the tutorial,
+the exact Game Release and Physical Export archives, a replayable Session
+History, and a content-hashed summary. Controls emit typed intents; they cannot
+mutate a game or Session unless the owning Experiment or Session authority
+accepts them. Repeating the command in another empty directory produces
+byte-identical output.
 
 ## State ownership
 
