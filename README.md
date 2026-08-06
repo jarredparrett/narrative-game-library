@@ -1,7 +1,7 @@
 # narrative-game-library
 
-Deterministic, agent-authored narrative game building with human-governed
-hill-climb lineage.
+Deterministic narrative game building with agentic, inspectable hill-climb
+lineage and optional first-order human evidence.
 
 This repository is the implementation of the approved
 [Verismill narrative-game specification](https://github.com/jarredparrett/verismill-lean/issues/3).
@@ -12,17 +12,20 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.14.0` remains in the experimental contract epoch. Stages 0-11 form one
+Version `0.18.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
-agentic hill-climb ledger exercised by a real blind model panel. Stage 9 adds
-the reusable Game Blueprint and first-party authoring adapter; Stage 10 makes
-live human play the primary acceptance evidence. Stage 11 adds a tutorial-led
+agentic hill-climb ledger exercised by real blind model panels. Stage 9 adds
+the reusable Game Blueprint and first-party authoring adapter; Stage 10 keeps
+agentic standing and optional human-play evidence distinct. Stage 11 adds a tutorial-led
 maker workspace, host control room, authorized character view, and print
 operator projection over the same exact Release and Session identities. Public
-schema compatibility is not promised yet, but hashes, receipts, dependency
-direction, human authorization, and reproducible outputs are never optional.
+schema compatibility is not promised yet. Stage 12 freezes public-release
+qualification as twelve independently reported gates. The current version
+remains `not_qualified` until its exact agentic evidence, tagged upstreams, and
+stable compatibility epoch exist. Hashes, receipts, role independence,
+dependency direction, and reproducible outputs are never optional.
 
 The qualification spine added in 0.12 keeps gameplay, accessibility, artifact
 realism, human play, and public release as separate evidence classes. A game can
@@ -34,6 +37,10 @@ qualification target, routes each finding to its owning loop, derives rebuild
 and replay scope from contract changes, and persists a bounded preflight or a
 formal measurement plan. Independent blind judges run concurrently, while
 their replay receipts and aggregation remain deterministically ordered.
+
+Version 0.18 makes qualification non-blocking: independent agents may review
+Proposals, establish machine-qualified Standing, and attest releases. Human
+feedback remains first-order evidence but is not a mandatory gate.
 
 ## Repository boundary
 
@@ -123,7 +130,7 @@ Frozen Instrument + baseline Candidate
   -> Evaluation + quoted Findings
   -> answer-safe Requirements
   -> builder Task + Proposal
-  -> Human Review
+  -> independent Agent or Human Review
   -> authorized child Draft + Candidate
   -> fresh blind Task under the same Instrument
   -> honest Standing Attestation
@@ -136,11 +143,11 @@ evidence; it does not change the workflow or silently overwrite earlier state.
 Builders and fixers are excluded from judging their own child, and a blind
 judge's Exposure Ledger makes contamination inspectable.
 
-Human feedback is first-order evidence and first-order authority. An agent
-Proposal is inert. Only an exact `approved` Review from a human reviewer may
-advance a Workspace branch. Model-only evidence can support development or
-machine-qualified standing, but never the library's accepted human-play
-standing.
+Human feedback is first-order evidence when available. An agent Proposal is
+inert until an exact `approved` Review covers every Requirement. An Agent Review
+must carry an independent Model Receipt and cannot share a principal with the
+builder; Human Review remains an optional equivalent. Agentic and human-play
+Standing are always reported separately.
 
 Run the complete offline control-plane example:
 
@@ -161,7 +168,7 @@ because recorded offline judge fixtures are not fresh human playtests.
 
 Stage 7 replaces the illustrative scores with live, replaceable model drivers
 and complete anonymous trial packages. Preparation is deliberately separate
-from execution so a human can choose the panel and approve any proposed child:
+from execution so panel occupancy and any proposed child remain inspectable:
 
 ```bash
 uv run narrative-game-climb-prepare /path/to/user-data/ashwood-stage7
@@ -197,7 +204,7 @@ experiment = Experiment.create(
     instrument=my_frozen_instrument,
     initial_data=my_game_data,
     component_lock=my_component_lock,
-    reviewer=Authority("owner", "human", "reviewer", "game-maker"),
+    reviewer=Authority("review-agent", "agent", "reviewer", "independent-reviewer"),
 )
 
 package, binding = experiment.build_and_bind(
@@ -264,18 +271,16 @@ unmeasured, and public release unclaimed. See the
 `EfficiencyPlan` separates cheap diagnosis from evidence that may change
 standing:
 
-1. A human approves one qualification target and frozen instrument.
+1. Freeze one qualification target and Instrument before any scoring.
 2. The route table assigns findings to the smallest owning loop. A broader
    loop requires a persisted reason.
 3. `assess_impact` carries content-identical outputs forward and derives only
    the rebuild, remeasurement, and replay obligations caused by changed
    contracts.
-4. A human approves one repair tranche. Agents may run its one- or two-unit
-   bounded preflight autonomously until it passes, exhausts its budget, or
-   repeats the same structural failure three times.
-5. A human reviews the completed exact Candidate. Only then does a fresh,
-   independent blind panel run the complete formal instrument once.
-6. A human selects, retains, parks, or escalates from the formal evidence.
+4. An independent receipted Review authorizes one repair tranche. Its bounded
+   preflight runs until pass, budget exhaustion, or repeated structural failure.
+5. Fresh independent blind judges run the complete formal Instrument once.
+6. Frozen selection rules select, retain, park, or escalate from that evidence.
 
 Preflight scores are diagnostic and cannot confer standing. Instrument changes
 start a new standing lineage; fixers cannot judge their own child. The
@@ -347,7 +352,7 @@ experiment = Experiment.create(
     instrument=my_frozen_instrument,
     initial_data=blueprint.to_mapping(),
     component_lock=adapter.component_lock,
-    reviewer=my_human_reviewer,
+    reviewer=my_independent_review_agent,
 )
 package, binding = experiment.build_and_bind(
     adapter,
@@ -408,10 +413,11 @@ measurement loop as other tells.
 
 Blind model scores and human-play medians remain separate. An
 `EvidenceComparison` records `aligned` or `divergent`; it never averages the
-two into a synthetic voice. Accepted Standing requires the protocol's minimum
-number of passing fresh Runs, the exact comparison, and a human publisher who
-did not participate in, facilitate, or observe those Runs. Model disagreement
-remains visible but does not overrule observed human play.
+two into a synthetic voice. Human-play Standing requires the protocol's minimum
+number of passing fresh Runs, the exact comparison, and an independent human
+reviewer who did not participate in, facilitate, or observe those Runs. It is
+additional evidence, not a public-release prerequisite. Model disagreement
+remains visible and does not overrule observed human play.
 
 ## Tutorial-led product experience
 
@@ -585,3 +591,94 @@ The command writes six deterministic Markdown/PDF pairs, the exact canonical
 game with its Character Program, and a hash-bearing summary. The validator
 blocks cross-role leakage, host-only solution knowledge, unreachable private
 truths, future-phase moves, and phase states with no fallback.
+
+### Prepare first-order six-player evidence
+
+Version 0.18 carries forward the exact human-play boundary for the six-role Winter
+Observatory package. Given the selected Candidate 6 Release, it builds the
+deep-Dossier child Release and Physical Export, persists a portable Experiment,
+and writes consent, roster, pre-game, host-observation, post-game, and group
+debrief instruments:
+
+```bash
+uv run narrative-game-playtest-prepare ./winter-playtest \
+  --parent-release ./candidate-6/game-release.zip
+```
+
+Preparation is not a Playtest Run. First run an independent blind model panel
+under the same Instrument; its exact Evaluation is the comparison baseline,
+not a substitute for play:
+
+```bash
+uv run narrative-game-playtest-model-baseline \
+  ./winter-playtest/experiment \
+  ./winter-playtest/model-panel.json
+```
+
+Then two distinct six-person cohorts and their hosts must consent and complete
+separate live Sessions. The library refuses to record
+a rich Run without all frozen rubric categories, individual pre/post responses,
+timestamped facilitator observations for every played Phase, and attributable
+response objects. See the [exact prepared lineage](docs/playtests/winter-observatory-six-player-preparation.md).
+
+Completed forms enter that same Experiment through an offline operator bundle,
+not a custom Python session:
+
+```bash
+uv run narrative-game-playtest-session \
+  ./winter-playtest/packages/game-release.zip \
+  ./winter-playtest/session-plan.json \
+  --output ./winter-playtest/completed/session-history.json
+
+uv run narrative-game-playtest-record \
+  ./winter-playtest/experiment \
+  ./winter-playtest/recording-manifest.json
+```
+
+The preparation includes host-transcript, recording-manifest, and completed-file
+templates. The session command verifies the Release and applies every recorded
+host/Seat command in memory, writing only a fully resolved live history. The recorder
+then loads that Session, production receipt, consent responses,
+observations, and scores; preflights the complete future ledger without writes;
+then persists the Run idempotently. A rejected submission leaves journals and
+the object store unchanged.
+
+After both fresh Runs, a human who did not play, host, or observe reviews their
+raw evidence and the model comparison. Only an explicit approval may issue
+accepted Standing:
+
+```bash
+uv run narrative-game-playtest-review \
+  ./winter-playtest/experiment \
+  ./winter-playtest/standing-review.json
+```
+
+The preparation includes model-panel and standing-review manifests. Every
+panel member selects its own provider, requested model, and JSON-command driver,
+so comparison evidence is model-portable without hard-coding a provider.
+For Codex users, the bundled `narrative-game-codex-judge-driver` is a conforming
+adapter: set the member command to that executable and provide an explicit
+Codex model. It extracts only the anonymous trial into an ephemeral read-only
+workspace and records the CLI event trace as a replay receipt. Other providers
+remain ordinary JSON-command adapters. If a provider returns an invalid quote
+or schema, its Task and receipt remain trace evidence but no Evaluation is
+issued; retry under a fresh Task and Authority rather than rewriting history.
+
+## Public-release qualification
+
+Stage 12 evaluates one exact library version and reference Experiment against a
+content-addressed policy. It reports all gates and never upgrades game Standing:
+
+```bash
+uv run narrative-game-release-qualify \
+  ./winter-playtest/experiment \
+  ./release-evidence.json \
+  --output ./release-qualification.json \
+  --allow-not-qualified
+```
+
+Omit `--allow-not-qualified` in release CI so any failed gate returns a nonzero
+exit status. The exact policy, evidence shape, current limitations, and path to
+qualification are documented in
+[Public-release qualification](docs/public-release-qualification.md). The first
+profile-extension pattern is in [Extending the library](docs/extending.md).

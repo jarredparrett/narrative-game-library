@@ -17,10 +17,13 @@ turning one worked mystery into the architecture:
 5. **Make measurements applicable.** Every preflight or judge claim declares
    which artifact classes it can measure. A skipped or inapplicable check is
    never reported as evidence of quality.
-6. **Let evidence inform humans, not replace them.** Agents propose and measure;
-   humans may approve direction. Frozen selection rules decide only which
-   measured Candidate supports the next rung.
+6. **Make independence structural.** Agents may build, review, measure, select,
+   and qualify, but no principal may certify its own work. Every boundary has
+   an exact typed receipt.
 7. **Keep model and human evidence distinct.** Blind models cheaply expose
    likely weaknesses; fresh human play reveals what people actually understand,
    choose, and experience. Record agreement or divergence, never a blended
    score that obscures either source.
+8. **Keep humans first-order and optional.** Human feedback can redirect a climb
+   and support a human-play claim, but unavailable humans never stall the
+   agentic evidence loop.

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 import json
 
 import pytest
 
 from narrative_game.climb import prepare_blind_trial, verify_blind_trial
+from narrative_game.climb.trial import _project_preflight_checks
 from narrative_game.compiler import compile_candidate
 from narrative_game.physical import export_physical
 from narrative_game.stage5_fixture import DEFAULT_SOURCE, build_worked_candidate
@@ -81,6 +83,38 @@ def test_preflight_paths_name_exact_shipped_print_files(trials):
     schedule = json.loads(baseline.file("trial/schedule.json").data)
     shipped = {item.path for item in baseline.files}
     assert all(item["path"] in shipped for item in schedule["preflight"]["files"])
+
+
+def test_preflight_projection_handles_dossier_rendition_namespace():
+    """stage7.archive-fidelity: dossier checks resolve to emitted Trial filenames."""
+    projected = _project_preflight_checks(
+        [{"path": "print/dossiers/eleanor.pdf", "ok": True}],
+        {"dossier-eleanor": "print/dossiers/eleanor.pdf"},
+        {"dossier-eleanor": "trial/print/dossier-eleanor.pdf"},
+    )
+
+    assert projected == [
+        {"path": "trial/print/dossier-eleanor.pdf", "ok": True}
+    ]
+
+
+def test_verifier_rejects_preflight_path_that_is_not_shipped(trials):
+    """stage7.archive-fidelity: verification independently checks named paths."""
+    baseline, *_ = trials
+    schedule = json.loads(baseline.file("trial/schedule.json").data)
+    schedule["preflight"]["files"][0]["path"] = "trial/print/not-shipped.pdf"
+    corrupted = replace(
+        baseline,
+        files=tuple(
+            replace(item, data=json.dumps(schedule).encode())
+            if item.path == "trial/schedule.json"
+            else item
+            for item in baseline.files
+        ),
+    )
+
+    with pytest.raises(ValueError, match="preflight names an unshipped path"):
+        verify_blind_trial(corrupted)
 
 
 def test_trial_conceals_source_identity_answers_and_provenance(trials):

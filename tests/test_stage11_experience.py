@@ -58,7 +58,7 @@ def test_tutorial_explains_components_through_the_exact_worked_game(tmp_path):
         "delivery",
         "session",
         "measurement",
-        "human-control",
+        "independent-control",
     ]
     assert all(item["owns"] and item["produces"] and item["example_refs"] for item in tutorial["steps"])
     assert tutorial["release_id"] == result.release.release_id
@@ -145,7 +145,7 @@ def test_reference_pages_are_accessible_intent_emitters_bound_to_exact_exports(t
     assert 'aria-live="polite"' in maker
     assert "narrative-game-intent" in maker
     assert "fetch(" not in maker and "http://" not in maker and "https://" not in maker
-    assert "Start here" in maker and "Blueprint" in maker and "Human direction and standing" in maker
+    assert "Start here" in maker and "Blueprint" in maker and "Independent review and standing" in maker
     assert "Containers and custody" in printed_html and "Packing order" in printed_html
     assert "Preflight ready" in printed_html and "Executed checks" in printed_html
     assert '"containers": [' not in printed_html

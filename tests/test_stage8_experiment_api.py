@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -26,6 +27,7 @@ from narrative_game.experiment import (
     ProposedRevision,
 )
 from narrative_game.physical import export_physical
+from narrative_game.playtest.model_baseline import measure_model_baseline
 from narrative_game.stage5_fixture import build_worked_candidate
 from narrative_game.climb import prepare_blind_trial
 from narrative_game.workspace import Workspace
@@ -83,7 +85,7 @@ def complete_package(tmp_path_factory) -> CompletePackage:
     )
 
 
-def create_experiment(tmp_path: Path) -> Experiment:
+def create_experiment(tmp_path: Path, reviewer: Authority | None = None) -> Experiment:
     return Experiment.create(
         tmp_path / "workspace",
         experiment_id="stage8-capability",
@@ -92,7 +94,7 @@ def create_experiment(tmp_path: Path) -> Experiment:
         instrument=instrument(),
         initial_data={"title": "Baseline"},
         component_lock={"components": []},
-        reviewer=Authority(
+        reviewer=reviewer or Authority(
             "human-reviewer", "human", "reviewer", "repository-owner"
         ),
     )
@@ -238,6 +240,41 @@ def test_experiment_plan_persists_profile_instrument_and_archive_identity(
     assert reopened.verify()["ok"]
 
 
+def test_operator_model_baseline_records_exact_evaluation_for_later_human_comparison(
+    tmp_path, complete_package
+):
+    """stage11.model-baseline-cli: configured models produce a persisted blind Evaluation."""
+    experiment = create_experiment(tmp_path)
+    binding = experiment.bind_package(
+        complete_package, idempotency_key="bind-model-baseline"
+    )
+    manifest = tmp_path / "model-panel.json"
+    manifest.write_bytes(canonical_json({
+        "schema_version": "1.0",
+        "binding_id": binding.binding_id,
+        "task_key": "human-comparison-baseline",
+        "seed": 17,
+        "members": [{
+            "authority_id": "human-comparison-model-judge",
+            "principal": "offline-fixture-model",
+            "provider": "fixture-json-command",
+            "requested_model": "fixture-model-v1",
+            "assigned_lens": "complete-experience",
+            "command": [
+                sys.executable,
+                str(Path("tests/fixtures/json_model_driver.py").resolve()),
+            ],
+        }],
+    }))
+    first = measure_model_baseline(experiment.workspace.root, manifest)
+    second = measure_model_baseline(experiment.workspace.root, manifest)
+    assert second == first
+    assert first["outcome"] == "pass"
+    assert first["scores"] == {"quality": 80}
+    assert len(experiment.ledger.snapshot()["evaluations"]) == 1
+    assert experiment.verify()["ok"]
+
+
 def test_model_and_human_judges_are_distinct_first_order_receipts(
     tmp_path, complete_package
 ):
@@ -302,11 +339,14 @@ def test_model_and_human_judges_are_distinct_first_order_receipts(
     assert experiment.verify()["ok"]
 
 
-def test_profile_adapter_builds_answer_safe_proposal_but_human_moves_branch(
+def test_profile_adapter_builds_answer_safe_proposal_and_agent_review_moves_branch(
     tmp_path, complete_package
 ):
-    """stage8.profile-adapter: domain revision is inert until exact human approval."""
-    experiment = create_experiment(tmp_path)
+    """stage8.profile-adapter: domain revision is inert until exact independent review."""
+    reviewer = Authority(
+        "agent-reviewer", "agent", "reviewer", "independent-reviewer"
+    )
+    experiment = create_experiment(tmp_path, reviewer)
     baseline = experiment.bind_package(
         complete_package, idempotency_key="bind-baseline"
     )
@@ -338,9 +378,27 @@ def test_profile_adapter_builds_answer_safe_proposal_but_human_moves_branch(
         human_direction="Preserve the core answer while making progression usable.",
     )
     assert experiment.current_draft_ref == original_head
-    review = experiment.review_proposal(
+    review_receipt = experiment.ledger.record_model_invocation(
+        authority_id=reviewer.authority_id,
+        provider="fixture-provider",
+        requested_model="reviewer-latest",
+        resolved_model="reviewer-2026-08-06",
+        role="reviewer",
+        prompt_hash=digest_json({"prompt": "review"}),
+        context_hash=digest_json({"proposal": prepared.proposal.proposal_id}),
+        tool_contract_hash=digest_json({"decision": "approved-or-rejected"}),
+        input_hashes={"proposal": experiment.ledger.get("proposal", prepared.proposal.proposal_id).record_ref},
+        tool_receipt_hashes=(),
+        raw_output=b'{"decision":"approved"}',
+        parsed_output={"decision": "approved"},
+        seed=41,
+        actor="agent:independent-reviewer",
+        idempotency_key="reviewer-invocation",
+    )
+    review = experiment.review_proposal_agentically(
         proposal_id=prepared.proposal.proposal_id,
-        reviewer_authority_id="human-reviewer",
+        reviewer_authority_id=reviewer.authority_id,
+        model_receipt_id=review_receipt.record_id,
         decision="approved",
         reason="The proposed direction is approved for remeasurement.",
     )

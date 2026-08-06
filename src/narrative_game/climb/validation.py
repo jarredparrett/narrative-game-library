@@ -15,6 +15,7 @@ from narrative_game.playtest.model import (
 )
 
 from .model import (
+    AgentReview,
     Authority,
     Evaluation,
     ExperimentPlan,
@@ -83,7 +84,7 @@ def validate_climb_bundle(
     requirements: Iterable[Requirement] = (),
     evaluations: Iterable[Evaluation] = (),
     proposals: Iterable[Proposal] = (),
-    reviews: Iterable[HumanReview] = (),
+    reviews: Iterable[HumanReview | AgentReview] = (),
     transitions: Iterable[Transition] = (),
     standings: Iterable[StandingAttestation] = (),
     trial_bindings: Iterable[TrialBinding] = (),
@@ -193,10 +194,12 @@ def validate_climb_bundle(
     for authority in authorities:
         if authority.kind not in {"agent", "human", "system"}:
             result.append(_finding("climb.invalid-authority", authority.authority_id, authority.kind, "authority kind is unsupported"))
-        if authority.role not in {"builder", "fixer", "judge", "reviewer", "publisher", "validator", "participant", "facilitator", "observer"}:
+        if authority.role not in {"builder", "fixer", "judge", "reviewer", "release-reviewer", "publisher", "validator", "participant", "facilitator", "observer"}:
             result.append(_finding("climb.invalid-authority", authority.authority_id, authority.role, "authority role is unsupported"))
-        if authority.role in {"reviewer", "publisher", "participant", "facilitator", "observer"} and authority.kind != "human":
-            result.append(_finding("climb.human-authority-required", authority.authority_id, authority.kind, "review, publication, and human-play authority must be human"))
+        if authority.role in {"publisher", "participant", "facilitator", "observer"} and authority.kind != "human":
+            result.append(_finding("climb.human-authority-required", authority.authority_id, authority.kind, "publication and human-play authority must be human"))
+        if authority.role == "release-reviewer" and authority.kind != "agent":
+            result.append(_finding("climb.agent-authority-required", authority.authority_id, authority.kind, "release review authority must be an agent with an exact Model Receipt"))
 
     for instrument in instruments:
         dimensions = [item.dimension_id for item in instrument.dimensions]
@@ -444,11 +447,19 @@ def validate_climb_bundle(
         proposal = proposal_by_id.get(review.proposal_id)
         reviewer = authority_by_id.get(review.reviewer_authority_id)
         if proposal is None:
-            result.append(_finding("climb.dangling-reference", review.review_id, review.proposal_id, "Human Review names a missing Proposal"))
-        if reviewer is None or reviewer.kind != "human" or reviewer.role != "reviewer":
-            result.append(_finding("climb.human-authority-required", review.review_id, review.reviewer_authority_id, "Proposal review requires a human reviewer Authority"))
+            result.append(_finding("climb.dangling-reference", review.review_id, review.proposal_id, "Review names a missing Proposal"))
+        expected_kind = "human" if isinstance(review, HumanReview) else "agent"
+        if reviewer is None or reviewer.kind != expected_kind or reviewer.role != "reviewer":
+            result.append(_finding("climb.review-authority-required", review.review_id, review.reviewer_authority_id, "Proposal review requires a typed reviewer matching the Review evidence"))
+        if isinstance(review, AgentReview):
+            receipt = receipt_by_id.get(review.model_receipt_id)
+            builder = authority_by_id.get(proposal.builder_authority_id) if proposal else None
+            if receipt is None or receipt.authority_id != review.reviewer_authority_id:
+                result.append(_finding("climb.agent-review-receipt-mismatch", review.review_id, review.model_receipt_id, "Agent Review requires an exact Model Receipt from its reviewer"))
+            if reviewer is not None and builder is not None and reviewer.principal == builder.principal:
+                result.append(_finding("climb.self-review", review.review_id, reviewer.principal, "A builder cannot review its own Proposal under another Authority ID"))
         if review.decision not in {"approved", "rejected"}:
-            result.append(_finding("climb.invalid-review", review.review_id, review.decision, "Human Review decision is unsupported"))
+            result.append(_finding("climb.invalid-review", review.review_id, review.decision, "Review decision is unsupported"))
         if review.decision == "approved" and proposal is not None and set(review.approved_requirement_ids) != set(proposal.requirement_ids):
             result.append(_finding("climb.partial-approval", review.review_id, str(review.approved_requirement_ids), "Approved transition must explicitly cover every Proposal Requirement"))
 
@@ -461,7 +472,7 @@ def validate_climb_bundle(
         if review.proposal_id != proposal.proposal_id or review.decision != "approved":
             result.append(_finding("climb.unauthorized-transition", transition.transition_id, review.decision, "Only an approved Review of this Proposal may advance canonical state"))
         if transition.reviewer_authority_id != review.reviewer_authority_id:
-            result.append(_finding("climb.unauthorized-transition", transition.transition_id, transition.reviewer_authority_id, "Transition authority differs from the approving human"))
+            result.append(_finding("climb.unauthorized-transition", transition.transition_id, transition.reviewer_authority_id, "Transition authority differs from the approving reviewer"))
         if transition.parent_draft_ref != proposal.baseline_draft_ref or transition.proposed_data_ref != proposal.proposed_data_ref:
             result.append(_finding("climb.transition-content-mismatch", transition.transition_id, f"{transition.parent_draft_ref} -> {transition.proposed_data_ref}", "Transition differs from the reviewed Proposal"))
         for label, value in {
@@ -490,6 +501,15 @@ def validate_climb_bundle(
         categories = protocol.required_observation_categories
         if not categories or len(categories) != len(set(categories)) or any(not item.strip() for item in categories):
             result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(categories), "Playtest Protocol requires unique observation categories"))
+        for label, values in (
+            ("response stages", protocol.required_response_stages),
+            ("individual response stages", protocol.individual_response_stages),
+            ("defect owners", protocol.defect_owner_taxonomy),
+        ):
+            if len(values) != len(set(values)) or any(not item.strip() for item in values):
+                result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(values), f"Playtest Protocol requires unique {label}"))
+        if not set(protocol.individual_response_stages) <= set(protocol.required_response_stages):
+            result.append(_finding("climb.invalid-playtest-protocol", protocol.protocol_id, str(protocol.individual_response_stages), "individual response stages must be frozen response stages"))
 
     for protocol in playtest_protocols:
         protocol_runs = [item for item in playtest_runs if item.protocol_id == protocol.protocol_id]
@@ -559,12 +579,23 @@ def validate_climb_bundle(
         observed_categories = {item.category for item in run.observations}
         if not set(protocol.required_observation_categories) <= observed_categories:
             result.append(_finding("climb.incomplete-playtest-observation", run.run_id, str(sorted(observed_categories)), "Playtest Run must cover every frozen observation category"))
+        observed_stages = {item.response_stage for item in run.observations}
+        if not set(protocol.required_response_stages) <= observed_stages:
+            result.append(_finding("climb.incomplete-playtest-observation", run.run_id, str(sorted(observed_stages)), "Playtest Run must cover every frozen response stage"))
+        for participant_id in run.participant_authority_ids:
+            participant_stages = {item.response_stage for item in run.observations if item.authority_id == participant_id}
+            if not set(protocol.individual_response_stages) <= participant_stages:
+                result.append(_finding("climb.incomplete-playtest-observation", run.run_id, participant_id, "participant lacks a frozen individual response stage"))
         for observation in run.observations:
             authority = authority_by_id.get(observation.authority_id)
             if observation.authority_id not in roster or authority is None or observation.observer_role != authority.role:
                 result.append(_finding("climb.playtest-observer-mismatch", run.run_id, observation.authority_id, "Play Observation must come from a human occupying its declared Run role"))
             if observation.category not in protocol.required_observation_categories or not observation.phase_id.strip() or not observation.quote.strip() or not observation.note.strip() or not _HASH.fullmatch(observation.response_ref):
                 result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.quote, "Play Observation requires a frozen category, Phase, exact quote, note, and response object"))
+            if observation.response_stage not in (protocol.required_response_stages or ("in_play",)) or (observation.elapsed_seconds is not None and observation.elapsed_seconds < 0) or (protocol.required_response_stages and not observation.instrument_item_id.strip()):
+                result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.quote, "Play Observation requires a frozen response stage, nonnegative optional timestamp, and rubric item"))
+            if observation.defect_owner is not None and observation.defect_owner not in protocol.defect_owner_taxonomy:
+                result.append(_finding("climb.invalid-playtest-observation", run.run_id, observation.defect_owner, "Play Observation defect owner is outside the frozen taxonomy"))
         if set(run.scores) != {item.dimension_id for item in instrument.dimensions} or any(not 0 <= item <= 100 for item in run.scores.values()):
             result.append(_finding("climb.invalid-score", run.run_id, str(dict(run.scores)), "Playtest scores must cover every frozen dimension from 0 to 100"))
         if set(run.hard_gate_results) != set(instrument.hard_gate_codes):
@@ -615,8 +646,8 @@ def validate_climb_bundle(
     for standing in standings:
         reviewer = authority_by_id.get(standing.reviewer_authority_id)
         linked = [evaluation_by_id.get(item) for item in standing.evaluation_ids]
-        if reviewer is None or reviewer.kind != "human" or reviewer.role not in {"reviewer", "publisher"}:
-            result.append(_finding("climb.human-authority-required", standing.attestation_id, standing.reviewer_authority_id, "Standing requires human review or publication authority"))
+        if reviewer is None or reviewer.role not in {"reviewer", "publisher"}:
+            result.append(_finding("climb.review-authority-required", standing.attestation_id, standing.reviewer_authority_id, "Standing requires a typed review authority"))
         if any(item is None for item in linked):
             result.append(_finding("climb.dangling-reference", standing.attestation_id, str(standing.evaluation_ids), "Standing names missing Evaluations"))
             continue
@@ -626,9 +657,42 @@ def validate_climb_bundle(
         if standing.level not in {"development_only", "machine_qualified", "accepted"}:
             result.append(_finding("climb.invalid-standing", standing.attestation_id, standing.level, "Standing level is unsupported"))
         if standing.level == "machine_qualified":
-            if "model-blind-panel" not in standing.evidence_kinds or not linked_evaluations or any(item.mode != "blind" or item.outcome != "pass" for item in linked_evaluations):
-                result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Machine-qualified standing requires passing blind model evidence"))
+            judge_ids = {
+                authority_id
+                for evaluation in linked_evaluations
+                for authority_id in evaluation.judge_authority_ids
+            }
+            judge_principals = {
+                authority_by_id[item].principal
+                for item in judge_ids
+                if item in authority_by_id
+            }
+            builder_principals = {
+                authority_by_id[item.builder_authority_id].principal
+                for item in proposals
+                if item.builder_authority_id in authority_by_id
+            }
+            required = {"model-blind-panel", "independent-agentic-review"}
+            if (
+                reviewer is None
+                or reviewer.kind != "agent"
+                or reviewer.role != "reviewer"
+                or reviewer.authority_id in judge_ids
+                or reviewer.principal in judge_principals
+                or reviewer.principal in builder_principals
+            ):
+                result.append(_finding("climb.nonindependent-agentic-review", standing.attestation_id, standing.reviewer_authority_id, "Machine-qualified Standing requires a review agent independent of every blind judge"))
+            if (
+                not required <= set(standing.evidence_kinds)
+                or len(linked_evaluations) < 2
+                or any(item.mode != "blind" or item.outcome != "pass" for item in linked_evaluations)
+                or len({item.instrument_id for item in linked_evaluations}) != 1
+                or len(judge_principals) < 2
+            ):
+                result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Machine-qualified standing requires two passing, independently occupied blind evaluations and independent agentic review"))
         if standing.level == "accepted":
+            if reviewer is None or reviewer.kind != "human" or reviewer.role not in {"reviewer", "publisher"}:
+                result.append(_finding("climb.human-authority-required", standing.attestation_id, standing.reviewer_authority_id, "Accepted human-play Standing requires human review or publication authority"))
             required = {"fresh-human-play", "independent-standing-review", "model-human-comparison"}
             if not required <= set(standing.evidence_kinds):
                 result.append(_finding("climb.unsupported-standing", standing.attestation_id, str(standing.evidence_kinds), "Accepted standing requires fresh human play, model comparison, and independent review"))

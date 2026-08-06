@@ -1,4 +1,4 @@
-"""Public, profile-neutral orchestration for human-triggered quality climbs."""
+"""Public, profile-neutral orchestration for inspectable agentic quality climbs."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from statistics import median
 from typing import Any, Mapping, Protocol
 
 from narrative_game.climb import (
+    AgentReview,
     Authority,
     BlindTrial,
     ClimbLedger,
@@ -228,9 +229,9 @@ class Experiment:
         branch: str = "main",
         actor: str = "human:operator",
     ) -> "Experiment":
-        """Create one persisted Experiment and its initial human-owned Draft."""
-        if reviewer.kind != "human" or reviewer.role != "reviewer":
-            raise ValueError("Experiment reviewer must be a human reviewer Authority")
+        """Create one persisted Experiment and its initial operator-owned Draft."""
+        if reviewer.kind not in {"agent", "human"} or reviewer.role != "reviewer":
+            raise ValueError("Experiment reviewer must be an agent or human reviewer Authority")
         workspace = Workspace.create(root, workspace_id=experiment_id, actor=actor)
         workspace.commit_draft(
             branch=branch,
@@ -985,6 +986,33 @@ class Experiment:
             review,
             actor=f"human:{reviewer_authority_id}",
             idempotency_key=f"review-{proposal.proposal_id}",
+        ).value
+
+    def review_proposal_agentically(
+        self,
+        *,
+        proposal_id: str,
+        reviewer_authority_id: str,
+        model_receipt_id: str,
+        decision: str,
+        reason: str,
+    ) -> AgentReview:
+        """Persist an independently receipted agent decision without applying it."""
+        if decision not in {"approved", "rejected"} or not reason.strip():
+            raise ValueError("Review requires an approved/rejected decision and reason")
+        proposal = self.ledger.get("proposal", proposal_id).value
+        review = AgentReview(
+            proposal.proposal_id,
+            reviewer_authority_id,
+            model_receipt_id,
+            decision,
+            reason,
+            proposal.requirement_ids if decision == "approved" else (),
+        )
+        return self.ledger.register(
+            review,
+            actor=f"agent:{reviewer_authority_id}",
+            idempotency_key=f"agent-review-{proposal.proposal_id}",
         ).value
 
     def apply_review(

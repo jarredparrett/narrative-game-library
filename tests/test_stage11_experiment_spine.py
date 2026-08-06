@@ -203,11 +203,11 @@ def test_current_standing_embeds_the_active_efficiency_plan(tmp_path):
     current = json.loads((workspace.root / "current-standing.json").read_bytes())
     assert current["active_experiment"]["plan_id"] == plan.plan_id
     assert current["active_experiment"]["next_authorized_transition"] == (
-        "human_review:repair_tranche"
+        "independent_review:repair_tranche"
     )
     readable = (workspace.root / "current-standing.md").read_text()
     assert "Target: `artifact_realism`" in readable
-    assert "Next transition: `human_review:repair_tranche`" in readable
+    assert "Next transition: `independent_review:repair_tranche`" in readable
     assert ExperimentSpine(workspace).verify()["ok"]
 
 

@@ -1,4 +1,4 @@
-"""Deterministic narrative game building with human-governed lineage."""
+"""Deterministic narrative game building with agentic, inspectable lineage."""
 
 from .contracts.artifacts import ArtifactRequest, ArtifactResult
 from .authoring import parse_game_definition
@@ -12,7 +12,7 @@ from .blueprint import (
     apply_blueprint_proposal,
     validate_blueprint,
 )
-from .compiler import compile_candidate, freeze_candidate
+from .compiler import compile_candidate, freeze_candidate, load_release
 from .experiment import (
     EfficiencyController,
     Experiment,
@@ -31,10 +31,25 @@ from .experience import (
 )
 from .narrative import CharacterProgram, GameDefinition, validate_facilitated_investigation
 from .physical import PhysicalExport, PhysicalExportProfile, export_physical, render_dossier_pdf
-from .playtest import EvidenceComparison, PlaytestProtocol, PlaytestRun
+from .playtest import (
+    EvidenceComparison,
+    PlaytestProtocol,
+    PlaytestRun,
+)
+from .playtest.ingestion import record_playtest_bundle
+from .playtest.model_baseline import measure_model_baseline
 from .playtest.program import PlaytestProgram
+from .playtest.review import finalize_review
 from .profiles import FacilitatedInvestigationAuthoringAdapter
+from .release import (
+    PublicReleasePolicy,
+    ReleaseAttestation,
+    ReleaseEvidence,
+    ReleaseQualificationReport,
+    qualify_public_release,
+)
 from .runtime import apply_command, create_session, replay, seat_snapshot
+from .playtest.session_recording import record_session_plan
 from .workspace import Workspace
 
 __all__ = [
@@ -58,6 +73,10 @@ __all__ = [
     "PlaytestProgram",
     "PlaytestProtocol",
     "PlaytestRun",
+    "PublicReleasePolicy",
+    "ReleaseAttestation",
+    "ReleaseEvidence",
+    "ReleaseQualificationReport",
     "TutorialProjection",
     "RichTextMaterial",
     "FacilitatedInvestigationAuthoringAdapter",
@@ -68,18 +87,24 @@ __all__ = [
     "apply_blueprint_proposal",
     "create_session",
     "freeze_candidate",
+    "finalize_review",
     "host_projection",
+    "load_release",
     "maker_projection",
+    "measure_model_baseline",
     "player_projection",
     "print_projection",
+    "qualify_public_release",
     "export_physical",
     "render_dossier_pdf",
     "parse_game_definition",
     "replay",
     "render_reference_html",
+    "record_playtest_bundle",
+    "record_session_plan",
     "seat_snapshot",
     "validate_facilitated_investigation",
     "validate_blueprint",
 ]
 
-__version__ = "0.14.0"
+__version__ = "0.18.0"

@@ -27,6 +27,8 @@ from narrative_game.contracts import canonical_json, digest_bytes
 from narrative_game.experiment import Experiment, ProposedRevision
 from narrative_game.examples import vanished_ledger_blueprint
 from narrative_game.playtest.program import PlaytestProgram
+from narrative_game.playtest.ingestion import record_playtest_bundle
+from narrative_game.playtest.review import finalize_review
 from narrative_game.profiles import FacilitatedInvestigationAuthoringAdapter
 from narrative_game.runtime import (
     Actor,
@@ -292,6 +294,112 @@ def record_passing_run(program, protocol, binding, release, prefix, scores):
     )
 
 
+def test_closed_run_preflight_rejects_without_partial_lineage_or_objects(tmp_path):
+    """stage11.human-ingest-atomicity: a rejected Run leaves no partial evidence."""
+    experiment, binding, release, _ = prepared_experiment(tmp_path)
+    program = PlaytestProgram(experiment)
+    protocol = program.freeze_protocol(
+        binding_id=binding.binding_id,
+        name="atomic human trace",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+    )
+    participants, facilitator, observers = authorities("atomic")
+    invalid = list(observations("atomic"))
+    invalid[0] = {**invalid[0], "observer_role": "observer"}
+    before_snapshot = experiment.ledger.snapshot()
+    before_objects = experiment.workspace.store.references()
+    before_heads = dict(experiment.workspace.manifest["journal_heads"])
+    with pytest.raises(ClimbRejected):
+        program.record_run(
+            protocol_id=protocol.protocol_id,
+            run_key="atomic",
+            session_history=complete_session(release, prefix="atomic"),
+            production_receipt={
+                "release_id": binding.release_id,
+                "physical_export_id": binding.physical_export_id,
+            },
+            participants=participants,
+            facilitator=facilitator,
+            observers=observers,
+            consent_responses=consent_for(participants, facilitator, observers),
+            observations=tuple(invalid),
+            scores={"world_realism": 84, "playability": 82},
+            idempotency_key="atomic-run",
+        )
+    assert experiment.ledger.snapshot() == before_snapshot
+    assert experiment.workspace.store.references() == before_objects
+    assert experiment.workspace.manifest["journal_heads"] == before_heads
+    assert experiment.verify()["ok"]
+
+
+def test_operator_bundle_records_and_verifies_exact_run_idempotently(tmp_path):
+    """stage11.human-ingest-cli: completed files enter the exact Experiment offline."""
+    experiment, binding, release, _ = prepared_experiment(tmp_path)
+    protocol = PlaytestProgram(experiment).freeze_protocol(
+        binding_id=binding.binding_id,
+        name="operator bundle",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+    )
+    participants, facilitator, observers = authorities("bundle")
+    bundle = tmp_path / "bundle"
+    completed = bundle / "completed"
+    completed.mkdir(parents=True)
+    (completed / "session-history.json").write_bytes(
+        complete_session(release, prefix="bundle").to_bytes()
+    )
+    (completed / "production.json").write_bytes(canonical_json({
+        "release_id": binding.release_id,
+        "physical_export_id": binding.physical_export_id,
+        "prepared_copy_count": 2,
+    }))
+    consent_paths = {}
+    for authority_id, response in consent_for(
+        participants, facilitator, observers
+    ).items():
+        path = f"completed/consent-{authority_id}.json"
+        (bundle / path).write_bytes(canonical_json(response))
+        consent_paths[authority_id] = path
+    (completed / "observations.json").write_bytes(
+        canonical_json(list(observations("bundle")))
+    )
+    manifest = {
+        "schema_version": "1.0",
+        "protocol_id": protocol.protocol_id,
+        "run_key": "bundle-cohort",
+        "idempotency_key": "bundle-cohort-run",
+        "session_history_path": "completed/session-history.json",
+        "production_receipt_path": "completed/production.json",
+        "participants": [
+            {"authority_id": item.authority_id, "principal": item.principal}
+            for item in participants
+        ],
+        "facilitator": {
+            "authority_id": facilitator.authority_id,
+            "principal": facilitator.principal,
+        },
+        "observers": [
+            {"authority_id": item.authority_id, "principal": item.principal}
+            for item in observers
+        ],
+        "consent_paths": consent_paths,
+        "observations_path": "completed/observations.json",
+        "scores": {"world_realism": 84, "playability": 82},
+    }
+    manifest_path = bundle / "recording-manifest.json"
+    manifest_path.write_bytes(canonical_json(manifest))
+    first = record_playtest_bundle(experiment.workspace.root, manifest_path)
+    second = record_playtest_bundle(experiment.workspace.root, manifest_path)
+    assert first == second
+    assert first["evidence_class"] == "fresh-human-play"
+    assert first["outcome"] == "pass"
+    assert (bundle / "playtest-run-record.json").read_bytes() == canonical_json(first)
+    reopened = Experiment.open(experiment.workspace.root)
+    assert len(reopened.ledger.snapshot()["playtest_runs"]) == 1
+    assert reopened.verify()["ok"]
+
+
 def test_playtest_run_binds_live_session_package_roles_consent_and_observations(tmp_path):
     """stage10.first-order-run: human play binds exact production, roles, consent, and responses."""
     experiment, binding, release, _ = prepared_experiment(tmp_path)
@@ -314,6 +422,96 @@ def test_playtest_run_binds_live_session_package_roles_consent_and_observations(
     assert run.evidence_class == "fresh-human-play"
     assert len(run.consents) == 4
     assert {item.category for item in run.observations} == {"comprehension", "agency", "pacing"}
+    assert experiment.verify()["ok"]
+
+
+def test_strict_protocol_requires_individual_stages_and_timestamped_facilitation(tmp_path):
+    """stage11.human-boundary: a rich Run cannot omit pre/post responses or phase notes."""
+    experiment, binding, release, _ = prepared_experiment(tmp_path)
+    program = PlaytestProgram(experiment)
+    protocol = program.freeze_protocol(
+        binding_id=binding.binding_id,
+        name="strict human trace",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+        required_observation_categories=("comprehension", "agency", "pacing"),
+        required_response_stages=("pre_game", "in_play", "post_game", "group_debrief"),
+        individual_response_stages=("pre_game", "post_game"),
+        require_facilitator_phase_observations=True,
+        defect_owner_taxonomy=("dossier", "evidence", "hosting", "pacing", "ui"),
+    )
+    participants, facilitator, observers = authorities("strict")
+    enriched = tuple(
+        {
+            **item,
+            "response_stage": "in_play",
+            "elapsed_seconds": 10 + index,
+            "instrument_item_id": item["category"],
+            **({"defect_owner": "pacing"} if item.get("finding") else {}),
+        }
+        for index, item in enumerate(observations("strict"))
+    )
+    extras = tuple(
+        {
+            "authority_id": participant.authority_id,
+            "observer_role": "participant",
+            "phase_id": phase,
+            "category": "comprehension" if stage == "pre_game" else "agency",
+            "quote": f"Exact {stage} response from {participant.authority_id}.",
+            "note": "Required individual response.",
+            "response_stage": stage,
+            "instrument_item_id": f"{stage}.required",
+        }
+        for participant in participants
+        for stage, phase in (("pre_game", "opening"), ("post_game", "resolution"))
+    ) + (
+        {
+            "authority_id": facilitator.authority_id,
+            "observer_role": "facilitator",
+            "phase_id": "opening",
+            "category": "pacing",
+            "quote": "Opening observed.",
+            "note": "Timestamped host note.",
+            "response_stage": "in_play",
+            "elapsed_seconds": 0,
+            "instrument_item_id": "host.opening",
+        },
+        {
+            "authority_id": facilitator.authority_id,
+            "observer_role": "facilitator",
+            "phase_id": "resolution",
+            "category": "pacing",
+            "quote": "Resolution observed.",
+            "note": "Timestamped host note.",
+            "response_stage": "in_play",
+            "elapsed_seconds": 60,
+            "instrument_item_id": "host.resolution",
+        },
+        {
+            "authority_id": observers[0].authority_id,
+            "observer_role": "observer",
+            "phase_id": "resolution",
+            "category": "agency",
+            "quote": "The group compared their experiences.",
+            "note": "Group debrief response.",
+            "response_stage": "group_debrief",
+            "instrument_item_id": "debrief.agency",
+        },
+    )
+    run = program.record_run(
+        protocol_id=protocol.protocol_id,
+        run_key="strict",
+        session_history=complete_session(release, prefix="strict"),
+        production_receipt={"release_id": binding.release_id, "physical_export_id": binding.physical_export_id},
+        participants=participants,
+        facilitator=facilitator,
+        observers=observers,
+        consent_responses=consent_for(participants, facilitator, observers),
+        observations=(*enriched, *extras),
+        scores={"world_realism": 84, "playability": 82},
+        idempotency_key="strict-run",
+    )
+    assert run.evidence_class == "fresh-human-play"
     assert experiment.verify()["ok"]
 
 
@@ -437,6 +635,61 @@ def test_two_fresh_runs_and_independent_review_can_support_accepted_standing(tmp
     )
     assert standing.level == "accepted"
     assert standing.playtest_run_ids == (first.run_id, second.run_id)
+    assert experiment.verify()["ok"]
+
+
+def test_operator_review_preflights_comparison_and_standing_without_partial_writes(tmp_path):
+    """stage11.review-cli: exact Runs become Standing only after independent approval."""
+    experiment, binding, release, model_evaluation = prepared_experiment(tmp_path)
+    program = PlaytestProgram(experiment)
+    protocol = program.freeze_protocol(
+        binding_id=binding.binding_id,
+        name="two-seat facilitated play",
+        version="1.0.0",
+        consent_version="playtest-consent-v1",
+    )
+    first = record_passing_run(
+        program, protocol, binding, release, "run-one",
+        {"world_realism": 84, "playability": 82},
+    )
+    second = record_passing_run(
+        program, protocol, binding, release, "run-two",
+        {"world_realism": 88, "playability": 86},
+    )
+    participant = experiment.ledger.get(
+        "authority", first.participant_authority_ids[0]
+    ).value
+    before_events = experiment.workspace.climb.read()
+    before_objects = experiment.workspace.store.references()
+    with pytest.raises(ClimbRejected, match="nonindependent-standing-review"):
+        program.finalize_accepted_standing(
+            protocol_id=protocol.protocol_id,
+            model_evaluation_id=model_evaluation.evaluation_id,
+            playtest_run_ids=(first.run_id, second.run_id),
+            reviewer=participant,
+            statement="A participant cannot approve the Standing.",
+        )
+    assert experiment.workspace.climb.read() == before_events
+    assert experiment.workspace.store.references() == before_objects
+
+    review_path = tmp_path / "standing-review.json"
+    review_path.write_bytes(canonical_json({
+        "schema_version": "1.0",
+        "protocol_id": protocol.protocol_id,
+        "model_evaluation_id": model_evaluation.evaluation_id,
+        "playtest_run_ids": [first.run_id, second.run_id],
+        "reviewer": {
+            "authority_id": "independent-standing-reviewer",
+            "principal": "independent-standing-reviewer-person",
+        },
+        "decision": "approved",
+        "statement": "Accepted after reviewing both exact cohorts and model divergence.",
+    }))
+    result = finalize_review(experiment.workspace.root, review_path)
+    repeated = finalize_review(experiment.workspace.root, review_path)
+    assert repeated == result
+    assert result["comparison_conclusion"] == "divergent"
+    assert result["standing_level"] == "accepted"
     assert experiment.verify()["ok"]
 
 

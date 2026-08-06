@@ -11,8 +11,8 @@ world, not as branching prose or a folder of documents.
   Model, Characters, Beliefs, Objectives, Evidence Relations, Hypotheses, Proof
   Paths, Reveals, Phases, Interventions, and Resolution policy.
 - The **agentic authoring and experiment layer** owns Proposals, receipts,
-  human review, Candidates, measurement, and standing. Agents propose; humans
-  authorize canonical transitions and publication.
+  independent Review, Candidates, measurement, and standing. Typed agent roles
+  may complete the loop; human feedback remains distinct optional evidence.
 - Adapters translate external systems. They do not own or invent domain truth.
 
 ## Canonical rules
@@ -44,13 +44,17 @@ exact **Model Receipt**; a judge also receives an explicit **Exposure Ledger**.
 An unblinded harvest produces quoted **Findings**, never a score. Findings are
 translated into property-level **Requirements** so the builder does not receive
 judge-only answers. A builder returns an immutable **Proposal**. It is not a
-Draft Revision and has no transition authority. A human **Review** either
-rejects it or approves every named Requirement; only that exact approval may
-create a **Transition** and child Draft.
+Draft Revision and has no transition authority. A **Review** either rejects it
+or approves every named Requirement; only that exact approval may create a
+**Transition** and child Draft. An **Agent Review** carries the independent
+reviewer's Model Receipt and cannot share a principal with the builder. A
+**Human Review** is the equivalent optional first-order decision from a person.
+_Avoid_: self-approval, bare CI.
 
 A fresh judge then measures the frozen child under the unchanged Instrument.
-A **Standing Attestation** says exactly what the evidence supports. Offline or
-model-only evidence cannot impersonate fresh human play. Model identity is an
+A **Standing Attestation** says exactly what the evidence supports. Agentic
+standing and human-play evidence remain separate: neither impersonates the
+other. Model identity is an
 occupancy receipt, not domain identity, so different providers and models can
 fill the same typed Task without changing the Kernel or losing lineage.
 
@@ -101,7 +105,7 @@ _Avoid_: chapter, scene script, Phase.
 
 An **Authoring Operation** is one typed, reviewable change to a Game Blueprint
 that names the Requirements it addresses. A set of operations remains an inert
-Proposal until exact human Review authorizes a Transition.
+Proposal until an exact independent Review authorizes a Transition.
 _Avoid_: JSON patch, autonomous edit, rewrite.
 
 A **Playtest Protocol** is the frozen human-play contract for one exact
@@ -145,3 +149,33 @@ its host-owned recovery Intervention. _Avoid_: forced reveal, clue drop.
 beliefs, Objective progress, and human direction. A **Character Agent** is an
 optional Actor occupying a Seat under the same Knowledge Boundary and Session
 Authority as a human player. _Avoid_: agent memory, NPC bot, autonomous player.
+
+## Publication language
+
+A **Release Qualification** is a content-addressed decision over one library
+version, one policy version, one exact reference Candidate, and all required
+Stage 8-12 evidence. It reports every gate independently and cannot create or
+upgrade game Standing. _Avoid_: release checklist, green build, readiness.
+
+**Distribution Readiness** means the sdist, wheel, dependency versions,
+compatibility promise, documentation, and support-matrix receipts are complete.
+It does not imply any particular reference-game Standing.
+_Avoid_: public release, production ready.
+
+**Agentic Standing** is exact-version machine-qualified evidence from at least
+two independently occupied passing Blind Evaluations plus a review agent who
+was neither builder nor judge. It can qualify the reference game without
+claiming observed human experience.
+
+**Human Play Evidence** is optional first-order evidence from completed live
+Playtest Runs. It is reported separately and may create new Findings or a
+human-play Standing Attestation; its absence never blocks agentic progression.
+
+**Reference Game Standing** is the exact Candidate standing named by a Release
+Qualification. Policy version 2 requires Agentic Standing; any human-play
+standing is additional evidence, not a substitute or gate.
+
+A **Release Attestation** is an independent release agent's exact Model Receipt
+over the policy, library version, reference Standing, and distribution hashes.
+Its principal is distinct from builders, judges, and the standing reviewer.
+_Avoid_: Publisher Approval, merge approval, bare CI pass.

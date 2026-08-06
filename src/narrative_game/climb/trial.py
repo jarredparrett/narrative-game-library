@@ -113,6 +113,26 @@ def _manifest(files: tuple[TrialFile, ...]) -> dict[str, Any]:
     return {"trial_id": digest_json(core), **core}
 
 
+def _project_preflight_checks(
+    physical_files: list[Mapping[str, Any]],
+    rendition_by_resource: Mapping[str, str],
+    trial_print_paths: Mapping[str, str],
+) -> list[dict[str, Any]]:
+    """Translate Physical Export checks onto the exact Blind Trial paths."""
+    resource_by_rendition = {
+        rendition_path: resource_id
+        for resource_id, rendition_path in rendition_by_resource.items()
+    }
+    return [
+        {
+            **item,
+            "path": trial_print_paths[resource_by_rendition[str(item["path"])]],
+        }
+        for item in physical_files
+        if str(item["path"]) in resource_by_rendition
+    ]
+
+
 def prepare_blind_trial(
     release: GameRelease,
     physical: PhysicalExport,
@@ -159,17 +179,9 @@ def prepare_blind_trial(
             material_paths[resource_id] = material_path
             files.append(TrialFile(material_path, source.media_type, source.data))
 
-    included_print_paths = {
-        rendition_by_resource[item] for item in seat_resources
-    }
-    preflight_checks = [
-        {
-            **item,
-            "path": f"trial/print/{item['path'].removeprefix('print/resources/')}",
-        }
-        for item in physical.preflight["files"]
-        if item["path"] in included_print_paths
-    ]
+    preflight_checks = _project_preflight_checks(
+        physical.preflight["files"], rendition_by_resource, print_paths
+    )
     schedule = {
         "schema_version": "0.7",
         "containers": [
@@ -248,6 +260,11 @@ def verify_blind_trial(value: BlindTrial) -> None:
             if copy["material_path"] not in paths or copy["print_path"] not in paths:
                 failures.append(
                     f"Blind Trial omits a Seat-accessible resource: {copy['resource_id']}"
+                )
+        for check in schedule["preflight"]["files"]:
+            if check["path"] not in paths:
+                failures.append(
+                    f"Blind Trial preflight names an unshipped path: {check['path']}"
                 )
         if not schedule["preflight"]["ok"]:
             failures.append("Blind Trial included-file preflight failed")
