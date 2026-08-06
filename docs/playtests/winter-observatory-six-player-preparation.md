@@ -12,17 +12,37 @@ The exact human-play package was prepared on 2026-08-06 from selected Candidate 
 - Playtest Release: `sha256:5d170735b396081142eb22a4b33c0479fe5bb089770a837268d0c658c05fb998`
 - Physical Export: `sha256:9cd7267b39f7fa88a1edbfb2bd188f1df1f7b84e72ef3b2b56b249b1bc67b463`
 - Character Program: `character-program:ba341b17cc066b91d93903c6c8103a2f3d906b0e49746449b7df2c74b5f385ac`
-- Frozen Instrument: `instrument:65c3d6db5fdcb363f4be2f9ed52374bfb6494410974a130d2e830a3aa75831a7`
-- Playtest Protocol: `playtest-protocol:fc4699da2d4cee069e5126a9d456b1d29bce75b70854b8e1a4fa5f12f229cf11`
+- Frozen Instrument: `instrument:22df667df25d2399cdaaca4faaecacf691d6cb398c42e0db7bd36315b7d9b850`
+- Playtest Protocol: `playtest-protocol:1bd2ef9487895b3453de0ffe0aeb91ea2e6e66a1ba9b84ea3ea7ba8266c3ea0f`
 - Seed: `19370117`
 
 The preparation Workspace verifies cleanly. Dossier page counts are Eleanor 4, Felix 5, Lillian 4, Ruth 4, Samuel 4, and Thomas 4.
+
+Preparation v2 supersedes v1. The Candidate and produced game bytes did not
+change; v2 freezes the clarified positive-direction cognitive-load wording and
+adds the closed-ledger recording manifest.
 
 ## Human boundary
 
 The kit freezes all ten issue #17 rubric dimensions, consent v1, six Seat assignments, pre-game comprehension, timestamped host observations in every Phase, individual post-game responses, group debrief, and the defect-owner taxonomy: dossier, evidence, hosting, pacing, and UI.
 
 The next authorized action is recruitment and scheduling. A `PlaytestRun` may be recorded only after actual humans supply affirmative consent, a resolved live Session history, exact responses and quotes, scores for every dimension, and the production receipt. Findings require human review before becoming answer-safe Requirements; a child needs fresh remeasurement before improved standing.
+
+## Record a completed Run
+
+Copy `recording-manifest.example.json` to `recording-manifest.json`, replace
+every placeholder with the actual Session principals and cohort key, and place
+the completed Session, production, consent, and observation JSON files under
+`completed/`. Then run:
+
+```bash
+narrative-game-playtest-record ./experiment ./recording-manifest.json
+```
+
+The command rejects paths outside the bundle, preflights all Authorities,
+Findings, and the Run as one closed ledger, and writes nothing when validation
+fails. A successful idempotent replay returns the same Run ID and leaves one
+Run in the Experiment.
 
 ## Reproduce the preparation
 

@@ -1,6 +1,6 @@
 # Known limitations
 
-Version 0.16 is an experimental library release candidate, not a qualified
+Version 0.17 is an experimental library release candidate, not a qualified
 public 1.0 release.
 
 - Winter Observatory has deterministic packages, deep dossiers, model-blind
