@@ -31,6 +31,10 @@ class PlaytestProtocol:
     required_observation_categories: tuple[str, ...]
     require_model_comparison: bool = True
     model_human_delta_tolerance: int = 10
+    required_response_stages: tuple[str, ...] = ()
+    individual_response_stages: tuple[str, ...] = ()
+    require_facilitator_phase_observations: bool = False
+    defect_owner_taxonomy: tuple[str, ...] = ()
 
     def material(self) -> dict[str, Any]:
         return {
@@ -47,6 +51,10 @@ class PlaytestProtocol:
             ),
             "require_model_comparison": self.require_model_comparison,
             "model_human_delta_tolerance": self.model_human_delta_tolerance,
+            "required_response_stages": list(self.required_response_stages),
+            "individual_response_stages": list(self.individual_response_stages),
+            "require_facilitator_phase_observations": self.require_facilitator_phase_observations,
+            "defect_owner_taxonomy": list(self.defect_owner_taxonomy),
         }
 
     @property
@@ -95,8 +103,12 @@ class PlayObservation:
     quote: str
     note: str
     response_ref: str
+    response_stage: str = "in_play"
+    elapsed_seconds: int | None = None
+    instrument_item_id: str = ""
+    defect_owner: str | None = None
 
-    def to_mapping(self) -> dict[str, str]:
+    def to_mapping(self) -> dict[str, Any]:
         return dict(self.__dict__)
 
     @classmethod
@@ -109,6 +121,16 @@ class PlayObservation:
             str(value["quote"]),
             str(value["note"]),
             str(value["response_ref"]),
+            str(value.get("response_stage", "in_play")),
+            (
+                int(value["elapsed_seconds"])
+                if value.get("elapsed_seconds") is not None else None
+            ),
+            str(value.get("instrument_item_id", "")),
+            (
+                str(value["defect_owner"])
+                if value.get("defect_owner") is not None else None
+            ),
         )
 
 

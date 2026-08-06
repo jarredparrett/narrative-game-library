@@ -55,6 +55,10 @@ class PlaytestProgram:
         ),
         require_model_comparison: bool = True,
         model_human_delta_tolerance: int = 10,
+        required_response_stages: tuple[str, ...] = (),
+        individual_response_stages: tuple[str, ...] = (),
+        require_facilitator_phase_observations: bool = False,
+        defect_owner_taxonomy: tuple[str, ...] = (),
     ) -> PlaytestProtocol:
         """Freeze protocol and package identity before recruiting a run."""
         binding = self.ledger.get("trial_binding", binding_id).value
@@ -69,6 +73,10 @@ class PlaytestProgram:
             required_observation_categories,
             require_model_comparison,
             model_human_delta_tolerance,
+            required_response_stages,
+            individual_response_stages,
+            require_facilitator_phase_observations,
+            defect_owner_taxonomy,
         )
         return self.ledger.register(
             protocol,
@@ -94,6 +102,11 @@ class PlaytestProgram:
         """Record one completed live Session without converting humans to model calls."""
         protocol = self.ledger.get("playtest_protocol", protocol_id).value
         binding = self.ledger.get("trial_binding", protocol.binding_id).value
+        if (
+            len(participants) < protocol.minimum_participants_per_run
+            or len({item.principal for item in participants}) != len(participants)
+        ):
+            raise ValueError("Playtest Run requires the frozen number of distinct humans")
         verify_history(session_history)
         if session_history.mode != "live" or session_history.release_id != binding.release_id:
             raise ValueError("fresh Playtest Run requires a live Session for the exact Release")
@@ -107,6 +120,9 @@ class PlaytestProgram:
         ) != binding.physical_export_id:
             raise ValueError("production receipt differs from the frozen playtest package")
         authorities = (*participants, facilitator, *observers)
+        if len({item.principal for item in authorities}) != len(authorities):
+            raise ValueError("one human cannot occupy multiple Playtest Run roles")
+        authority_ids = {item.authority_id for item in authorities}
         genesis = session_history.ordered_events[0]
         session_actor_ids = {
             item["actor"]["id"] for item in genesis.payload["bindings"]
@@ -159,10 +175,29 @@ class PlaytestProgram:
                 str(raw["quote"]),
                 str(raw["note"]),
                 response_ref,
+                str(raw.get("response_stage", "in_play")),
+                (
+                    int(raw["elapsed_seconds"])
+                    if raw.get("elapsed_seconds") is not None else None
+                ),
+                str(raw.get("instrument_item_id", "")),
+                (
+                    str(raw["defect_owner"])
+                    if raw.get("defect_owner") is not None else None
+                ),
             )
+            if observation.authority_id not in authority_ids:
+                raise ValueError("Play Observation authority is outside this Run")
+            if protocol.required_response_stages and not observation.instrument_item_id.strip():
+                raise ValueError("Play Observation requires one frozen rubric item")
             play_observations.append(observation)
             if raw.get("finding") is not None:
                 value = raw["finding"]
+                if (
+                    protocol.defect_owner_taxonomy
+                    and observation.defect_owner not in protocol.defect_owner_taxonomy
+                ):
+                    raise ValueError("Playtest Finding requires one frozen defect owner")
                 finding = Finding(
                     str(value["requirement_code"]),
                     str(value["severity"]),
@@ -181,6 +216,29 @@ class PlaytestProgram:
                         idempotency_key=f"playtest-finding-{idempotency_key}-{index}",
                     )
                 finding_ids.append(finding.finding_id)
+        observed_categories = {item.category for item in play_observations}
+        if not set(protocol.required_observation_categories) <= observed_categories:
+            raise ValueError("Playtest Run does not cover every frozen observation category")
+        observed_stages = {item.response_stage for item in play_observations}
+        if not set(protocol.required_response_stages) <= observed_stages:
+            raise ValueError("Playtest Run does not cover every frozen response stage")
+        for participant in participants:
+            participant_stages = {
+                item.response_stage for item in play_observations
+                if item.authority_id == participant.authority_id
+            }
+            if not set(protocol.individual_response_stages) <= participant_stages:
+                raise ValueError("every participant requires the frozen individual responses")
+        if protocol.require_facilitator_phase_observations:
+            observed_phases = {
+                item.phase_id for item in play_observations
+                if item.authority_id == facilitator.authority_id
+                and item.response_stage == "in_play"
+                and item.elapsed_seconds is not None
+                and item.elapsed_seconds >= 0
+            }
+            if not phase_ids <= observed_phases:
+                raise ValueError("facilitator requires a timestamped observation in every played Phase")
         hard_gates = dict(binding.hard_gate_results)
         synthetic = Evaluation(
             "playtest",

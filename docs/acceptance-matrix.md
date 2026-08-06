@@ -231,6 +231,23 @@ The worked example proves structural depth, determinism, access safety, and
 phase agency. It does not claim six-player human standing; that is Stage 11
 issue 17.
 
+## Stage 11 - exact six-player human-play boundary
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-rubric` | Frozen Instrument | ten dossier-experience dimensions | `test_human_instrument_freezes_every_issue_17_dimension_and_gate` | onboarding, recall, post-exposure agency, relationships, social agency, cognitive load, reveal guidance, emotional resolution, intervention, and enjoyment freeze before recruitment | implemented |
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-trace` | Play Observation | exact response metadata | `test_response_contract_preserves_stage_timestamp_rubric_and_defect_owner` | stage, timestamp, rubric item, exact response ref, and defect owner round-trip | implemented |
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-kit` | worked preparation | selected Candidate 6 child | `test_review_forms_cover_six_roles_every_phase_and_every_rubric_item` | six assignments, all Phases, all rubric items, consent, host log, and debrief are deterministic | implemented |
+| [Six-player playtest](https://github.com/jarredparrett/narrative-game-library/issues/17) | `stage11.human-boundary` | Playtest Program | strict Micro Run | `test_strict_protocol_requires_individual_stages_and_timestamped_facilitation` | valid first-order Run includes individual pre/post responses, timestamped facilitation, and group debrief | implemented |
+
+Prepared exact package: Candidate `sha256:f1d0425d…fc767`, Release
+`sha256:5d170735…b998`, Physical Export `sha256:9cd7267b…b463`, and Protocol
+`playtest-protocol:fc4699da…cf11`. The portable Workspace verifies cleanly.
+
+Human Stage Review: waiting for six distinct human players and one distinct
+host. Issue #17 remains open; preparation does not impersonate the required
+first-order evidence or confer human-play standing.
+
 ## Stage 11 - portable qualification spine and Candidate 6 migration
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |

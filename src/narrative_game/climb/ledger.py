@@ -254,6 +254,10 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
             tuple(value["required_observation_categories"]),
             bool(value.get("require_model_comparison", True)),
             int(value.get("model_human_delta_tolerance", 10)),
+            tuple(value.get("required_response_stages", ())),
+            tuple(value.get("individual_response_stages", ())),
+            bool(value.get("require_facilitator_phase_observations", False)),
+            tuple(value.get("defect_owner_taxonomy", ())),
         )
     elif kind == "playtest_run":
         result = PlaytestRun(
