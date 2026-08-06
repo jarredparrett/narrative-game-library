@@ -88,6 +88,14 @@ reported honestly as `development_only`; the physical package claims only
 production-ready layout and assembly, not independently validated legal
 realism.
 
+### Winter Observatory human handoff
+
+The exact Winter Observatory Candidate 6 materials are available as a focused,
+human-shareable [host handoff](examples/winter-observatory-candidate-6/README.md).
+It contains 19 evidence PDFs, host instructions, six private player dossiers,
+shared play aids, a combined review PDF, a contact sheet, and one downloadable
+ZIP—without experiment internals or model traces.
+
 ## Native hill climbing
 
 Stage 6 makes iteration a library contract instead of an informal sequence of
