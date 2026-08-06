@@ -197,3 +197,19 @@ worked Blueprint has human-play standing.
 Human Stage Review: pending review of the public CI run and Stage 10 evidence
 lineage. The capability fixture proves the measurement contract; its synthetic
 scores do not confer standing on a public game Release.
+
+## Stage 11 - tutorial-led experience boundary
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.headless-boundary` | `experience.reference` | reference renderer | `test_reference_renderer_depends_only_on_projection_and_canonical_contracts` | renderer imports projection and canonical serialization contracts, not game or authority rules | implemented |
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.tutorial` | `experience.projections` | Vanished Ledger tutorial | `test_tutorial_explains_components_through_the_exact_worked_game` | deterministic component ownership, outputs, and exact in-game references | implemented |
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.boundary` | `experience` | five exact projections | `test_surfaces_share_exact_identity_without_sharing_one_layout_or_authority` | distinct maker, host, player, and print projections share Release, Session, and Physical Export identities | implemented |
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.authorization` | `experience.projections` + `runtime` | Avery and Blake views | `test_character_web_view_contains_only_runtime_authorized_material` | recursive role separation with no trusted truth or cross-Seat material | implemented |
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.controls` | `experience.projections` + `runtime` | typed UI intents | `test_host_and_player_intents_use_session_authority_and_reject_stale_or_foreign_views` | stale, foreign, and unavailable actions cannot bypass Session authority | implemented |
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.reference-ui` | `experience.reference` | standalone reference pages | `test_reference_pages_are_accessible_intent_emitters_bound_to_exact_exports` | responsive offline HTML, keyboard focus, reduced-motion support, typed intents, and exact identities | implemented |
+| [Stage 11 experience boundary](https://github.com/jarredparrett/narrative-game-library/issues/9) | `stage11.determinism` | `stage11_fixture` | complete experience export | `test_worked_experience_is_offline_and_byte_identical_across_processes` | byte-identical tutorial, projections, archives, Session, and summary under different process hash seeds | implemented |
+
+Human Stage Review: pending review and merge of the Stage 11 implementation.
+The reference HTML demonstrates the application boundary; it does not claim a
+production web service, completed dossier depth, or six-player human standing.
