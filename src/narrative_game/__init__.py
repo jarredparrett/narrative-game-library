@@ -34,6 +34,13 @@ from .physical import PhysicalExport, PhysicalExportProfile, export_physical, re
 from .playtest import EvidenceComparison, PlaytestProtocol, PlaytestRun
 from .playtest.program import PlaytestProgram
 from .profiles import FacilitatedInvestigationAuthoringAdapter
+from .release import (
+    PublicReleasePolicy,
+    PublisherApproval,
+    ReleaseEvidence,
+    ReleaseQualificationReport,
+    qualify_public_release,
+)
 from .runtime import apply_command, create_session, replay, seat_snapshot
 from .workspace import Workspace
 
@@ -58,6 +65,10 @@ __all__ = [
     "PlaytestProgram",
     "PlaytestProtocol",
     "PlaytestRun",
+    "PublicReleasePolicy",
+    "PublisherApproval",
+    "ReleaseEvidence",
+    "ReleaseQualificationReport",
     "TutorialProjection",
     "RichTextMaterial",
     "FacilitatedInvestigationAuthoringAdapter",
@@ -72,6 +83,7 @@ __all__ = [
     "maker_projection",
     "player_projection",
     "print_projection",
+    "qualify_public_release",
     "export_physical",
     "render_dossier_pdf",
     "parse_game_definition",
@@ -82,4 +94,4 @@ __all__ = [
     "validate_blueprint",
 ]
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"

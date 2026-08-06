@@ -145,3 +145,24 @@ its host-owned recovery Intervention. _Avoid_: forced reveal, clue drop.
 beliefs, Objective progress, and human direction. A **Character Agent** is an
 optional Actor occupying a Seat under the same Knowledge Boundary and Session
 Authority as a human player. _Avoid_: agent memory, NPC bot, autonomous player.
+
+## Publication language
+
+A **Release Qualification** is a content-addressed decision over one library
+version, one policy version, one exact reference Candidate, and all required
+Stage 8-12 evidence. It reports every gate independently and cannot create or
+upgrade game Standing. _Avoid_: release checklist, green build, readiness.
+
+**Distribution Readiness** means the sdist, wheel, dependency versions,
+compatibility promise, documentation, and support-matrix receipts are complete.
+It does not imply that the reference game has accepted human Standing.
+_Avoid_: public release, production ready.
+
+**Reference Game Standing** is the accepted, exact-version human evidence used
+to prove the library's primary profile in a Release Qualification. It remains a
+property of that Candidate, not of every game the library may create.
+
+A **Publisher Approval** is a first-order human decision over the exact policy,
+library version, reference Standing, and distribution artifact hashes. The
+publisher must be distinct from the players, host, observers, and independent
+standing reviewer. _Avoid_: merge approval, CI pass, maintainer sign-off.

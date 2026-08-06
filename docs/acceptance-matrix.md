@@ -248,6 +248,29 @@ Human Stage Review: waiting for six distinct human players and one distinct
 host. Issue #17 remains open; preparation does not impersonate the required
 first-order evidence or confer human-play standing.
 
+## Stage 12 - public-release qualification
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.policy` | Public Release Policy | twelve ordered gates | `test_policy_freezes_one_owned_gate_for_every_stage_8_through_12_requirement` | policy content identity, owners, and remediation | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.evidence-availability` | Evidence bundle | corrupt object map | `test_dangling_or_corrupt_hash_strings_are_not_evidence` | claimed bytes are supplied and rehashed | implemented |
+| [Roadmap](https://github.com/jarredparrett/narrative-game-library/issues/5) | `release.stage8.portable-experiment` | Experiment | exact binding | `test_portable_experiment_gate_requires_verified_exact_package_binding` | Workspace and ledger verification | implemented |
+| [Roadmap](https://github.com/jarredparrett/narrative-game-library/issues/5) | `release.stage9.reusable-authoring` | Authoring | exact proof ref | `test_reusable_authoring_gate_requires_content_addressed_proof` | Blueprint/adapter proof | implemented |
+| [Human play](https://github.com/jarredparrett/narrative-game-library/issues/17) | `release.stage10.accepted-human-standing` | Playtest | accepted Standing | `test_human_standing_gate_cannot_be_satisfied_by_build_or_model_evidence` | fresh Runs and comparison required | implemented; evidence pending |
+| [Human play](https://github.com/jarredparrett/narrative-game-library/issues/17) | `release.stage10.independent-verification` | Human reviewer | exact roster | `test_independent_verification_gate_excludes_the_playtest_roster` | reviewer cannot occupy a Run role | implemented; evidence pending |
+| [Experience](https://github.com/jarredparrett/narrative-game-library/issues/9) | `release.stage11.creator-player-print` | Experience | exact proof ref | `test_creator_player_print_gate_requires_one_exact_lineage_proof` | one Release/Session lineage | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.tagged-upstreams` | Distribution | version map | `test_tagged_upstream_gate_rejects_git_and_commit_pins` | repository pins fail | implemented; releases pending |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.compatibility` | Public API | epoch and policy | `test_compatibility_gate_requires_stable_epoch_and_exact_policy` | experimental epoch fails | implemented; decision pending |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.support-matrix` | Verification | Python receipts | `test_support_matrix_gate_requires_exact_receipt_for_each_supported_python` | 3.11 and 3.13 required | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.package-artifacts` | Distribution | package refs | `test_package_gate_requires_exact_sdist_and_wheel_refs` | exact sdist and wheel | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.documentation` | Documentation | document refs | `test_documentation_gate_requires_every_public_entry_path` | five required entry paths | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.known-limitations` | Publisher | disclosure | `test_limitations_gate_makes_debt_visible_without_upgrading_standing` | nonempty honest limitations | implemented |
+| [Release decision](https://github.com/jarredparrett/narrative-game-library/issues/10) | `release.stage12.publisher-approval` | Publisher | exact approval | `test_publisher_gate_requires_distinct_human_approval_over_exact_refs` | separate human and exact refs | implemented; evidence pending |
+
+The evaluator is complete and intentionally reports `not_qualified` for the
+current version. Qualification waits for first-order human play, upstream
+release versions, contract epoch 1, and independent Publisher Approval.
+
 ## Stage 11 - portable qualification spine and Candidate 6 migration
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
