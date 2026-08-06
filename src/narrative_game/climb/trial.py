@@ -132,6 +132,9 @@ def prepare_blind_trial(
         item for item in physical.plan["copies"] if item["audience"].startswith("seat:")
     )
     seat_resources = {item["resource_id"] for item in seat_copies}
+    rendition_by_resource = {
+        item["resource_id"]: item["rendition_path"] for item in seat_copies
+    }
     if not seat_files or not seat_resources:
         raise ValueError("Blind Trial requires Seat projections and Seat-accessible materials")
 
@@ -145,7 +148,7 @@ def prepare_blind_trial(
         files.append(TrialFile(f"trial/seats/{seat_name}", item.media_type, item.data))
     for resource_id in sorted(seat_resources):
         source = release.file(f"materials/{resource_id}")
-        rendered = physical.file(f"print/resources/{resource_id}.pdf")
+        rendered = physical.file(rendition_by_resource[resource_id])
         print_path = f"trial/print/{resource_id}.pdf"
         print_paths[resource_id] = print_path
         files.append(TrialFile(print_path, rendered.media_type, rendered.data))
@@ -156,7 +159,9 @@ def prepare_blind_trial(
             material_paths[resource_id] = material_path
             files.append(TrialFile(material_path, source.media_type, source.data))
 
-    included_print_paths = {f"print/resources/{item}.pdf" for item in seat_resources}
+    included_print_paths = {
+        rendition_by_resource[item] for item in seat_resources
+    }
     preflight_checks = [
         {
             **item,

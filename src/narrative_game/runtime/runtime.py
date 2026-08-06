@@ -26,6 +26,10 @@ from .model import (
 RUNTIME_VERSION = "0.4.0"
 
 
+def _copy(value: Any) -> Any:
+    return json.loads(canonical_json(value))
+
+
 class AuthorizationDenied(RuntimeError):
     """Opaque public authorization failure."""
 
@@ -173,6 +177,34 @@ def create_session(
     if not any(item.role == "host" for item in viewer_tuple):
         raise ValueError("Facilitated Investigation requires a host Viewer")
     opening = min(game.phases, key=lambda item: item.order)
+    genesis_payload = {
+        "mode": mode,
+        "bindings": [
+            item.to_mapping() for item in sorted(binding_tuple, key=lambda x: x.seat_id)
+        ],
+        "viewers": [
+            item.to_mapping() for item in sorted(viewer_tuple, key=lambda x: x.viewer_id)
+        ],
+    }
+    if game.character_program is not None:
+        genesis_payload["character_states"] = {
+            dossier.seat_id: {
+                "objective_statuses": {
+                    objective_id: "active"
+                    for objective_id in dossier.quick_start.immediate_objective_ids
+                },
+                "belief_stances": {
+                    belief.proposition_id: belief.stance
+                    for belief in next(
+                        item for item in game.characters
+                        if item.id == dossier.character_id
+                    ).beliefs
+                },
+                "chosen_moves": [],
+                "human_direction": [],
+            }
+            for dossier in game.character_program.dossiers
+        }
     genesis = _event(
         session_id=session_id,
         release_id=release.release_id,
@@ -181,11 +213,7 @@ def create_session(
         command_id=f"system:create:{session_id}",
         authority={"kind": "system", "principal_id": "session-authority"},
         event_type="session-created",
-        payload={
-            "mode": mode,
-            "bindings": [item.to_mapping() for item in sorted(binding_tuple, key=lambda x: x.seat_id)],
-            "viewers": [item.to_mapping() for item in sorted(viewer_tuple, key=lambda x: x.viewer_id)],
-        },
+        payload=genesis_payload,
         phase_id=opening.id,
     )
     history = SessionHistory(
@@ -215,6 +243,7 @@ def _initial_state(history: SessionHistory) -> dict[str, Any]:
         "viewers": {},
         "disclosures": {},
         "private_notes": {},
+        "character_states": {},
         "hint_requests": [],
         "evidence_requests": [],
         "public_claims": [],
@@ -233,6 +262,7 @@ def _reduce(state: dict[str, Any], event: SessionEvent) -> None:
             state["binding_history"].append({**binding, "active": True})
             state["disclosures"][binding["seat_id"]] = []
         state["viewers"] = {item["viewer_id"]: item["role"] for item in payload["viewers"]}
+        state["character_states"] = _copy(payload.get("character_states", {}))
     elif event.event_type == "session-opened":
         state["status"] = "active"
         for disclosure in payload["disclosures"]:
@@ -300,6 +330,26 @@ def _reduce(state: dict[str, Any], event: SessionEvent) -> None:
         state["binding_history"].append(replacement)
     elif event.event_type == "private-note-added":
         state["private_notes"].setdefault(payload["actor_id"], []).append(payload["note"])
+    elif event.event_type == "character-state-updated":
+        character_state = state["character_states"][payload["seat_id"]]
+        update = payload["update"]
+        if update.get("objective_id") is not None:
+            character_state["objective_statuses"][update["objective_id"]] = (
+                update["objective_status"]
+            )
+        if update.get("belief_proposition_id") is not None:
+            character_state["belief_stances"][update["belief_proposition_id"]] = (
+                update["belief_stance"]
+            )
+        if update.get("move_id") is not None:
+            character_state["chosen_moves"].append(
+                {"sequence": event.sequence, "phase_id": event.represented_phase_id,
+                 "move_id": update["move_id"]}
+            )
+        if update.get("human_direction") is not None:
+            character_state["human_direction"].append(
+                {"sequence": event.sequence, "direction": update["human_direction"]}
+            )
     state["phase_id"] = event.represented_phase_id
     state["sequence"] = event.sequence
     state["event_head"] = event.event_hash
@@ -609,6 +659,58 @@ def apply_command(
                 return _reject(history, command, auth, "active Actor Binding required")
             event_type = "private-note-added"
             payload = {"actor_id": auth.principal_id, "note": str(command.payload["note"])}
+        elif command.action == "update-character-state":
+            if binding is None or state["status"] != "active" or game.character_program is None:
+                return _reject(history, command, auth, "active Character Program Seat required")
+            seat_id = binding["seat_id"]
+            dossier = next(
+                item for item in game.character_program.dossiers
+                if item.seat_id == seat_id
+            )
+            arc = next(item for item in dossier.phase_arcs if item.phase_id == current_phase)
+            update = {
+                key: command.payload.get(key)
+                for key in (
+                    "move_id", "objective_id", "objective_status",
+                    "belief_proposition_id", "belief_stance", "human_direction",
+                )
+            }
+            if not any(value is not None for value in update.values()):
+                return _reject(history, command, auth, "empty Character State update")
+            if update["move_id"] is not None and update["move_id"] not in arc.move_ids:
+                return _reject(history, command, auth, "Move is unavailable in the current Phase")
+            character = next(item for item in game.characters if item.id == dossier.character_id)
+            objectives = {item.id: item for item in game.objectives}
+            if update["objective_id"] is not None:
+                if (
+                    update["objective_id"] not in character.objective_ids
+                    or update["objective_id"] not in arc.objective_ids
+                    or update["objective_status"] not in {
+                        "active", "advanced", "satisfied", "abandoned"
+                    }
+                    or phase_order[objectives[update["objective_id"]].activation_phase_id]
+                    > phase_order[current_phase]
+                ):
+                    return _reject(history, command, auth, "Objective update is unavailable")
+            elif update["objective_status"] is not None:
+                return _reject(history, command, auth, "Objective status lacks an Objective")
+            if update["belief_proposition_id"] is not None:
+                if (
+                    update["belief_proposition_id"]
+                    not in dossier.knowledge_boundary.revisable_belief_proposition_ids
+                    or update["belief_stance"] not in {
+                        "accepts", "rejects", "uncertain"
+                    }
+                ):
+                    return _reject(history, command, auth, "Belief update is unavailable")
+            elif update["belief_stance"] is not None:
+                return _reject(history, command, auth, "Belief stance lacks a Proposition")
+            if update["human_direction"] is not None:
+                update["human_direction"] = str(update["human_direction"]).strip()
+                if not update["human_direction"]:
+                    return _reject(history, command, auth, "human direction is empty")
+            event_type = "character-state-updated"
+            payload = {"seat_id": seat_id, "update": update}
         else:
             return _reject(history, command, auth, "unknown Command action")
     except (KeyError, TypeError, ValueError, AuthorizationDenied):
@@ -671,6 +773,19 @@ def seat_snapshot(
             item["seat_id"] == seat_id for item in event.payload["disclosures"]
         ):
             visible_events.append({"sequence": event.sequence, "event_type": event.event_type})
+        elif event.event_type == "character-state-updated" and (
+            event.payload["seat_id"] == seat_id
+        ):
+            visible_events.append({"sequence": event.sequence, "event_type": event.event_type})
+    dossier = baseline.get("dossier")
+    if dossier is not None:
+        game = _game(release)
+        source = next(
+            item for item in game.character_program.dossiers if item.seat_id == seat_id
+        )
+        from narrative_game.narrative import phase_character_projection
+
+        dossier = phase_character_projection(game, source, state["phase_id"])
     return {
         "schema_version": "0.4",
         "session_id": history.session_id,
@@ -689,6 +804,8 @@ def seat_snapshot(
             for resource_id in state["disclosures"][seat_id]
         ],
         "private_notes": list(state["private_notes"].get(auth.principal_id, [])),
+        "dossier": dossier,
+        "character_state": _copy(state["character_states"].get(seat_id)),
         "visible_events": visible_events,
         "resolution_prompt": baseline["resolution_prompt"],
         "allowed_actions": (
@@ -698,6 +815,7 @@ def seat_snapshot(
                 "request-evidence",
                 "request-hint",
                 "share-claim",
+                *(["update-character-state"] if dossier is not None else []),
                 *(
                     ["submit-resolution"]
                     if state["phase_id"]

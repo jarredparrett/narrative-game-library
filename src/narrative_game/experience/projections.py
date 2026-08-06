@@ -241,6 +241,30 @@ def host_projection(
                 _action("deliver-intervention", "Deliver planned intervention", "session", "host", "deliver-intervention", payload_schema={"intervention_id": "string", "audience_seat_ids": ["seat-id"], "reason": "string"}),
             )
         )
+    sections = [
+        ExperienceSection("phase", "Live phase", "phase-rail", {"current": state["phase_id"], "phases": phases}),
+    ]
+    if game["narrative"].get("character_program") is not None:
+        sections.append(
+            ExperienceSection(
+                "character-arcs",
+                "Character arc oversight",
+                "character-state-grid",
+                {
+                    "states": state.get("character_states", {}),
+                    "recovery_interventions": [
+                        item for item in game["narrative"]["interventions"]
+                        if item["phase_id"] == state["phase_id"]
+                    ],
+                },
+            )
+        )
+    sections.extend((
+        ExperienceSection("requests", "Player requests", "queue", {"hints": state["hint_requests"], "evidence": state["evidence_requests"]}),
+        ExperienceSection("events", "Session event record", "event-stream", [item.to_mapping() for item in history.ordered_events]),
+        ExperienceSection("materials", "Authorized materials", "material-index", release.manifest["materials"]),
+        ExperienceSection("assembly", "Physical handoff", "physical-plan", physical.plan),
+    ))
     return ExperienceProjection(
         "host",
         f"viewer:{auth.principal_id}",
@@ -250,13 +274,7 @@ def host_projection(
         history.session_id,
         state["sequence"],
         physical.export_id,
-        (
-            ExperienceSection("phase", "Live phase", "phase-rail", {"current": state["phase_id"], "phases": phases}),
-            ExperienceSection("requests", "Player requests", "queue", {"hints": state["hint_requests"], "evidence": state["evidence_requests"]}),
-            ExperienceSection("events", "Session event record", "event-stream", [item.to_mapping() for item in history.ordered_events]),
-            ExperienceSection("materials", "Authorized materials", "material-index", release.manifest["materials"]),
-            ExperienceSection("assembly", "Physical handoff", "physical-plan", physical.plan),
-        ),
+        tuple(sections),
         tuple(actions),
     )
 
@@ -278,12 +296,21 @@ def player_projection(
         "request-hint": "Request a hint",
         "share-claim": "Share a claim",
         "submit-resolution": "Submit resolution",
+        "update-character-state": "Record character direction",
     }
     schemas = {
         "request-evidence": {"resource_id": "string"},
         "request-hint": {"request": "string"},
         "share-claim": {"proposition_id": "string", "stance": "accepts | rejects"},
         "submit-resolution": {"hypothesis_id": "string", "proof_path_id": "string"},
+        "update-character-state": {
+            "move_id": "current-phase move-id | null",
+            "objective_id": "owned active objective-id | null",
+            "objective_status": "active | advanced | satisfied | abandoned | null",
+            "belief_proposition_id": "revisable belief-id | null",
+            "belief_stance": "accepts | rejects | uncertain | null",
+            "human_direction": "string | null",
+        },
     }
     actions = tuple(
         _action(item, action_labels[item], "session", "active-player", item, payload_schema=schemas[item])
@@ -298,11 +325,37 @@ def player_projection(
         history.session_id,
         snapshot["revision"],
         None,
-        (
+        tuple(
+            item for item in (
             ExperienceSection("brief", "Your character", "character", {"seat": snapshot["seat"], "character": snapshot["character"], "resolution_prompt": snapshot["resolution_prompt"]}),
+            (
+                ExperienceSection(
+                    "quick-start", "Read this first", "character-quick-start",
+                    snapshot["dossier"]["quick_start"],
+                ) if snapshot["dossier"] is not None else None
+            ),
+            (
+                ExperienceSection(
+                    "deep-play", "Your deeper dossier", "character-dossier",
+                    snapshot["dossier"]["deep_play"],
+                ) if snapshot["dossier"] is not None else None
+            ),
+            (
+                ExperienceSection(
+                    "phase-arc", "What is changing now", "character-phase-arc",
+                    snapshot["dossier"]["active_arc"],
+                ) if snapshot["dossier"] is not None else None
+            ),
+            (
+                ExperienceSection(
+                    "character-state", "Your choices so far", "character-state",
+                    snapshot["character_state"],
+                ) if snapshot["dossier"] is not None else None
+            ),
             ExperienceSection("evidence", "Evidence in hand", "authorized-materials", resources),
             ExperienceSection("notes", "Private notes", "private-notes", snapshot["private_notes"]),
             ExperienceSection("events", "What you have seen", "visible-events", snapshot["visible_events"]),
+            ) if item is not None
         ),
         actions,
     )

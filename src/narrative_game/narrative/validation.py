@@ -8,6 +8,7 @@ from typing import Iterable
 from narrative_game.kernel import Finding, validate_kernel
 
 from .model import GameDefinition
+from .characters import validate_character_program
 
 
 def _finding(code: str, locus: str, quote: str, message: str) -> Finding:
@@ -289,6 +290,8 @@ def validate_facilitated_investigation(game: GameDefinition) -> tuple[Finding, .
     has_dangling = any(item.code.endswith("dangling-reference") for item in findings)
     if not has_dangling:
         findings.extend(_validate_access_and_progression(game))
+        if game.character_program is not None:
+            findings.extend(validate_character_program(game, game.character_program))
     return tuple(sorted(set(findings)))
 
 

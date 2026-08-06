@@ -122,3 +122,26 @@ An **Evidence Comparison** records agreement or divergence between blind model
 measurement and Playtest Runs for the same Candidate and Instrument. It is
 diagnostic evidence; it does not average humans and models into one voice.
 _Avoid_: combined score, ensemble verdict.
+
+
+## Character-play language
+
+A **Dossier** is the complete Seat-private character source, containing a
+scannable **Quick Start** and deeper canonical context for sustained play.
+_Avoid_: character sheet, bio, summary page.
+
+A **Knowledge Boundary** divides facts a Character knows, beliefs they may
+revise, lies they may tell, and facts they must not contradict. It is canonical
+policy, not prompt memory.
+
+A **Phase Arc** names one Character's pressure, active Objectives, and available
+**Moves** during one Phase. A Move is a permitted action, bargain, challenge,
+fallback, or post-exposure response; it offers agency without scripting.
+
+A **Reveal Path** is a fair disclosure window for a private truth together with
+its host-owned recovery Intervention. _Avoid_: forced reveal, clue drop.
+
+**Character State** is the replayable Session record of chosen Moves, evolving
+beliefs, Objective progress, and human direction. A **Character Agent** is an
+optional Actor occupying a Seat under the same Knowledge Boundary and Session
+Authority as a human player. _Avoid_: agent memory, NPC bot, autonomous player.

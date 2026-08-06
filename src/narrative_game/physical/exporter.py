@@ -28,6 +28,7 @@ from reportlab.platypus import (
 )
 
 from narrative_game.authoring import parse_game_definition
+from narrative_game.narrative import CharacterDossier, render_dossier_markdown
 from narrative_game.compiler import GameRelease
 from narrative_game.contracts.canonical import canonical_json, digest_bytes, digest_json
 
@@ -146,6 +147,13 @@ def _text_story(
         spaceAfter=4,
         textColor=colors.HexColor("#334e68"),
         keepWithNext=True,
+    )
+    h4 = ParagraphStyle(
+        "GameH4",
+        parent=h3,
+        fontSize=10,
+        leading=12,
+        textColor=colors.HexColor("#243b53"),
     )
     small = ParagraphStyle("Small", parent=body, fontSize=9, leading=11.5)
     csv_cell = ParagraphStyle(
@@ -294,6 +302,9 @@ def _text_story(
         elif line.startswith("### "):
             flush_paragraph()
             story.append(Paragraph(_inline(line[4:]), h3))
+        elif line.startswith("#### "):
+            flush_paragraph()
+            story.append(Paragraph(_inline(line[5:]), h4))
         elif line.startswith("> "):
             flush_paragraph()
             story.append(Paragraph(_inline(line[2:]), quote))
@@ -341,6 +352,27 @@ def _render_text_pdf(
         canvasmaker=canvas_factory,
     )
     return target.getvalue()
+
+
+def render_dossier_pdf(
+    game: Any,
+    dossier: CharacterDossier,
+    profile: PhysicalExportProfile | None = None,
+) -> bytes:
+    """Render one deterministic seat-private Dossier and enforce its page contract."""
+    profile = profile or PhysicalExportProfile()
+    rendered = _render_text_pdf(
+        data=render_dossier_markdown(game, dossier),
+        media_type="text/markdown",
+        title=f"Character dossier — {dossier.seat_id}",
+        profile=profile,
+    )
+    page_count = len(PdfReader(BytesIO(rendered)).pages)
+    if not 3 <= page_count <= 5:
+        raise ValueError(
+            f"Dossier {dossier.dossier_id} rendered to {page_count} pages; expected 3–5"
+        )
+    return rendered
 
 
 def _overlay(page_width: float, page_height: float, profile: PhysicalExportProfile) -> bytes:
@@ -451,6 +483,7 @@ def _build_plan(
     release: GameRelease,
     profile: PhysicalExportProfile,
     rendition_files: Mapping[str, PhysicalFile],
+    dossier_renditions: Mapping[str, PhysicalFile] | None = None,
 ) -> dict[str, Any]:
     game = parse_game_definition(release.file("trusted/game.json").data)
     delivery = _delivery_by_resource(game)
@@ -499,6 +532,35 @@ def _build_plan(
                     "duplicate_of": None,
                 }
             )
+    for seat_id, rendition in sorted((dossier_renditions or {}).items()):
+        container_id = f"{seat_id}-opening"
+        container_label = f"{seat_id.upper()} - OPENING DOSSIER"
+        containers.setdefault(
+            container_id,
+            {
+                "container_id": container_id,
+                "label": container_label,
+                "audience": f"seat:{seat_id}",
+                "delivery_condition": "opening",
+            },
+        )
+        source = release.file(f"dossiers/{seat_id}.md")
+        copies.append(
+            {
+                "copy_id": f"copy-dossier-{seat_id}",
+                "resource_id": f"dossier:{seat_id}",
+                "source_hash": source.content_hash,
+                "rendition_path": rendition.path,
+                "rendition_hash": rendition.content_hash,
+                "audience": f"seat:{seat_id}",
+                "delivery_condition": "opening",
+                "custodian": "host",
+                "container_id": container_id,
+                "labels": [profile.provenance_label, container_label],
+                "copy_count": 1,
+                "duplicate_of": None,
+            }
+        )
     ordered_copies = sorted(copies, key=lambda item: item["copy_id"])
     first_copy: dict[str, str] = {}
     for copy in ordered_copies:
@@ -911,13 +973,24 @@ def export_physical(
     game = parse_game_definition(release.file("trusted/game.json").data)
     material_files = _material_by_resource(release)
     rendition_files: dict[str, PhysicalFile] = {}
+    dossier_by_resource = {
+        item.resource_id: item
+        for item in (
+            game.character_program.dossiers if game.character_program else ()
+        )
+    }
     rendition_expectations: dict[str, dict[str, Any]] = {}
     output_files: list[PhysicalFile] = [
         PhysicalFile("source/game-release.zip", "application/zip", release.bundle_bytes, "trusted-producer")
     ]
     for resource in sorted(game.kernel.resources, key=lambda item: item.id):
         material = material_files[resource.id]
-        if resource.media_type == "application/pdf":
+        dossier = dossier_by_resource.get(resource.id)
+        if dossier is not None:
+            if material.data != render_dossier_markdown(game, dossier):
+                raise ValueError(f"Dossier Resource differs from Character Program: {resource.id}")
+            rendered = render_dossier_pdf(game, dossier, profile)
+        elif resource.media_type == "application/pdf":
             rendered = _mark_existing_pdf(material.data, profile)
         elif resource.media_type.startswith("text/"):
             rendered = _render_text_pdf(
@@ -929,7 +1002,11 @@ def export_physical(
         else:
             raise ValueError(f"Physical Export cannot render {resource.media_type}")
         physical_file = PhysicalFile(
-            path=f"print/resources/{resource.id}.pdf",
+            path=(
+                f"print/dossiers/{dossier.seat_id}.pdf"
+                if dossier is not None
+                else f"print/resources/{resource.id}.pdf"
+            ),
             media_type="application/pdf",
             data=rendered,
             audience="as-planned",
