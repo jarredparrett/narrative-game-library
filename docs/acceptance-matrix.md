@@ -229,3 +229,25 @@ Verismill Experiments and imported into a new directory. Both Workspace and
 qualification verification passed. This preserves historical evidence and
 creates no new Candidate or standing claim. The exact results and limitations
 are recorded in the [Winter Observatory retrospective](retrospectives/winter-observatory-hill-climb.md).
+
+## Stage 11 - impact-scoped, bounded experiment execution
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.efficiency-routing` | `climb.planning` | every supported finding class | `test_finding_routes_choose_the_smallest_loop_and_explain_broadening` | default owner and loop are explicit; broader scope requires a persisted reason | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.impact` | `climb.planning` | seven typed contract changes | `test_impact_policy_invalidates_only_contract_dependents` | identical hashes carry forward; critical evidence, accessibility, canonical, host, artifact, renderer, and instrument changes derive distinct obligations | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.stop-rules` | `experiment.EfficiencyController` | handwriting-register preflight | `test_one_tranche_approval_allows_bounded_work_then_three_failures_escalate` | one tranche approval permits iteration; the third repeated failure escalates and preserves baseline | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.budgets` | `climb.planning` + `experiment.EfficiencyController` | one-iteration budget | `test_budget_exhaustion_parks_debt_and_observations_are_idempotent` | exhaustion parks debt, idempotent replay does not spend twice, and baseline remains selected | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.concurrent-panel` | `climb.execution` + `experiment.Experiment` | three barrier-synchronized judges | `test_independent_model_calls_are_concurrent_but_receipts_are_ordered` | calls overlap while replay receipts preserve input authority order | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.active-projection` | `experiment.EfficiencyController` | relocated bounded plan | `test_active_projection_is_portable_replayable_and_detects_staleness` | target, route, invalidation, approvals, budget, stop state, and next transition replay after relocation | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.current-experiment` | `ExperimentSpine` + `EfficiencyController` | Candidate 6 with active handwriting plan | `test_current_standing_embeds_the_active_efficiency_plan` | current standing contains the derived active plan and next human boundary | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.formal-boundary` | `climb.EfficiencyPlan` | exact Candidate 7 measurement | `test_formal_measurement_freezes_child_and_excludes_its_fixer` | standing is allowed only for an exact child with independent judges | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.human-boundaries` | `experiment.EfficiencyController` | exact Candidate 7 formal lifecycle | `test_formal_panel_runs_once_between_candidate_review_and_disposition` | completed-Candidate review precedes exact evidence; disposition follows it | implemented |
+
+The worked Winter Observatory plan replaces 76 builds across four full-suite
+preflights and 111 historical full artifact-judge calls with at most three
+representative diagnostic builds, six non-standing diagnostic calls, and one
+three-judge formal panel.
+The other eighteen results carry forward only when their artifact bytes are
+content-identical. This is execution-efficiency evidence, not a new realism or
+public-release standing claim.
