@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from narrative_game.contracts.canonical import digest_json
 from narrative_game.kernel import KernelDefinition
+from .characters import CharacterProgram
 
 
 def _strings(value: Any) -> tuple[str, ...]:
@@ -294,6 +295,7 @@ class GameDefinition:
     reveals: tuple[Reveal, ...]
     interventions: tuple[Intervention, ...]
     resolution: Resolution
+    character_program: CharacterProgram | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "GameDefinition":
@@ -318,6 +320,10 @@ class GameDefinition:
                 Intervention.from_mapping(item) for item in narrative["interventions"]
             ),
             resolution=Resolution.from_mapping(narrative["resolution"]),
+            character_program=(
+                CharacterProgram.from_mapping(narrative["character_program"])
+                if narrative.get("character_program") is not None else None
+            ),
         )
 
     @property
@@ -338,7 +344,7 @@ class GameDefinition:
                 result.append(record)
             return result
 
-        return {
+        result = {
             "kernel": self.kernel.to_mapping(),
             "narrative": {
                 "direction": {
@@ -376,3 +382,8 @@ class GameDefinition:
                 },
             },
         }
+        if self.character_program is not None:
+            result["narrative"]["character_program"] = (
+                self.character_program.to_mapping()
+            )
+        return result

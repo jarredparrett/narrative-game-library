@@ -13,7 +13,12 @@ from .blueprint import (
     validate_blueprint,
 )
 from .compiler import compile_candidate, freeze_candidate
-from .experiment import Experiment, GameProfileAdapter
+from .experiment import (
+    EfficiencyController,
+    Experiment,
+    ExperimentSpine,
+    GameProfileAdapter,
+)
 from .experience import (
     ExperienceProjection,
     TutorialProjection,
@@ -24,8 +29,8 @@ from .experience import (
     print_projection,
     render_reference_html,
 )
-from .narrative import GameDefinition, validate_facilitated_investigation
-from .physical import PhysicalExport, PhysicalExportProfile, export_physical
+from .narrative import CharacterProgram, GameDefinition, validate_facilitated_investigation
+from .physical import PhysicalExport, PhysicalExportProfile, export_physical, render_dossier_pdf
 from .playtest import EvidenceComparison, PlaytestProtocol, PlaytestRun
 from .playtest.program import PlaytestProgram
 from .profiles import FacilitatedInvestigationAuthoringAdapter
@@ -40,9 +45,12 @@ __all__ = [
     "BlueprintProposal",
     "DisplayedClaim",
     "Experiment",
+    "ExperimentSpine",
+    "EfficiencyController",
     "EvidenceComparison",
     "ExperienceProjection",
     "GameDefinition",
+    "CharacterProgram",
     "GameBlueprint",
     "GameProfileAdapter",
     "PhysicalExport",
@@ -65,6 +73,7 @@ __all__ = [
     "player_projection",
     "print_projection",
     "export_physical",
+    "render_dossier_pdf",
     "parse_game_definition",
     "replay",
     "render_reference_html",
@@ -73,4 +82,4 @@ __all__ = [
     "validate_blueprint",
 ]
 
-__version__ = "0.11.0"
+__version__ = "0.14.0"

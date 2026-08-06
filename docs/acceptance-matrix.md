@@ -213,3 +213,58 @@ scores do not confer standing on a public game Release.
 Human Stage Review: pending review and merge of the Stage 11 implementation.
 The reference HTML demonstrates the application boundary; it does not claim a
 production web service, completed dossier depth, or six-player human standing.
+
+## Stage 11 - deep dossiers and phase-aware characters
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Deep dossiers](https://github.com/jarredparrett/narrative-game-library/issues/15) | `stage11.dossiers` | `narrative.CharacterProgram` + physical exporter | six Winter Observatory roles | `test_six_dossiers_are_complete_canonical_and_render_three_to_five_pages` | deterministic layered Markdown and 3–5 page PDFs for all six Seats | implemented |
+| [Deep dossiers](https://github.com/jarredparrett/narrative-game-library/issues/15) | `stage11.character-example` | worked fixture | six-role review package | `test_worked_character_export_is_byte_identical` | exact game, six Markdown/PDF pairs, and hash-bearing summary reproduce byte-identically | implemented |
+| [Deep dossiers](https://github.com/jarredparrett/narrative-game-library/issues/15) | `stage11.dossier-secrecy` | compiler Seat projection | Eleanor projection | `test_seat_projection_has_deep_play_but_never_host_or_other_seat_truth` | host solution and other Dossier identities are absent | implemented |
+| [Agentic characters](https://github.com/jarredparrett/narrative-game-library/issues/16) | `stage11.character-gates` | Character Program validator | adversarial mutations | `test_validator_blocks_leakage_unreachable_secrets_and_dead_end_arcs` | leakage, unreachable revelations, and dead ends block release | implemented |
+| [Agentic characters](https://github.com/jarredparrett/narrative-game-library/issues/16) | `stage11.character-agency` | Session Authority | six-model simulation cast | `test_agentic_cast_uses_same_authority_and_persists_human_direction` | move, belief, objective, and human direction replay as Character State | implemented |
+| [Agentic characters](https://github.com/jarredparrett/narrative-game-library/issues/16) | `stage11.phase-agency` | Session Authority | future Move attempt | `test_current_phase_rejects_future_moves` | a Character Agent cannot act outside its current Phase Arc | implemented |
+
+Human Stage Review: pending review and merge of issues 15 and 16.
+
+The worked example proves structural depth, determinism, access safety, and
+phase agency. It does not claim six-player human standing; that is Stage 11
+issue 17.
+
+## Stage 11 - portable qualification spine and Candidate 6 migration
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.portable-spine` | `experiment.ExperimentSpine` + Workspace | selected Candidate with 19 external measurements | `test_candidate_6_standing_is_separate_derived_and_portable` | exact Release, Physical Export, approval, evidence, accessibility contracts, external capsules, and separated standing survive relocation | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.derived-standing` | `experiment.ExperimentSpine` | stale projection and removed external object | `test_projection_is_replaced_from_journal_and_mutation_is_detected` | journal replay replaces stale status and content verification rejects missing evidence | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.rung-integrity` | qualification journal | missing parent and forged approval | `test_parentage_and_exact_approval_scope_cannot_be_forged` | historical parent anchors and exact Candidate/collection approval scope are mandatory | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.evidence-invariants` | `contracts.evidence` | incomplete claim trace and interpreted accessible rendition | `test_claim_and_accessibility_contracts_reject_missing_or_interpreted_evidence` | every accepted proof path is licensed; native and accessible propositions match; artifact interpretation remains empty | implemented |
+| [Stage 11 retrospective implementation](https://github.com/jarredparrett/narrative-game-library/issues/18) | `stage11.cross-system-reference` | `experiment.migration` | public Verismill facade stub | `test_external_verismill_reference_uses_only_the_verified_public_facade` | path-free capsule seals verified replay, bus head, manifest, and attestation and rejects identity mismatch | implemented |
+
+The real Candidate 6 migration was also executed against all 19 historical
+Verismill Experiments and imported into a new directory. Both Workspace and
+qualification verification passed. This preserves historical evidence and
+creates no new Candidate or standing claim. The exact results and limitations
+are recorded in the [Winter Observatory retrospective](retrospectives/winter-observatory-hill-climb.md).
+
+## Stage 11 - impact-scoped, bounded experiment execution
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.efficiency-routing` | `climb.planning` | every supported finding class | `test_finding_routes_choose_the_smallest_loop_and_explain_broadening` | default owner and loop are explicit; broader scope requires a persisted reason | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.impact` | `climb.planning` | seven typed contract changes | `test_impact_policy_invalidates_only_contract_dependents` | identical hashes carry forward; critical evidence, accessibility, canonical, host, artifact, renderer, and instrument changes derive distinct obligations | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.stop-rules` | `experiment.EfficiencyController` | handwriting-register preflight | `test_one_tranche_approval_allows_bounded_work_then_three_failures_escalate` | one tranche approval permits iteration; the third repeated failure escalates and preserves baseline | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.budgets` | `climb.planning` + `experiment.EfficiencyController` | one-iteration budget | `test_budget_exhaustion_parks_debt_and_observations_are_idempotent` | exhaustion parks debt, idempotent replay does not spend twice, and baseline remains selected | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.concurrent-panel` | `climb.execution` + `experiment.Experiment` | three barrier-synchronized judges | `test_independent_model_calls_are_concurrent_but_receipts_are_ordered` | calls overlap while replay receipts preserve input authority order | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.active-projection` | `experiment.EfficiencyController` | relocated bounded plan | `test_active_projection_is_portable_replayable_and_detects_staleness` | target, route, invalidation, approvals, budget, stop state, and next transition replay after relocation | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.current-experiment` | `ExperimentSpine` + `EfficiencyController` | Candidate 6 with active handwriting plan | `test_current_standing_embeds_the_active_efficiency_plan` | current standing contains the derived active plan and next human boundary | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.formal-boundary` | `climb.EfficiencyPlan` | exact Candidate 7 measurement | `test_formal_measurement_freezes_child_and_excludes_its_fixer` | standing is allowed only for an exact child with independent judges | implemented |
+| [Stage 11 efficiency](https://github.com/jarredparrett/narrative-game-library/issues/19) | `stage11.human-boundaries` | `experiment.EfficiencyController` | exact Candidate 7 formal lifecycle | `test_formal_panel_runs_once_between_candidate_review_and_disposition` | completed-Candidate review precedes exact evidence; disposition follows it | implemented |
+
+The worked Winter Observatory plan replaces 76 builds across four full-suite
+preflights and 111 historical full artifact-judge calls with at most three
+representative diagnostic builds, six non-standing diagnostic calls, and one
+three-judge formal panel.
+The other eighteen results carry forward only when their artifact bytes are
+content-identical. This is execution-efficiency evidence, not a new realism or
+public-release standing claim.

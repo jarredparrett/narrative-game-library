@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from narrative_game.narrative import GameDefinition, available_evidence
+from narrative_game.narrative import (
+    GameDefinition,
+    available_evidence,
+    phase_character_projection,
+    render_dossier_markdown,
+)
 
 
 def seat_projection(game: GameDefinition, seat_id: str) -> dict[str, Any]:
@@ -35,7 +40,7 @@ def seat_projection(game: GameDefinition, seat_id: str) -> dict[str, Any]:
             }
         )
         previous = available
-    return {
+    result = {
         "schema_version": "0.4",
         "seat": {"id": seat.id, "label": seat.label},
         "character": {
@@ -72,6 +77,17 @@ def seat_projection(game: GameDefinition, seat_id: str) -> dict[str, Any]:
         "resolution_prompt": game.resolution.prompt,
         "allowed_actions": ["share-claim", "request-evidence", "submit-resolution"],
     }
+    if game.character_program is not None:
+        dossier = next(
+            item for item in game.character_program.dossiers if item.seat_id == seat_id
+        )
+        result["character_program_id"] = game.character_program.program_id
+        result["dossier"] = phase_character_projection(game, dossier, opening.id)
+        result["dossier_markdown"] = render_dossier_markdown(
+            game, dossier
+        ).decode("utf-8")
+        result["allowed_actions"].append("update-character-state")
+    return result
 
 
 def host_projection(game: GameDefinition) -> dict[str, Any]:

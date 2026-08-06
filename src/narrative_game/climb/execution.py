@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import json
 from typing import Any, Mapping, Protocol
@@ -61,18 +62,26 @@ class ModelDriver(Protocol):
     def invoke(self, invocation: ModelInvocation) -> DriverOutput: ...
 
 
+@dataclass(frozen=True)
+class ModelExecution:
+    """One independent invocation and the key that makes it replay-idempotent."""
+
+    invocation: ModelInvocation
+    driver: ModelDriver
+    idempotency_key: str
+
+
 def _block(code: str, locus: str, quote: str, message: str) -> ClimbRejected:
     return ClimbRejected((ClimbFinding(code, "blocker", locus, quote, message),))
 
 
-def execute_model_task(
+def _prepare_invocation(
     ledger: ClimbLedger,
     invocation: ModelInvocation,
-    driver: ModelDriver,
     *,
     idempotency_key: str,
-) -> StoredRecord:
-    """Invoke one configured model and atomically preserve its replay envelope."""
+) -> tuple[Authority, dict[str, bytes], dict[str, Any], StoredRecord | None]:
+    """Validate an invocation and return its immutable persistence envelope."""
     task_record = ledger.get("task", invocation.task_id)
     authority_record = ledger.get("authority", invocation.authority_id)
     task = task_record.value
@@ -98,7 +107,10 @@ def execute_model_task(
     attachment_paths = [item.path for item in invocation.attachments]
     if len(attachment_paths) != len(set(attachment_paths)) or "task.json" in attachment_paths:
         raise ValueError("attachment paths must be unique and may not use task.json")
-    if any(not item.path.strip() or not item.media_type.strip() for item in invocation.attachments):
+    if any(
+        not item.path.strip() or not item.media_type.strip()
+        for item in invocation.attachments
+    ):
         raise ValueError("attachment path and media type are required")
 
     inputs = {"task.json": canonical_json(task.to_mapping())}
@@ -131,10 +143,23 @@ def execute_model_task(
             or receipt.requested_model != invocation.requested_model
             or any(envelope[key] != value for key, value in expected.items())
         ):
-            raise IdempotencyConflict("model execution key was reused for another invocation")
-        return stored
+            raise IdempotencyConflict(
+                "model execution key was reused for another invocation"
+            )
+        return authority, inputs, context, stored
+    return authority, inputs, context, None
 
-    output = driver.invoke(invocation)
+
+def _persist_output(
+    ledger: ClimbLedger,
+    invocation: ModelInvocation,
+    authority: Authority,
+    inputs: Mapping[str, bytes],
+    context: Mapping[str, Any],
+    output: DriverOutput,
+    *,
+    idempotency_key: str,
+) -> StoredRecord:
     if not output.provider.strip() or not output.resolved_model.strip():
         raise ValueError("Model Driver must report provider and resolved model")
     return ledger.record_replayable_model_invocation(
@@ -155,6 +180,93 @@ def execute_model_task(
         actor=f"agent:{authority.principal}",
         idempotency_key=idempotency_key,
     )
+
+
+def execute_model_task(
+    ledger: ClimbLedger,
+    invocation: ModelInvocation,
+    driver: ModelDriver,
+    *,
+    idempotency_key: str,
+) -> StoredRecord:
+    """Invoke one configured model and atomically preserve its replay envelope."""
+    authority, inputs, context, existing = _prepare_invocation(
+        ledger, invocation, idempotency_key=idempotency_key
+    )
+    if existing is not None:
+        return existing
+    output = driver.invoke(invocation)
+    return _persist_output(
+        ledger, invocation, authority, inputs, context, output,
+        idempotency_key=idempotency_key,
+    )
+
+
+def execute_model_tasks_concurrently(
+    ledger: ClimbLedger,
+    executions: tuple[ModelExecution, ...],
+    *,
+    max_workers: int | None = None,
+) -> tuple[StoredRecord, ...]:
+    """Invoke independent tasks concurrently; persist receipts in input order.
+
+    Provider latency is parallel. Store and journal mutations remain serial, so
+    the same ordered executions produce the same receipt and aggregation order.
+    """
+    if not executions:
+        raise ValueError("concurrent model execution requires at least one task")
+    keys = tuple(item.idempotency_key for item in executions)
+    if len(keys) != len(set(keys)):
+        raise ValueError("concurrent model execution keys must be distinct")
+    prepared = [
+        _prepare_invocation(
+            ledger, item.invocation, idempotency_key=item.idempotency_key
+        )
+        for item in executions
+    ]
+    pending = [
+        index for index, (_, _, _, existing) in enumerate(prepared)
+        if existing is None
+    ]
+    outputs: dict[int, DriverOutput] = {}
+    errors: dict[int, Exception] = {}
+    if pending:
+        workers = max_workers or len(pending)
+        if workers < 1:
+            raise ValueError("max_workers must be positive")
+        with ThreadPoolExecutor(max_workers=min(workers, len(pending))) as pool:
+            futures = {
+                index: pool.submit(
+                    executions[index].driver.invoke,
+                    executions[index].invocation,
+                )
+                for index in pending
+            }
+            for index in pending:
+                try:
+                    outputs[index] = futures[index].result()
+                except Exception as exc:  # preserve completed sibling evidence
+                    errors[index] = exc
+    result = []
+    for index, execution in enumerate(executions):
+        authority, inputs, context, existing = prepared[index]
+        if existing is not None:
+            result.append(existing)
+        elif index in outputs:
+            result.append(
+                _persist_output(
+                    ledger,
+                    execution.invocation,
+                    authority,
+                    inputs,
+                    context,
+                    outputs[index],
+                    idempotency_key=execution.idempotency_key,
+                )
+            )
+    if errors:
+        raise errors[min(errors)]
+    return tuple(result)
 
 
 def replay_envelope(ledger: ClimbLedger, receipt_id: str) -> dict[str, Any]:

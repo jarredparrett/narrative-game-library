@@ -20,6 +20,7 @@ from narrative_game.climb import (
     HumanReview,
     InvocationAttachment,
     ModelDriver,
+    ModelExecution,
     ModelInvocation,
     Proposal,
     Requirement,
@@ -29,6 +30,7 @@ from narrative_game.climb import (
     Transition,
     decide_selection,
     execute_model_task,
+    execute_model_tasks_concurrently,
     load_blind_trial,
     verify_blind_trial,
     verify_trial_quote,
@@ -36,6 +38,8 @@ from narrative_game.climb import (
 from narrative_game.climb.selection import evaluation_passes
 from narrative_game.contracts import canonical_json
 from narrative_game.workspace import Workspace
+from .efficiency import EfficiencyController
+from .standing import ExperimentSpine
 
 
 def _copy(value: Any) -> Any:
@@ -196,6 +200,10 @@ class Experiment:
 
     def __init__(self, workspace: Workspace):
         self.workspace = workspace
+        self.spine = ExperimentSpine(workspace)
+        self.efficiency = EfficiencyController(workspace)
+        if self.efficiency.plan_events:
+            self.efficiency.write_projection()
         self.ledger = ClimbLedger(workspace)
         plans = self.ledger.snapshot()["experiment_plans"]
         if len(plans) != 1:
@@ -577,6 +585,7 @@ class Experiment:
         scores: dict[str, Mapping[str, int]] = {}
         receipt_ids: list[str] = []
         finding_ids: list[str] = []
+        executions = []
         for member in members:
             invocation = ModelInvocation(
                 task.task_id,
@@ -618,12 +627,18 @@ class Experiment:
                 ),
                 seed,
             )
-            receipt = execute_model_task(
-                self.ledger,
-                invocation,
-                member.driver,
-                idempotency_key=f"model-{task.task_id}-{member.authority_id}",
-            ).value
+            executions.append(
+                ModelExecution(
+                    invocation,
+                    member.driver,
+                    f"model-{task.task_id}-{member.authority_id}",
+                )
+            )
+        records = execute_model_tasks_concurrently(
+            self.ledger, tuple(executions), max_workers=len(executions)
+        )
+        for member, record in zip(members, records, strict=True):
+            receipt = record.value
             parsed = self.workspace.store.read_json(receipt.parsed_output_ref)
             if not isinstance(parsed, Mapping) or set(parsed) != {"scores", "findings"}:
                 raise ValueError("judge output does not match the panel contract")
@@ -1025,11 +1040,26 @@ class Experiment:
         """Verify the Workspace and climb hash chains plus every referenced object."""
         workspace = self.workspace.verify()
         climb = self.ledger.verify()
+        standing = self.spine.verify()
+        efficiency = self.efficiency.verify()
         return {
-            "ok": workspace["ok"] and climb["ok"],
+            "ok": (
+                workspace["ok"] and climb["ok"] and standing["ok"]
+                and efficiency["ok"]
+            ),
             "workspace": workspace,
             "climb": climb,
+            "standing": standing,
+            "efficiency": efficiency,
         }
+
+    def record_selected_rung(self, **kwargs: Any) -> Mapping[str, Any]:
+        """Persist one exact selected Candidate and export its portable `.ngw`."""
+        return self.spine.record_selected_rung(**kwargs)
+
+    def current_standing(self) -> Mapping[str, Any]:
+        """Rebuild the current qualification projection from journals."""
+        return self.spine.write_projection()
 
     def export_archive(self, target: str | Path) -> None:
         """Write a deterministic, relocatable archive of the complete Experiment."""
