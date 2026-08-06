@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.13.0"
+version = "0.14.0"
 description = "Deterministic narrative game building with human-governed hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ narrative-game-climb-example = "narrative_game.stage6_fixture:main"
 narrative-game-climb-prepare = "narrative_game.stage7_experiment:main"
 narrative-game-climb-measure = "narrative_game.stage7_experiment:measure_main"
 narrative-game-experience = "narrative_game.stage11_fixture:main"
+narrative-game-character-example = "narrative_game.stage11_character_fixture:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -39,6 +40,7 @@ narrative_game = [
   "examples/ashwood-ledger/*.json",
   "examples/ashwood-ledger/content/*",
   "examples/vanished-ledger/*.json",
+  "examples/winter-observatory/*.json",
 ]
 
 [tool.pytest.ini_options]

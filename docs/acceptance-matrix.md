@@ -214,6 +214,23 @@ Human Stage Review: pending review and merge of the Stage 11 implementation.
 The reference HTML demonstrates the application boundary; it does not claim a
 production web service, completed dossier depth, or six-player human standing.
 
+## Stage 11 - deep dossiers and phase-aware characters
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Deep dossiers](https://github.com/jarredparrett/narrative-game-library/issues/15) | `stage11.dossiers` | `narrative.CharacterProgram` + physical exporter | six Winter Observatory roles | `test_six_dossiers_are_complete_canonical_and_render_three_to_five_pages` | deterministic layered Markdown and 3–5 page PDFs for all six Seats | implemented |
+| [Deep dossiers](https://github.com/jarredparrett/narrative-game-library/issues/15) | `stage11.character-example` | worked fixture | six-role review package | `test_worked_character_export_is_byte_identical` | exact game, six Markdown/PDF pairs, and hash-bearing summary reproduce byte-identically | implemented |
+| [Deep dossiers](https://github.com/jarredparrett/narrative-game-library/issues/15) | `stage11.dossier-secrecy` | compiler Seat projection | Eleanor projection | `test_seat_projection_has_deep_play_but_never_host_or_other_seat_truth` | host solution and other Dossier identities are absent | implemented |
+| [Agentic characters](https://github.com/jarredparrett/narrative-game-library/issues/16) | `stage11.character-gates` | Character Program validator | adversarial mutations | `test_validator_blocks_leakage_unreachable_secrets_and_dead_end_arcs` | leakage, unreachable revelations, and dead ends block release | implemented |
+| [Agentic characters](https://github.com/jarredparrett/narrative-game-library/issues/16) | `stage11.character-agency` | Session Authority | six-model simulation cast | `test_agentic_cast_uses_same_authority_and_persists_human_direction` | move, belief, objective, and human direction replay as Character State | implemented |
+| [Agentic characters](https://github.com/jarredparrett/narrative-game-library/issues/16) | `stage11.phase-agency` | Session Authority | future Move attempt | `test_current_phase_rejects_future_moves` | a Character Agent cannot act outside its current Phase Arc | implemented |
+
+Human Stage Review: pending review and merge of issues 15 and 16.
+
+The worked example proves structural depth, determinism, access safety, and
+phase agency. It does not claim six-player human standing; that is Stage 11
+issue 17.
+
 ## Stage 11 - portable qualification spine and Candidate 6 migration
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
