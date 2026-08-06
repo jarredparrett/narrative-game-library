@@ -1,0 +1,6 @@
+*.jpg binary
+*.pdf binary
+*.zip binary
+
+# Preserve the exact approved instruction bytes, including source EOF spacing.
+instructions/**/*.md whitespace=-blank-at-eof
