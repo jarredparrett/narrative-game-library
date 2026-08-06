@@ -14,10 +14,12 @@ from narrative_game.contracts import (
     validate_claim_trace,
 )
 from narrative_game.experiment import (
+    EfficiencyController,
     ExperimentSpine,
     read_verismill_experiment_capsule,
     seal_verismill_experiment,
 )
+from narrative_game.stage11_efficiency_fixture import winter_observatory_efficiency_proof
 from narrative_game.workspace import Workspace
 
 
@@ -177,6 +179,36 @@ def test_projection_is_replaced_from_journal_and_mutation_is_detected(tmp_path):
     reopened.workspace.store.path_for(external_ref).unlink()
     assert reopened.verify()["ok"] is False
     assert any("missing or corrupt" in item for item in reopened.verify()["failures"])
+
+
+def test_current_standing_embeds_the_active_efficiency_plan(tmp_path):
+    """stage11.current-experiment: standing tells the operator what may happen next."""
+    workspace = Workspace.create(tmp_path / "workspace", workspace_id="winter-observatory")
+    spine = ExperimentSpine(workspace)
+    record_candidate_6(spine, tmp_path / "candidate-6.ngw")
+    plan, _ = winter_observatory_efficiency_proof()
+    authorization = canonical_json({
+        "schema_version": "0.13",
+        "plan_id": plan.plan_id,
+        "boundary": "target_and_instrument",
+        "decision": "approved",
+        "scope": {
+            "primary_target": plan.primary_target,
+            "instrument_id": plan.instrument_id,
+        },
+    })
+    EfficiencyController(workspace).record_plan(
+        plan, target_authorization_bytes=authorization
+    )
+    current = json.loads((workspace.root / "current-standing.json").read_bytes())
+    assert current["active_experiment"]["plan_id"] == plan.plan_id
+    assert current["active_experiment"]["next_authorized_transition"] == (
+        "human_review:repair_tranche"
+    )
+    readable = (workspace.root / "current-standing.md").read_text()
+    assert "Target: `artifact_realism`" in readable
+    assert "Next transition: `human_review:repair_tranche`" in readable
+    assert ExperimentSpine(workspace).verify()["ok"]
 
 
 def test_parentage_and_exact_approval_scope_cannot_be_forged(tmp_path):

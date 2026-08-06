@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 
@@ -14,9 +15,11 @@ from narrative_game.climb import (
     DriverOutput,
     FrozenInstrument,
     InvocationAttachment,
+    ModelExecution,
     ModelInvocation,
     Task,
     execute_model_task,
+    execute_model_tasks_concurrently,
     replay_envelope,
 )
 from narrative_game.contracts import canonical_json, digest_bytes
@@ -144,6 +147,73 @@ def test_driver_and_resolved_model_are_evidence_not_workflow_identity(tmp_path):
     assert second.value.provider == "provider-b"
     assert first.value.resolved_model == "judge-a-v1"
     assert second.value.resolved_model == "judge-b-v3"
+
+
+def test_independent_model_calls_are_concurrent_but_receipts_are_ordered(tmp_path):
+    """stage11.concurrent-panel: latency is parallel and evidence order is deterministic."""
+    workspace, ledger, first, original = seeded_ledger(tmp_path)
+    authorities = (first,) + tuple(
+        Authority(f"judge-model-{name}", "agent", "judge", f"judge-{name}")
+        for name in ("b", "c")
+    )
+    for authority in authorities[1:]:
+        ledger.register(
+            authority,
+            actor="human:maker",
+            idempotency_key=f"authority-{authority.authority_id}",
+        )
+    task = Task(
+        "measure-concurrently",
+        "blind-measure",
+        original.candidate_id,
+        original.instrument_id,
+        authorities[0].authority_id,
+        (),
+        original.input_refs,
+        "Measure in parallel and persist in Authority order.",
+        tuple(item.authority_id for item in authorities[1:]),
+    )
+    ledger.register(task, actor="human:maker", idempotency_key="parallel-task")
+    barrier = Barrier(3)
+
+    class BarrierDriver(RecordedDriver):
+        def invoke(self, model_invocation):
+            barrier.wait(timeout=2)
+            return super().invoke(model_invocation)
+
+    drivers = tuple(
+        BarrierDriver("provider", f"resolved-{index}") for index in range(3)
+    )
+    executions = tuple(
+        ModelExecution(
+            ModelInvocation(
+                task.task_id,
+                authority.authority_id,
+                "judge",
+                "judge-latest",
+                "Apply the frozen instrument.",
+                {},
+                {"output": "evaluation-v1"},
+                (),
+                1997,
+            ),
+            driver,
+            f"parallel-{index}",
+        )
+        for index, (authority, driver) in enumerate(zip(authorities, drivers))
+    )
+    records = execute_model_tasks_concurrently(ledger, executions)
+    assert tuple(item.value.authority_id for item in records) == tuple(
+        item.authority_id for item in authorities
+    )
+    assert [len(item.calls) for item in drivers] == [1, 1, 1]
+    replayed = execute_model_tasks_concurrently(ledger, executions)
+    assert tuple(item.record_id for item in replayed) == tuple(
+        item.record_id for item in records
+    )
+    assert [len(item.calls) for item in drivers] == [1, 1, 1]
+    assert ledger.verify()["ok"]
+    assert workspace.verify()["ok"]
 
 
 def test_execution_rejects_an_authority_that_does_not_occupy_the_task(tmp_path):

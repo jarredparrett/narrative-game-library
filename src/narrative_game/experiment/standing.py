@@ -98,7 +98,7 @@ def _validate_approval(
 class ExperimentSpine:
     """Qualification journal and replaceable projections for a Workspace."""
 
-    schema_version = "0.12"
+    schema_version = "0.13"
 
     def __init__(self, workspace):
         self.workspace = workspace
@@ -256,6 +256,16 @@ class ExperimentSpine:
             raise ValueError("Experiment has no selected rung")
         current = events[-1]["payload"]
         verification = self.verify(include_projection=False)
+        active_experiment = None
+        if any(
+            event["event_type"] == "efficiency_plan_recorded"
+            for event in self.workspace.operational.read()
+        ):
+            from .efficiency import EfficiencyController
+
+            active_experiment = EfficiencyController(
+                self.workspace
+            ).derive_projection()
         return {
             "schema_version": self.schema_version,
             "experiment_id": self.workspace.manifest["workspace_id"],
@@ -274,6 +284,7 @@ class ExperimentSpine:
             "non_blocking_debt": current["debt"],
             "invalidation": current["invalidation"],
             "replay_requirements": current["replay_requirements"],
+            "active_experiment": active_experiment,
             "journal_heads": dict(self.workspace.manifest["journal_heads"]),
             "verification": verification,
         }
@@ -290,6 +301,17 @@ class ExperimentSpine:
             item = projection["standings"][name]
             lines.append(f"- **{name.replace('_', ' ')}:** `{item['status']}` "
                          f"(`{item['instrument']}`)")
+        active = projection["active_experiment"]
+        lines += ["", "## Active experiment", ""]
+        if active is None:
+            lines.append("- None recorded.")
+        else:
+            lines.extend([
+                f"- Target: `{active['primary_target']}`",
+                f"- Mode: `{active['mode']}`",
+                f"- Loop: `{active['selected_loop']}`",
+                f"- Next transition: `{active['next_authorized_transition']}`",
+            ])
         lines += ["", "## Blockers", ""]
         lines.extend(
             f"- **{item['code']}** ({item['evidence_class']}): {item['reason']}"
