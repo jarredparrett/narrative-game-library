@@ -15,7 +15,7 @@ from narrative_game.blueprint import (
     bind_artifact_specification,
     validate_blueprint,
 )
-from narrative_game.contracts import canonical_json
+from narrative_game.contracts import ArtifactResult, canonical_json, digest_bytes
 from narrative_game.climb import Dimension, FrozenInstrument
 from narrative_game.examples import vanished_ledger_blueprint
 from narrative_game.generation.model import (
@@ -126,6 +126,26 @@ print(canonical_json({'brief': brief.to_mapping(), 'plan': plan.to_mapping()}).d
             )
         )
     assert outputs[0] == outputs[1]
+
+
+def test_artifact_result_immutable_views_have_plain_workspace_values():
+    """generation.artifact-persistence: immutable result views cross the
+    Workspace JSON boundary as ordinary mappings without changing content."""
+    document = b"%PDF-1.4\nfixture\n"
+    content_hash = digest_bytes(document)
+    result = ArtifactResult(
+        "fixture",
+        document,
+        {"sha256": content_hash, "canon": {"record": "R-1"}},
+        {"artifact_hash": content_hash, "measurement": {"status": "accepted"}},
+        {"artifact_id": "fixture", "pins": {}, "canon": {"record": "R-1"}},
+    )
+    encoded = canonical_json({
+        "manifest": dict(result.manifest),
+        "attestation": dict(result.attestation),
+        "request": dict(result.request),
+    })
+    assert b'"record":"R-1"' in encoded
 
 
 def test_production_target_requires_complete_evidence_artifact_coverage():

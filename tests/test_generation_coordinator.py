@@ -414,8 +414,11 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
             seed=6103,
             proposition_ids=("cash-payment",),
             event_ids=("payment-made",),
-            pins={"currency": "USD", "amount": "$4,000 cash"},
-            canon={"represented_date": "1997-10-14"},
+            pins={},
+            canon={
+                "represented_date": "1997-10-14",
+                "amount": "$4,000 cash",
+            },
             accessibility={"required": True},
             permitted_audience_ids=("avery", "host"),
         ),
@@ -428,7 +431,7 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
                 item.proposition_id,
                 "",
                 "artifact-request",
-                "amount",
+                "canon.amount",
             )
             if item.resource_id == specification.resource_id
             else item
@@ -516,6 +519,7 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
     with ZipFile(BytesIO(package.physical_archive)) as archive:
         player_visible = archive.read("print/resources/cash-receipt.pdf")
         preflight = json.loads(archive.read("trusted/preflight.json"))
+        claim_trace = json.loads(archive.read("trusted/claim-trace.json"))
     assert player_visible == document
     exact = next(
         item for item in preflight["files"]
@@ -527,3 +531,9 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
         "player_visible_content_hash": content_hash,
         "passed": True,
     }
+    claim = next(
+        item for item in claim_trace["claims"]
+        if item["resource_id"] == specification.resource_id
+    )
+    assert claim["verified_evidence"]["pin"] == "canon.amount"
+    assert claim["verified_evidence"]["value"] == "$4,000 cash"

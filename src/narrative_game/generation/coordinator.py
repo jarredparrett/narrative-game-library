@@ -520,17 +520,37 @@ class GenerationCoordinator:
             scratch_root=Path(scratch_root),
         )
         materialization.validate_for(self.plan.artifact_plan)
-        suite_ref = self.experiment.workspace.store.put_json(
-            materialization.suite_attestation
-        )
+        # Verismill attestations carry their own content-addressed graph. Keep
+        # that foreign graph as an opaque, byte-verifiable payload instead of
+        # interpreting its typed hashes as local Workspace object edges.
+        suite_ref = self.experiment.workspace.store.put_json({
+            "schema_version": "0.1",
+            "kind": "external_artifact_suite_attestation",
+            "external_payload": materialization.suite_attestation,
+        })
         members: dict[str, Any] = {}
         refs = [suite_ref]
         for artifact_id, result in sorted(materialization.results.items()):
             member = {
                 "document_ref": self.experiment.workspace.store.put_bytes(result.document),
-                "manifest_ref": self.experiment.workspace.store.put_json(result.manifest),
-                "attestation_ref": self.experiment.workspace.store.put_json(result.attestation),
-                "request_ref": self.experiment.workspace.store.put_json(result.request),
+                # ArtifactResult deliberately exposes immutable MappingProxyType
+                # views.  The Workspace boundary persists their plain mapping
+                # values; passing the proxy itself is not JSON serializable.
+                "manifest_ref": self.experiment.workspace.store.put_json({
+                    "schema_version": "0.1",
+                    "kind": "external_artifact_manifest",
+                    "external_payload": dict(result.manifest),
+                }),
+                "attestation_ref": self.experiment.workspace.store.put_json({
+                    "schema_version": "0.1",
+                    "kind": "external_artifact_attestation",
+                    "external_payload": dict(result.attestation),
+                }),
+                "request_ref": self.experiment.workspace.store.put_json({
+                    "schema_version": "0.1",
+                    "kind": "external_artifact_request",
+                    "external_payload": dict(result.request),
+                }),
             }
             refs.extend(member.values())
             members[artifact_id] = member
@@ -616,18 +636,26 @@ class GenerationCoordinator:
         self, event: Mapping[str, Any]
     ) -> ArtifactSuiteMaterialization:
         payload = event["payload"]
+
+        def external(ref: str, kind: str) -> Mapping[str, Any]:
+            envelope = self.experiment.workspace.store.read_json(ref)
+            if envelope.get("kind") != kind or "external_payload" not in envelope:
+                raise ValueError(f"artifact import envelope differs: {kind}")
+            return envelope["external_payload"]
+
         results = {}
         for artifact_id, member in payload["members"].items():
             results[artifact_id] = ArtifactResult(
                 artifact_id,
                 self.experiment.workspace.store.read_bytes(member["document_ref"]),
-                self.experiment.workspace.store.read_json(member["manifest_ref"]),
-                self.experiment.workspace.store.read_json(member["attestation_ref"]),
-                self.experiment.workspace.store.read_json(member["request_ref"]),
+                external(member["manifest_ref"], "external_artifact_manifest"),
+                external(member["attestation_ref"], "external_artifact_attestation"),
+                external(member["request_ref"], "external_artifact_request"),
             )
         materialization = ArtifactSuiteMaterialization(
-            self.experiment.workspace.store.read_json(
-                payload["suite_attestation_ref"]
+            external(
+                payload["suite_attestation_ref"],
+                "external_artifact_suite_attestation",
             ),
             results,
         )

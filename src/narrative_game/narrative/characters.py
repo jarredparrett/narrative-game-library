@@ -639,7 +639,10 @@ def render_dossier_markdown(game: Any, dossier: CharacterDossier) -> bytes:
             lines.append(f"- **{move.kind.replace('_', ' ').title()}:** {move.instruction.text}")
         for reveal_id in arc.reveal_path_ids:
             path = reveals[reveal_id]
-            lines.append(f"- **Reveal window:** {path.trigger.text} The host has a recovery path if this window is missed.")
+            secret = propositions[path.secret_proposition_id]
+            for mark in ("\u2011", "\u2013", "\u2014"):
+                secret = secret.replace(mark, "-")
+            lines.append(f"- **Reveal window - {secret}:** {path.trigger.text}")
         lines.append("")
     lines.extend(["## Your ending choices", ""])
     for choice in dossier.ending_choices:

@@ -38,6 +38,22 @@ def _copy(value: Any) -> Any:
     return json.loads(canonical_json(value))
 
 
+def artifact_request_locator_exists(
+    pins: Mapping[str, Any], canon: Mapping[str, Any], locator: str
+) -> bool:
+    """Return whether a claim locator names one frozen request value.
+
+    Unqualified locators retain the original pins-only behavior.  Explicit
+    ``pins.`` and ``canon.`` namespaces let a production claim bind to the
+    emitter's canonical world without duplicating that value as an override.
+    """
+    if locator.startswith("pins."):
+        return locator.removeprefix("pins.") in pins
+    if locator.startswith("canon."):
+        return locator.removeprefix("canon.") in canon
+    return locator in pins
+
+
 def _finding(code: str, locus: str, quote: str, message: str) -> Finding:
     return Finding(code, "blocker", locus, quote, message)
 
@@ -612,14 +628,16 @@ def validate_blueprint(blueprint: GameBlueprint) -> tuple[Finding, ...]:
             if (
                 specification is None
                 or claim.proposition_id not in specification.proposition_ids
-                or claim.pin not in specification.pins
+                or not artifact_request_locator_exists(
+                    specification.pins, specification.canon, claim.pin or ""
+                )
             ):
                 findings.append(
                     _finding(
                         "authoring.invalid-artifact-claim",
                         f"claim:{claim.resource_id}",
                         claim.pin or "",
-                        "Artifact Claim must name a planned request pin and fact reference",
+                        "Artifact Claim must name a planned request value and fact reference",
                     )
                 )
             else:

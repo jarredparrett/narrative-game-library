@@ -80,7 +80,7 @@ def refs_in(value: Any, *, key: str | None = None) -> Iterable[str]:
             yield value
     elif isinstance(value, dict):
         for child_key, item in value.items():
-            if child_key in {"input_hashes", "inputs"}:
+            if child_key in {"input_hashes", "inputs", "external_payload"}:
                 continue
             yield from refs_in(item, key=child_key)
     elif isinstance(value, (list, tuple)):

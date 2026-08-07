@@ -326,5 +326,6 @@ def test_an_unfamiliar_operator_has_complete_assembly_and_run_instructions(worke
         "verify this package offline",
     ):
         assert phrase in guide
+    assert "exact deed" not in guide
     assert worked.physical.preflight["ok"] is True
     assert worked.workspace.verify()["ok"] is True

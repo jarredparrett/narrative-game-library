@@ -28,6 +28,7 @@ from reportlab.platypus import (
 )
 
 from narrative_game.authoring import parse_game_definition
+from narrative_game.blueprint import artifact_request_locator_exists
 from narrative_game.narrative import CharacterDossier, render_dossier_markdown
 from narrative_game.compiler import GameRelease
 from narrative_game.contracts.canonical import canonical_json, digest_bytes, digest_json
@@ -465,9 +466,17 @@ def _validate_claim_trace(release: GameRelease) -> list[dict[str, Any]]:
             request = receipt.get("artifact_request", receipt)
             if proposition_id not in request.get("fact_references", []):
                 raise ValueError(f"artifact claim lacks fact reference: {proposition_id}")
-            if pin not in request.get("pins", {}):
-                raise ValueError(f"artifact claim names missing request pin: {pin}")
-            evidence = {"pin": pin, "value": request["pins"][pin], "request_hash": digest_json(request)}
+            pins = request.get("pins", {})
+            canon = request.get("canon", {})
+            if not artifact_request_locator_exists(pins, canon, pin):
+                raise ValueError(f"artifact claim names missing request value: {pin}")
+            if pin.startswith("pins."):
+                value = pins[pin.removeprefix("pins.")]
+            elif pin.startswith("canon."):
+                value = canon[pin.removeprefix("canon.")]
+            else:
+                value = pins[pin]
+            evidence = {"pin": pin, "value": value, "request_hash": digest_json(request)}
         else:
             raise ValueError(f"unsupported displayed-claim source: {claim['source']}")
         verified.append({**claim, "verified_evidence": evidence})
@@ -637,7 +646,7 @@ def _guide_markdown(release: GameRelease, plan: Mapping[str, Any]) -> bytes:
             "",
             "## Verification",
             "",
-            "A production operator can verify this package offline from its embedded Release, canonical manifests, SHA-256 hashes, page counts, and fixed toolchain versions. The unmarked exact deed remains inside `source/game-release.zip`; the printable deed is a separately hashed, visibly marked rendition.",
+            "A production operator can verify this package offline from its embedded Release, canonical manifests, SHA-256 hashes, page counts, and fixed toolchain versions. Exact source artifacts remain in `source/game-release.zip`; every printable resource has its own recorded hash.",
             "",
         ]
     )

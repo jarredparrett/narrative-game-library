@@ -65,6 +65,7 @@ def test_six_dossiers_are_complete_canonical_and_render_three_to_five_pages():
         assert resource.content_hash == digest_bytes(markdown)
         assert markdown.startswith(b"# ")
         assert markdown.index(b"Quick start") < markdown.index(b"Deep play")
+        assert b"The host has a recovery path if this window is missed." not in markdown
         assert markdown == render_dossier_markdown(game, dossier)
         pdf = render_dossier_pdf(game, dossier)
         assert pdf == render_dossier_pdf(game, dossier)
