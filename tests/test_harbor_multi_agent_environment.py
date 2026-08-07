@@ -67,13 +67,19 @@ def usage(label: str) -> PolicyCallUsage:
     return PolicyCallUsage(number, 2, 1, 0.001, "fixture/model", f"response-{label}")
 
 
-def complete_episode(*, changed_line: str = "I found the register entry."):
+def complete_episode(
+    *,
+    changed_line: str = "I found the register entry.",
+    reward_version: str = "narrative-multi-agent-reward-v2",
+    hypothesis_id: str = "inside-job",
+    proof_path_id: str = "key-and-payment",
+):
     game_release = release()
     episode = MultiAgentEpisode.reset(
         game_release,
         episode_seed=91,
         lineup=lineup(),
-        config=EpisodeConfig(max_steps=12),
+        config=EpisodeConfig(max_steps=12, reward_version=reward_version),
     )
     credentials = episode.credentials
     host = episode.active_actor_id
@@ -120,8 +126,8 @@ def complete_episode(*, changed_line: str = "I found the register entry."):
             "call-resolution",
             "submit_resolution",
             {
-                "hypothesis_id": "inside-job",
-                "proof_path_id": "key-and-payment",
+                "hypothesis_id": hypothesis_id,
+                "proof_path_id": proof_path_id,
                 "explanation": "The key and payment records independently agree.",
             },
         ),
@@ -219,15 +225,16 @@ def test_resolution_phase_exposes_choices_without_the_answer_key():
     assert all("hypothesis_id" not in item for item in options["proof_paths"])
 
 
-def test_complete_episode_replays_exactly_and_emits_full_reward_vector():
-    """harbor-rl.replay-reward: one episode replays and preserves gates plus dimensions."""
+def test_complete_episode_replays_exactly_and_emits_binary_reward_plus_diagnostics():
+    """harbor-rl.replay-reward: verified outcome and integrity produce one shared reward."""
     game_release, archive = complete_episode()
     restored = EpisodeArchive.from_bytes(archive.to_bytes())
     report = evaluate_episode(game_release, restored)
     assert restored == archive
     assert verify_episode(game_release, restored) == ()
     assert all(item.passed for item in report.hard_gates)
-    assert report.team == {
+    assert report.team == {"integrity": 1.0, "outcome": 1.0}
+    assert report.diagnostics == {
         "balanced_participation": 1.0,
         "correct_resolution": 1.0,
         "information_exchange": 1.0,
@@ -237,7 +244,31 @@ def test_complete_episode_replays_exactly_and_emits_full_reward_vector():
         "token_attribution": 1.0,
         "tool_efficiency": 0.5,
     }
+    assert report.aggregate == 1.0
+
+
+def test_incorrect_outcome_scores_zero_without_becoming_an_integrity_failure():
+    """harbor-rl.binary-reward: an intact incorrect episode has integrity one and outcome zero."""
+    game_release, archive = complete_episode(
+        hypothesis_id="outsider-entry",
+        proof_path_id="interview-and-camera",
+    )
+    report = evaluate_episode(game_release, archive)
+    assert report.team == {"integrity": 1.0, "outcome": 0.0}
+    assert report.aggregate == 0.0
+    assert next(item for item in report.hard_gates if item.code == "trace_valid").passed
+    assert not next(item for item in report.hard_gates if item.code == "outcome").passed
+
+
+def test_reward_v1_archives_keep_their_original_aggregate_semantics():
+    """harbor-rl.reward-versioning: v2 does not reinterpret persisted v1 episodes."""
+    game_release, archive = complete_episode(
+        reward_version="narrative-multi-agent-reward-v1"
+    )
+    report = evaluate_episode(game_release, archive)
+    assert report.team == report.diagnostics
     assert report.aggregate == 0.9375
+    assert any(item.code == "proof_bearing_resolution" for item in report.hard_gates)
 
 
 def test_edited_arena_trace_fails_replay_and_cannot_retain_reward():
@@ -268,6 +299,7 @@ def test_each_trainable_role_has_a_separate_token_attributed_rollout():
     assert len({item.policy_id for item in rollouts}) == 3
     assert all(item.input_token_ids and item.output_token_ids and item.mask_ids for item in rollouts)
     assert all(item.episode_id == archive.episode_id for item in rollouts)
+    assert all(item.reward == 1.0 for item in rollouts)
 
 
 def test_harbor_task_and_trial_artifacts_are_complete_and_offline_verifiable(tmp_path):
@@ -282,13 +314,17 @@ def test_harbor_task_and_trial_artifacts_are_complete_and_offline_verifiable(tmp
     assert set(artifacts) == {
         "episode", "release_attestation", "reward", "reward_details", "rollouts", "session"
     }
-    assert json.loads(Path(artifacts["reward"]).read_bytes())["reward"] > 0
+    reward = json.loads(Path(artifacts["reward"]).read_bytes())
+    assert reward["reward"] == 1.0
+    assert reward["integrity"] == 1.0
+    assert reward["outcome"] == 1.0
+    assert reward["diagnostic_tool_efficiency"] == 0.5
     assert len(list((tmp_path / "logs" / "artifacts" / "trajectories").glob("*.json"))) == 3
     verifier_root = tmp_path / "logs" / "verifier"
     assert verify_artifact_files(
         task_root / "environment" / "release.zip", artifacts["episode"], verifier_root
     ) == 0
-    assert json.loads((verifier_root / "reward.json").read_bytes())["reward"] > 0
+    assert json.loads((verifier_root / "reward.json").read_bytes())["reward"] == 1.0
 
 
 def test_policy_behavior_can_change_without_changing_release_or_reward_contract():

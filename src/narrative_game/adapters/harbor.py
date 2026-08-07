@@ -61,18 +61,12 @@ def expand_trainable_rollouts(
         if not receipts or any(item is None for item in receipts):
             raise ValueError(f"trainable trajectory lacks token attribution: {trajectory.actor_id}")
         resolved = [item for item in receipts if item is not None]
-        actor_dimensions = report.per_actor.get(trajectory.actor_id, {})
-        actor_reward = (
-            sum(actor_dimensions.values()) / len(actor_dimensions)
-            if actor_dimensions
-            else report.aggregate
-        )
         rollouts.append(
             TrainerRollout(
                 trajectory.actor_id,
                 trajectory.policy.policy_id,
                 trajectory.role,
-                round(actor_reward, 6),
+                report.aggregate,
                 tuple(token for receipt in resolved for token in receipt.input_token_ids),
                 tuple(token for receipt in resolved for token in receipt.output_token_ids),
                 tuple(token for receipt in resolved for token in receipt.mask_ids),
@@ -107,7 +101,11 @@ def write_trial_artifacts(
     }
     paths["episode"].write_bytes(archive.to_bytes())
     paths["session"].write_bytes(archive.session_history.to_bytes())
-    reward_values = {"reward": report.aggregate, **report.team}
+    reward_values = {
+        "reward": report.aggregate,
+        **report.team,
+        **{f"diagnostic_{key}": value for key, value in report.diagnostics.items()},
+    }
     paths["reward"].write_bytes(canonical_json(reward_values))
     paths["reward_details"].write_bytes(canonical_json(report.to_mapping()))
     paths["rollouts"].write_bytes(
@@ -220,7 +218,16 @@ def verify_artifact_files(
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     (output / "reward.json").write_bytes(
-        canonical_json({"reward": report.aggregate, **report.team})
+        canonical_json(
+            {
+                "reward": report.aggregate,
+                **report.team,
+                **{
+                    f"diagnostic_{key}": value
+                    for key, value in report.diagnostics.items()
+                },
+            }
+        )
     )
     (output / "reward-details.json").write_bytes(canonical_json(report.to_mapping()))
     return 0 if all(item.passed for item in report.hard_gates) else 1

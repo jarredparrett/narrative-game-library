@@ -97,7 +97,7 @@ class EpisodeConfig:
     allow_private_messages: bool = True
     scheduler_version: str = "aec-seeded-v1"
     tool_schema_version: str = "narrative-arena-tools-v1"
-    reward_version: str = "narrative-multi-agent-reward-v1"
+    reward_version: str = "narrative-multi-agent-reward-v2"
 
     def __post_init__(self) -> None:
         if self.max_steps < 1:
@@ -457,6 +457,7 @@ class RewardReport:
     aggregate: float
     hard_gates: tuple[GateResult, ...]
     team: Mapping[str, float]
+    diagnostics: Mapping[str, float]
     per_actor: Mapping[str, Mapping[str, float]]
 
     def to_mapping(self) -> dict[str, Any]:
@@ -465,6 +466,7 @@ class RewardReport:
             "reward": self.aggregate,
             "hard_gates": [item.to_mapping() for item in self.hard_gates],
             "team": dict(sorted(self.team.items())),
+            "diagnostics": dict(sorted(self.diagnostics.items())),
             "per_actor": {
                 key: dict(sorted(value.items())) for key, value in sorted(self.per_actor.items())
             },

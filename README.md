@@ -100,6 +100,12 @@ turn. `MultiAgentArenaRunner` accepts provider-specific policy adapters and
 returns a portable `EpisodeArchive`. Verify and score it with
 `verify_episode(...)` and `evaluate_episode(...)`.
 
+New episodes use `narrative-multi-agent-reward-v2`: the official reward is
+binary and shared. It is `1.0` only when both integrity and outcome pass;
+otherwise it is `0.0`. Participation, communication, turn use, intervention
+dependence, objective progress, cost, and token attribution remain persisted as
+diagnostics and never dilute a successful outcome.
+
 For Harbor, use `HarborTaskExporter` to package one exact Release as a task and
 `write_trial_artifacts(...)` to write the Episode Archive, Session history,
 per-role trajectories, trainer rollouts, release attestation, and full reward
@@ -141,9 +147,12 @@ lineups without changing the Release or reward contract.
 
 A bounded live Sybil's Cave episode with five isolated `gpt-5.6-sol` contexts
 reached an accepted, correct, proof-bearing resolution in 18 actions. The frozen
-verifier passed all six hard gates and scored the episode `0.7625`; provider
+v1 verifier passed all six hard gates and scored the historical episode
+`0.7625`; provider
 usage was 193,252 input tokens, 5,231 output tokens, and `$0.46257575`. This is
 one evaluation smoke result, not trainable standing or a 20-episode benchmark.
+The immutable v1 archive is not reinterpreted; an equivalent new v2 episode
+would receive the binary passing reward `1.0`.
 
 The complete contract, reward definitions, and Sybil's Cave falsifying matrix
 are in [Harbor as a multi-agent RL environment](docs/harbor-multi-agent-rl-environment.md).

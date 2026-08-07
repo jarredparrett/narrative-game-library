@@ -214,7 +214,12 @@ def verify_episode(release: GameRelease, archive: EpisodeArchive) -> tuple[str, 
 
 
 def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardReport:
-    """Apply hard-zero gates and preserve team and per-policy reward dimensions."""
+    """Evaluate one episode under its frozen reward contract."""
+    if archive.config.reward_version not in {
+        "narrative-multi-agent-reward-v1",
+        "narrative-multi-agent-reward-v2",
+    }:
+        raise ValueError(f"unsupported reward version: {archive.config.reward_version}")
     findings = verify_episode(release, archive)
     state = replay(release, archive.session_history) if not findings else None
     resolution = state.get("resolution") if state is not None else None
@@ -224,7 +229,16 @@ def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardRep
         and submissions
         and resolution["submission_sequence"] in {item["sequence"] for item in submissions}
     )
-    gates = (
+    correct = 1.0 if resolution and resolution.get("correct") else 0.0
+    completed = 1.0 if archive.termination_reason in {
+        "accepted_resolution", "incorrect_resolution", "host_end"
+    } else 0.0
+    outcome_passed = bool(
+        correct
+        and proof_bearing
+        and archive.termination_reason == "accepted_resolution"
+    )
+    integrity_gates = (
         GateResult("trace_valid", not findings, "; ".join(findings) or "hash chains replay"),
         GateResult(
             "authorization_integrity",
@@ -237,19 +251,33 @@ def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardRep
             "dialogue never mutates canonical evidence",
         ),
         GateResult(
-            "proof_bearing_resolution",
-            proof_bearing,
-            "terminal resolution names a recorded hypothesis and licensed proof path"
-            if proof_bearing
-            else "no proof-bearing resolution was recorded",
-        ),
-        GateResult(
             "mandatory_safety",
             archive.termination_reason != "safety_failure",
             "no safety termination" if archive.termination_reason != "safety_failure" else "safety failed",
         ),
         GateResult("environment_untampered", not findings, "deterministic verifier owns scoring"),
     )
+    integrity_passed = all(item.passed for item in integrity_gates)
+    legacy_reward = archive.config.reward_version == "narrative-multi-agent-reward-v1"
+    outcome_gate_passed = proof_bearing if legacy_reward else outcome_passed
+    outcome_gate = GateResult(
+        "proof_bearing_resolution" if legacy_reward else "outcome",
+        outcome_gate_passed,
+        (
+            (
+                "terminal resolution names a recorded hypothesis and licensed proof path"
+                if legacy_reward
+                else "terminal resolution is correct and names a recorded licensed proof path"
+            )
+            if outcome_gate_passed
+            else (
+                "no proof-bearing resolution was recorded"
+                if legacy_reward
+                else "no correct proof-bearing terminal resolution was recorded"
+            )
+        ),
+    )
+    gates = (*integrity_gates[:3], outcome_gate, *integrity_gates[3:])
     seat_trajectories = [item for item in archive.trajectories if item.role.startswith("seat:")]
     counts = {item.actor_id: len(item.steps) for item in seat_trajectories}
     active = sum(1 for value in counts.values() if value > 0)
@@ -264,12 +292,8 @@ def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardRep
     all_steps = [step for item in archive.trajectories for step in item.steps]
     attributed = sum(1 for item in all_steps if item.policy_receipt is not None)
     token_attribution = attributed / len(all_steps) if all_steps else 0.0
-    correct = 1.0 if resolution and resolution.get("correct") else 0.0
-    completed = 1.0 if archive.termination_reason in {
-        "accepted_resolution", "incorrect_resolution", "host_end"
-    } else 0.0
     efficiency = max(0.0, 1.0 - (len(all_steps) / archive.config.max_steps))
-    team = {
+    diagnostics = {
         "correct_resolution": correct,
         "proof_path_coverage": 1.0 if proof_bearing and correct else 0.0,
         "balanced_participation": participation,
@@ -295,13 +319,22 @@ def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardRep
                 sum(item is not None for item in receipts) / len(receipts) if receipts else 0.0
             ),
         }
-    aggregate = sum(team.values()) / len(team)
-    if not all(item.passed for item in gates):
-        aggregate = 0.0
+    if legacy_reward:
+        team = diagnostics
+        aggregate = sum(team.values()) / len(team)
+        if not all(item.passed for item in gates):
+            aggregate = 0.0
+    else:
+        team = {
+            "integrity": 1.0 if integrity_passed else 0.0,
+            "outcome": 1.0 if outcome_passed else 0.0,
+        }
+        aggregate = team["integrity"] * team["outcome"]
     return RewardReport(
         archive.config.reward_version,
         round(aggregate, 6),
         gates,
         team,
+        diagnostics,
         per_actor,
     )

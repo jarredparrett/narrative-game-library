@@ -13,8 +13,9 @@ Version 0.21 implements the environment contract in this note:
 - `verify_episode` replays the Session chain, validates the arena chain,
   re-derives every stored role projection at its historical Session revision,
   and verifies inspected evidence bytes against the frozen Release;
-- `evaluate_episode` emits six hard gates, a team reward vector, per-role
-  dimensions, and a hard-zero aggregate on any failed gate;
+- `evaluate_episode` emits five integrity checks plus one outcome check and a
+  shared binary reward: both categories pass for `1.0`, otherwise the reward is
+  `0.0`; richer team and per-role observations remain diagnostics;
 - `expand_trainable_rollouts` expands one Harbor trial into one rollout per
   trainable policy context;
 - `HarborTaskExporter` and `write_trial_artifacts` implement current Harbor task,
@@ -44,17 +45,21 @@ Harbor 0.20 parsed the resulting four-seat task successfully. That task remains
 in untracked user experiment state, consistent with the repository boundary.
 The exact Release also completed a deterministic five-context smoke episode in
 12 AEC actions with an accepted proof-bearing resolution, verified trace, five
-separate trajectories, and reward `0.9625` (Episode
+separate trajectories, and historical reward-v1 score `0.9625` (Episode
 `sha256:e59396b7042c1533966bc08618a4f9ead49fba683f431efc5d97b1334964fa69`).
 One bounded live evaluation was completed with five isolated
 `openai/gpt-5.6-sol` contexts and high reasoning effort. The episode terminated
 after 18 actions with the correct `crane-forgery-confinement` hypothesis and
 licensed `history-material-access` proof path. The frozen task verifier passed
-all six hard gates and scored `0.7625`; provider usage was 193,252 input tokens,
+all six reward-v1 checks and scored `0.7625`; provider usage was 193,252 input tokens,
 5,231 output tokens, and `$0.46257575`. The preceding full-observation run used
 398,389 input tokens, so stateful deltas reduced input use by about 51 percent.
 This is a smoke result, not statistical standing. The planned 20 live,
 role-rotated episodes remain a separate evaluation run.
+
+Reward v2 is now the default for new episodes. It does not reinterpret those
+immutable v1 archives. Under v2, an episode with the same verified correct
+outcome receives `1.0`; missing either outcome or integrity receives `0.0`.
 
 The concrete agent defaults to `openai/gpt-5.6-sol`, the Responses API, high
 reasoning effort, and non-trainable evaluation mode. Every model response must
@@ -222,51 +227,39 @@ An episode ends on one of:
 
 ## Reward design
 
-Do not train on culprit correctness alone. That would reward answer leakage,
-guessing, and collapsed social play. Harbor supports multiple numeric rewards
-in `reward.json`, and Reward Kit can preserve per-criterion details and create
-an aggregate training reward.
+Reward v2 measures only outcome and integrity. It is deliberately conjunctive:
 
-### Hard-zero gates
+```text
+reward = 1.0 when outcome passes and integrity passes
+reward = 0.0 otherwise
+```
 
-- invalid or unverifiable session trace;
-- hidden-information access or unauthorized tool use;
-- fabricated evidence treated as canonical evidence;
-- resolution accepted without a licensed proof path;
-- safety or mandatory rescue failure;
-- environment or verifier tampering.
+### Integrity
 
-### Shared team rewards
+- the Session and arena traces replay exactly;
+- every tool use and observation respects authorization;
+- dialogue never mutates canonical evidence;
+- mandatory safety rules pass;
+- the environment and verifier remain untampered.
 
-- correct resolution supported by independent evidence;
-- rescue or other safety-critical objective completed on time;
-- proof-path coverage and elimination of material alternatives;
-- balanced participation across seats and phases;
-- useful information exchange and belief revision;
-- low dependence on host recovery interventions;
-- pacing and completion within the episode budget;
-- efficient tool and token use.
+### Outcome
 
-### Individual rewards
+- the episode terminates through an accepted resolution;
+- the submitted hypothesis is correct;
+- the submission records a licensed proof path.
 
-- progress on the seat's public and private objectives;
-- coherent use of authorized knowledge;
-- role-specific relationships, bargains, and consequential choices;
-- truthful handling of must-not-contradict facts;
-- permitted deception that remains counterable by evidence;
-- meaningful participation after a secret or culpability is exposed.
-
-The culpable seat should be rewarded for forcing an evidence-backed accusation,
-not for blocking rescue, exploiting private state, or making the game
-unsolvable. Preserve the full reward vector even when a trainer requires one
-aggregate scalar.
+Participation, information exchange, intervention dependence, pacing, tool
+use, token attribution, and per-role objective progress remain in
+`reward-details.json` as diagnostics. They explain behavior but neither improve
+an incorrect outcome nor reduce a valid one. Token attribution separately
+controls whether a trace is eligible for training export.
 
 ## Multi-agent rollout and credit assignment
 
 One Harbor trial should produce:
 
-- a team reward vector;
-- an optional per-seat reward vector;
+- one shared binary outcome-and-integrity reward;
+- team and per-seat diagnostic vectors;
 - one ATIF-compatible trajectory per policy context;
 - token IDs, masks, and log probabilities per trainable policy;
 - the canonical session history and tool receipts;
@@ -328,7 +321,7 @@ Verismill + narrative generation (upstream, outside Harbor)
                          |
               hash-chained episode trace
                          |
-     isolated verifier -> reward vector + hard gates
+     isolated verifier -> binary reward + diagnostics
                          |
       Harbor artifacts / viewer / rollout interface
                          |
@@ -347,7 +340,7 @@ The experiment succeeds only if:
 - no seat can retrieve another seat's dossier or unreleased evidence;
 - every episode replays to the same verified terminal state from its event log;
 - each seat has a separate trajectory and token receipt;
-- the verifier emits both hard gates and the full reward vector;
+- the verifier emits outcome, integrity, the binary shared reward, and diagnostics;
 - Harbor collects and displays the session artifacts;
 - changing only a seat policy changes behavior without changing the frozen
   environment or reward definition.
