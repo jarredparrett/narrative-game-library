@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.19.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.20.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -49,6 +49,17 @@ durable progress projections. Realism-sensitive documents are supplied as an
 accepted Verismill Artifact Suite; each document keeps its own climb and is
 never hidden inside a blended game score.
 
+Version 0.20 closes the production-realism loophole exposed by the Sybil's Cave
+end-to-end run. A Plan now declares either a `development` or `production`
+release target. Development may use authored text and is always reported as
+development-only. Production fails closed unless every evidence Resource other
+than a character Dossier has a bound Artifact Specification, every exact member
+has accepted Verismill standing and embedded accessible text, complete private
+Dossiers and host-only instructions exist, and the blind panel visually inspects
+the exact print PDFs under independent design and host-usability floors. Accepted
+artifact bytes enter the player package unchanged; provenance stays on the
+container so post-measurement decoration cannot invalidate the attestation.
+
 ## Generate a game from a brief
 
 The public generation path starts from intent rather than prepared game JSON:
@@ -83,6 +94,7 @@ plan = GenerationPlan(
     budget=GenerationBudget(max_model_calls=12, max_tokens=60_000, max_rounds=3),
     stop_policy=StopPolicy(max_consecutive_invalid_outputs=2),
     artifact_plan=ArtifactPlan((), ()),
+    release_target="development",
 )
 
 coordinator = GenerationCoordinator.create(
@@ -112,7 +124,8 @@ interruption with `GenerationCoordinator.open(...)`; model
 calls, proposals, reviews, artifact suites, measurements, and selections are
 idempotent. Humans can monitor `generation-status.md` or
 `generation-status.json` without treating either projection as authoritative
-state.
+state. Read `release_qualification`, not `phase`, before describing an output:
+only `production_candidate_ready` means the production contract was satisfied.
 
 For realistic documents, bind each `ArtifactSpecification` to the Blueprint's
 referenced world facts with `bind_artifact_specification`, put those exact bound
@@ -123,6 +136,14 @@ standing; it does not forge or remeasure artifacts. Artifact display claims
 trace to canonical fact references and request pins, and any relevant world
 change invalidates the binding. Authored text remains a design source, not the
 shipped PDF.
+
+For a shareable package set `release_target="production"`. The facilitated
+investigation adapter derives the mandatory Artifact coverage from the complete
+evidence graph; an empty or partial `ArtifactPlan` is rejected before generation.
+This target also requires a complete `CharacterProgram`, a host-only guide,
+accessible artifact renditions, and a production Instrument with explicit
+`production_design_quality` and `host_and_dossier_usability` floors. The blind
+protocol must set `inspect_print_renditions=True` and use at least three judges.
 
 See [Agentic game generation](docs/generation.md) for the complete lifecycle,
 model replacement rules, artifact boundary, monitoring projection, and

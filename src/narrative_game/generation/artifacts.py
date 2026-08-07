@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import BytesIO
 import json
 from pathlib import Path
 from typing import Any, Mapping, Protocol
+
+from pypdf import PdfReader
 
 from narrative_game.contracts import ArtifactResult, canonical_json
 
@@ -69,6 +72,31 @@ class ArtifactSuiteMaterialization:
                 raise ValueError(f"artifact {artifact_id} is not verified")
             if result.attestation.get("measurement", {}).get("status") != "accepted":
                 raise ValueError(f"artifact {artifact_id} lacks accepted realism standing")
+
+    def validate_production_for(self, plan: ArtifactPlan) -> None:
+        """Require exact accepted bytes to remain independently readable."""
+        self.validate_for(plan)
+        expected = {item.artifact_id: item for item in plan.specifications}
+        for artifact_id, result in self.results.items():
+            specification = expected[artifact_id]
+            if specification.accessibility.get("required") is not True:
+                raise ValueError(
+                    f"production artifact {artifact_id} lacks an accessibility requirement"
+                )
+            if specification.media_type == "application/pdf":
+                try:
+                    reader = PdfReader(BytesIO(result.document))
+                    extracted = "\n".join(
+                        page.extract_text() or "" for page in reader.pages
+                    )
+                except Exception as exc:
+                    raise ValueError(
+                        f"production artifact {artifact_id} is not a readable PDF"
+                    ) from exc
+                if not extracted.strip():
+                    raise ValueError(
+                        f"production artifact {artifact_id} lacks embedded text or OCR"
+                    )
 
 
 class ArtifactSuiteImporter(Protocol):

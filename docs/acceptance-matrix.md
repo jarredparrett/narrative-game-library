@@ -330,3 +330,14 @@ public-release standing claim.
 | `generation.artifact-truth` | Blueprint + artifact plan | `test_artifact_truth_binding_invalidates_every_canonical_world_drift` | exact pins/canon are content-bound to referenced Proposition meanings, truth assignments, and Events; either-side drift invalidates the plan | implemented |
 | `generation.coordinator` | `GenerationCoordinator` | `test_brief_to_passing_candidate_is_resumable_and_fully_receipted` | brief → creator → independent review → failed blind round → answer-safe revision → fresh passing round → selected child; replay invokes no model twice | implemented |
 | `generation.artifacts` | Verismill suite importer + compiler | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | import-only public suite verification, world binding, member qualification, request/manifest agreement, PDF replacement, and preserved attestations | implemented |
+
+## Version 0.20 - production artifact closure
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `generation.production-artifacts` | facilitated-investigation adapter | `test_production_target_requires_complete_evidence_artifact_coverage` | production derives the full non-Dossier evidence set and rejects empty or partial Artifact Plans | implemented |
+| `generation.release-target` | `GenerationPlan` + status projection | `test_release_target_is_frozen_without_changing_legacy_plan_identity` | production intent is content-addressed while legacy development Plan identities remain stable | implemented |
+| `generation.production-measurement` | facilitated-investigation adapter + blind panel | `test_production_instrument_requires_visual_and_host_quality_floors` | production requires independent design/usability floors, three judges, and visual inspection of exact print PDFs | implemented |
+| `generation.production-visual-inspection` | blind panel | `test_visual_panel_requires_a_verified_receipt_for_every_print_pdf` | every judge returns exact paths, verified page counts, and visual observations for the complete print set; text-only scoring is rejected | implemented |
+| `generation.exact-artifact-bytes` | Physical Export + Verismill suite importer | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | accepted PDFs keep native geometry and enter the player package byte-identically; preflight proves the content hash | implemented |
+| `generation.production-accessibility` | Verismill suite importer | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | every production artifact requires an accessible specification and embedded extractable/OCR text | implemented |

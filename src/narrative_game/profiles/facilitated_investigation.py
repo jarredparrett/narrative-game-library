@@ -16,7 +16,11 @@ from narrative_game.climb import FrozenInstrument, Requirement, prepare_blind_tr
 from narrative_game.compiler import compile_candidate, freeze_candidate, reference_component_lock
 from narrative_game.contracts import canonical_json
 from narrative_game.experiment import CompletePackage, ProposedRevision
-from narrative_game.generation import CreativeBrief, GENERATION_SCHEMA_VERSION
+from narrative_game.generation import (
+    ArtifactPlan,
+    CreativeBrief,
+    GENERATION_SCHEMA_VERSION,
+)
 from narrative_game.generation.artifacts import ArtifactSuiteMaterialization
 from narrative_game.physical import export_physical
 
@@ -30,6 +34,10 @@ class FacilitatedInvestigationAuthoringAdapter:
     supported_hard_gates = frozenset(
         {"authoring.valid", "compiler.valid", "physical.valid", "blind.valid"}
     )
+    production_dimension_floors = {
+        "production_design_quality": 75,
+        "host_and_dossier_usability": 75,
+    }
 
     def __init__(
         self, artifact_suite: ArtifactSuiteMaterialization | None = None
@@ -41,6 +49,126 @@ class FacilitatedInvestigationAuthoringAdapter:
     ) -> "FacilitatedInvestigationAuthoringAdapter":
         """Return a build adapter bound to one exact accepted suite snapshot."""
         return type(self)(materialization)
+
+    @staticmethod
+    def required_artifact_resource_ids(
+        blueprint: GameBlueprint,
+    ) -> tuple[str, ...]:
+        """Return evidence Resources whose player-visible form needs realism.
+
+        Character dossiers are authored production interfaces rather than
+        diegetic records. Every other Resource used as Evidence is a purported
+        record, report, message, form, log, or reference handout and must cross
+        the independently measured Artifact Forge boundary for production.
+        """
+        game = blueprint.materialize_game()
+        dossier_resources = (
+            {
+                item.resource_id
+                for item in game.character_program.dossiers
+            }
+            if game.character_program is not None
+            else set()
+        )
+        return tuple(
+            sorted(
+                {item.resource_id for item in game.evidence}
+                - dossier_resources
+            )
+        )
+
+    def validate_release_target(
+        self,
+        blueprint: GameBlueprint,
+        artifact_plan: ArtifactPlan,
+        *,
+        release_target: str,
+    ) -> None:
+        """Fail closed when a production Plan leaves evidence unmeasured."""
+        if tuple(blueprint.artifact_specifications) != tuple(
+            artifact_plan.specifications
+        ):
+            raise ValueError(
+                "Blueprint Artifact Specifications differ from the frozen Plan"
+            )
+        if release_target == "development":
+            return
+        if release_target != "production":
+            raise ValueError(f"unsupported release target: {release_target}")
+        required = set(self.required_artifact_resource_ids(blueprint))
+        planned = {item.resource_id for item in artifact_plan.specifications}
+        missing = sorted(required - planned)
+        if missing:
+            raise ValueError(
+                "production Artifact Plan omits realism-sensitive evidence "
+                f"Resources: {', '.join(missing)}"
+            )
+        game = blueprint.materialize_game()
+        if game.character_program is None:
+            raise ValueError(
+                "production facilitated investigations require a complete "
+                "Character Program and private Dossier contract"
+            )
+        host_only_resources = {
+            str(policy.resource).removeprefix("resource:")
+            for policy in game.kernel.access_policies
+            if {str(item) for item in policy.grantees} == {"viewer:host"}
+        }
+        if not host_only_resources:
+            raise ValueError(
+                "production facilitated investigations require a host-only guide Resource"
+            )
+        inaccessible = sorted(
+            item.resource_id
+            for item in artifact_plan.specifications
+            if item.resource_id in required
+            and item.accessibility.get("required") is not True
+        )
+        if inaccessible:
+            raise ValueError(
+                "production evidence Artifact Specifications require accessible "
+                f"renditions: {', '.join(inaccessible)}"
+            )
+
+    def validate_release_instrument(
+        self, instrument: FrozenInstrument, *, release_target: str
+    ) -> None:
+        """Require production measurement to inspect designed player output."""
+        if release_target == "development":
+            return
+        if release_target != "production":
+            raise ValueError(f"unsupported release target: {release_target}")
+        dimensions = {item.dimension_id for item in instrument.dimensions}
+        missing = sorted(set(self.production_dimension_floors) - dimensions)
+        if missing:
+            raise ValueError(
+                "production Instrument omits required dimensions: "
+                f"{', '.join(missing)}"
+            )
+        rules = {
+            str(item.get("metric")): item
+            for item in instrument.acceptance_rules
+        }
+        weak = [
+            dimension
+            for dimension, floor in self.production_dimension_floors.items()
+            if dimension not in rules
+            or rules[dimension].get("operator") != ">="
+            or not isinstance(rules[dimension].get("value"), (int, float))
+            or rules[dimension]["value"] < floor
+        ]
+        if weak:
+            raise ValueError(
+                "production Instrument lacks frozen per-dimension floors: "
+                f"{', '.join(sorted(weak))}"
+            )
+        protocol = instrument.blind_protocol
+        if protocol.get("inspect_print_renditions") is not True:
+            raise ValueError(
+                "production blind protocol must inspect exact trial/print renditions"
+            )
+        if protocol.get("panel_size", 0) < 3:
+            raise ValueError("production blind protocol requires at least three judges")
 
     def build(
         self,

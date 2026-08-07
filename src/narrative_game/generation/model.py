@@ -486,6 +486,7 @@ class GenerationPlan:
     budget: GenerationBudget
     stop_policy: StopPolicy
     artifact_plan: ArtifactPlan
+    release_target: str = "development"
     schema_version: str = GENERATION_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -517,9 +518,13 @@ class GenerationPlan:
             )
         if roles.count("judge") < 1:
             raise ValueError("Generation Plan requires at least one judge")
+        if self.release_target not in {"development", "production"}:
+            raise ValueError(
+                "Generation Plan release target must be development or production"
+            )
 
     def material(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": self.schema_version,
             "experiment_id": self.experiment_id,
             "profile_id": self.profile_id,
@@ -530,6 +535,11 @@ class GenerationPlan:
             "stop_policy": self.stop_policy.to_mapping(),
             "artifact_plan": self.artifact_plan.to_mapping(),
         }
+        # Preserve the content identity of schema-0.1 development Plans while
+        # making production intent an explicit, frozen experimental factor.
+        if self.release_target != "development":
+            result["release_target"] = self.release_target
+        return result
 
     @property
     def plan_id(self) -> str:
@@ -555,6 +565,7 @@ class GenerationPlan:
                 "stop_policy",
                 "artifact_plan",
             },
+            optional={"release_target"},
         )
         _require_schema(value)
         if not isinstance(value["role_assignments"], list):
@@ -571,6 +582,7 @@ class GenerationPlan:
             GenerationBudget.from_mapping(value["budget"]),
             StopPolicy.from_mapping(value["stop_policy"]),
             ArtifactPlan.from_mapping(value["artifact_plan"]),
+            str(value.get("release_target", "development")),
             str(value["schema_version"]),
         )
         if value["plan_id"] != result.plan_id:

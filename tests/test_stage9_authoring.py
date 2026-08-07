@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from io import BytesIO
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 
 import pytest
+from pypdf import PdfReader
 
 from narrative_game.blueprint import (
     AuthoringOperation,
@@ -229,6 +232,82 @@ class PassingJudgeDriver:
         return DriverOutput(
             "fixture", "stage9-fresh-judge-v1", "live-model", canonical_json(parsed), parsed
         )
+
+
+class VisualJudgeDriver:
+    def __init__(self, *, include_inspection: bool) -> None:
+        self.include_inspection = include_inspection
+
+    def invoke(self, invocation):
+        parsed = {"scores": {"world_coherence": 80}, "findings": []}
+        if self.include_inspection:
+            with zipfile.ZipFile(BytesIO(invocation.attachments[0].data)) as archive:
+                parsed["print_inspection"] = [
+                    {
+                        "resource_path": path,
+                        "page_count": len(PdfReader(BytesIO(archive.read(path))).pages),
+                        "visual_observation": (
+                            "The rendered page uses a legible hierarchy and stable margins."
+                        ),
+                    }
+                    for path in sorted(
+                        name
+                        for name in archive.namelist()
+                        if name.startswith("trial/print/") and name.endswith(".pdf")
+                    )
+                ]
+        return DriverOutput(
+            "fixture", "stage9-visual-judge-v1", "live-model",
+            canonical_json(parsed), parsed,
+        )
+
+
+def test_visual_panel_requires_a_verified_receipt_for_every_print_pdf(tmp_path):
+    """generation.production-visual-inspection: a production panel cannot
+    submit text-only scores without accounting for every exact print PDF."""
+    production_instrument = replace(
+        instrument(),
+        blind_protocol={
+            **instrument().blind_protocol,
+            "inspect_print_renditions": True,
+        },
+    )
+    adapter = FacilitatedInvestigationAuthoringAdapter()
+    experiment = Experiment.create(
+        tmp_path / "experiment",
+        experiment_id="visual-inspection-contract",
+        profile_id=adapter.profile_id,
+        profile_version=adapter.profile_version,
+        instrument=production_instrument,
+        initial_data=worked_blueprint().to_mapping(),
+        component_lock=adapter.component_lock,
+        reviewer=Authority("maker", "human", "reviewer", "game-maker"),
+    )
+    _, binding = experiment.build_and_bind(
+        adapter, scratch_root=tmp_path / "build", idempotency_key="bind"
+    )
+    with pytest.raises(ValueError, match="panel contract"):
+        experiment.measure_model_panel(
+            binding_id=binding.binding_id,
+            task_key="text-only-panel",
+            members=(
+                ModelPanelMember(
+                    "text-only-judge", "text-only-principal", "judge-v1",
+                    "world-coherence", VisualJudgeDriver(include_inspection=False),
+                ),
+            ),
+        )
+    measured = experiment.measure_model_panel(
+        binding_id=binding.binding_id,
+        task_key="visual-panel",
+        members=(
+            ModelPanelMember(
+                "visual-judge", "visual-principal", "judge-v1",
+                "world-coherence", VisualJudgeDriver(include_inspection=True),
+            ),
+        ),
+    )
+    assert measured.evaluation.outcome == "pass"
 
 
 def translate(evaluation, findings):

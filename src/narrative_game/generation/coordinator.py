@@ -234,6 +234,18 @@ class GenerationCoordinator:
         research: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any]:
         """Generate, independently review, and canonically apply the first Blueprint."""
+        if (
+            self.plan.release_target == "production"
+            and not hasattr(adapter, "validate_release_instrument")
+        ):
+            raise TypeError(
+                "Game Profile Adapter cannot validate the production Instrument"
+            )
+        if hasattr(adapter, "validate_release_instrument"):
+            adapter.validate_release_instrument(
+                self.experiment.instrument,
+                release_target=self.plan.release_target,
+            )
         self.experiment.require_profile(adapter)
         current = self.experiment.current_draft_data
         if current.get("kind") != "generation_brief":
@@ -337,6 +349,19 @@ class GenerationCoordinator:
             ):
                 raise ValueError(
                     "initial Blueprint Artifact Specifications differ from the frozen Plan"
+                )
+            if (
+                self.plan.release_target == "production"
+                and not hasattr(adapter, "validate_release_target")
+            ):
+                raise TypeError(
+                    "Game Profile Adapter cannot validate production artifact coverage"
+                )
+            if hasattr(adapter, "validate_release_target"):
+                adapter.validate_release_target(
+                    blueprint,
+                    self.plan.artifact_plan,
+                    release_target=self.plan.release_target,
                 )
         except (TypeError, ValueError, KeyError) as exc:
             self._event(
@@ -617,6 +642,34 @@ class GenerationCoordinator:
         materializer: ArtifactSuiteMaterializer | None = None,
     ) -> tuple[Any, Any]:
         """Compile and bind the current Draft, requiring its accepted artifacts."""
+        from narrative_game.blueprint import GameBlueprint
+
+        blueprint = GameBlueprint.from_mapping(self.experiment.current_draft_data)
+        if (
+            self.plan.release_target == "production"
+            and not hasattr(adapter, "validate_release_instrument")
+        ):
+            raise TypeError(
+                "Game Profile Adapter cannot validate the production Instrument"
+            )
+        if hasattr(adapter, "validate_release_instrument"):
+            adapter.validate_release_instrument(
+                self.experiment.instrument,
+                release_target=self.plan.release_target,
+            )
+        if (
+            self.plan.release_target == "production"
+            and not hasattr(adapter, "validate_release_target")
+        ):
+            raise TypeError(
+                "Game Profile Adapter cannot validate production artifact coverage"
+            )
+        if hasattr(adapter, "validate_release_target"):
+            adapter.validate_release_target(
+                blueprint,
+                self.plan.artifact_plan,
+                release_target=self.plan.release_target,
+            )
         if self.plan.artifact_plan.specifications:
             event = self._artifact_event(self.experiment.current_draft_ref)
             if event is None:
@@ -627,6 +680,8 @@ class GenerationCoordinator:
                 )
             else:
                 materialization = self._load_artifact_materialization(event)
+            if self.plan.release_target == "production":
+                materialization.validate_production_for(self.plan.artifact_plan)
             if not hasattr(adapter, "with_artifact_suite"):
                 raise TypeError("Game Profile Adapter cannot bind Artifact Suite results")
             adapter = adapter.with_artifact_suite(materialization)
