@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "narrative-game-arena"
+version = "0.1.0"
+description = "Prime-hosted multi-agent episodes over frozen narrative-game Releases."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "narrative-game-library[prime] @ git+https://github.com/jarredparrett/narrative-game-library.git@cb6c5bbc5fe2f1f3ec8af8f52490b5bfe46eadfe",
+]
+
+[tool.hatch.build]
+include = [
+  "narrative_game_arena.py",
+  "micro-release.b64",
+  "pyproject.toml",
+  "README.md",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.verifiers.eval]
+num_tasks = 1
+num_rollouts = 1
+max_concurrent = 1

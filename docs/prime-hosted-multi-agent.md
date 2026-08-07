@@ -74,6 +74,33 @@ to bound episodes in flight. Their product is the maximum concurrent agent-run
 pressure. Start with both values at `1`; increase only after observing latency,
 rate limits, and spend.
 
+## Publish the self-contained smoke environment
+
+The repository includes `environments/narrative_game_arena`, a standalone Hub
+package with the exact frozen Micro Game Release embedded as an asset. It proves
+hosted packaging and execution without depending on a path from the machine
+that submits the run.
+
+```bash
+prime env push \
+  --path environments/narrative_game_arena \
+  --visibility PRIVATE \
+  --plain
+```
+
+After its managed Environment Action passes, launch it with:
+
+```bash
+prime eval run OWNER/narrative-game-arena \
+  --hosted --follow \
+  -m deepseek/deepseek-v4-flash \
+  -n 1 -r 1
+```
+
+Prime requires the publishing account to choose a permanent public username
+before its first Hub upload. That identity decision is account state, not an
+environment setting, and should be made by the account owner.
+
 ## Train one role family at a time
 
 Prime currently trains a single shared policy across the trainable traces in an
@@ -97,4 +124,3 @@ produce the same canonical Episode identity and bytes. Prime trace UUIDs,
 wall-clock timings, and provider request IDs are operational metadata and are
 not canonical identity. A model rerun may choose different actions; that is a
 new episode sample, not nondeterminism in the environment.
-
