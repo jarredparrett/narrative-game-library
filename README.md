@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.20.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.21.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -59,6 +59,94 @@ Dossiers and host-only instructions exist, and the blind panel visually inspects
 the exact print PDFs under independent design and host-usability floors. Accepted
 artifact bytes enter the player package unchanged; provenance stays on the
 container so post-measurement decoration cannot invalidate the attestation.
+
+Version 0.21 adds a deterministic multi-agent episode boundary for evaluation
+and reinforcement learning. A frozen Game Release can now be reset with a
+role-isolated model lineup, played through a seeded agent-environment-cycle
+scheduler, replayed from hash-chained Session and arena Events, verified under
+hard-zero authorization and proof gates, expanded into one token-attributed
+trajectory per trainable role, and exported as a Harbor task. Harbor is an
+optional downstream harness; it never invokes game generation or Verismill.
+
+## Multi-agent RL episodes with Harbor
+
+The environment lives in `narrative_game.simulation` and runs without Harbor:
+
+```python
+from narrative_game.simulation import (
+    EpisodeConfig, MultiAgentEpisode, PolicyLineup, SeatAssignment,
+)
+
+lineup = PolicyLineup(
+    seats=(
+        SeatAssignment("historian", historian_policy),
+        SeatAssignment("reporter", reporter_policy),
+        SeatAssignment("conservator", conservator_policy),
+        SeatAssignment("appraiser", appraiser_policy),
+    ),
+    host=deterministic_host_policy,
+)
+episode = MultiAgentEpisode.reset(
+    frozen_release,
+    episode_seed=4100,
+    lineup=lineup,
+    config=EpisodeConfig(max_steps=80),
+)
+```
+
+Only the arena runner holds the returned role credentials. Each policy receives
+its own `observe()` projection and may call only the tools legal for its current
+turn. `MultiAgentArenaRunner` accepts provider-specific policy adapters and
+returns a portable `EpisodeArchive`. Verify and score it with
+`verify_episode(...)` and `evaluate_episode(...)`.
+
+For Harbor, use `HarborTaskExporter` to package one exact Release as a task and
+`write_trial_artifacts(...)` to write the Episode Archive, Session history,
+per-role trajectories, trainer rollouts, release attestation, and full reward
+details under `/logs/artifacts/`. On Python 3.12+, install `.[harbor]` only when
+running the concrete `HarborMultiAgentArenaAgent`. The agent uses Harbor's
+LiteLLM boundary and creates one stateful model session per exact role; the
+shared library retains game authority, scheduling, replay, and reward semantics.
+Responses API sessions chain by provider response ID, and later turns send only
+new dialogue, newly visible evidence, current phase state, and the role's newest
+tool result. Seat observations name requestable resource IDs without exposing
+their contents; the resolution phase names candidate hypothesis and proof-path
+IDs without exposing the answer key.
+It also writes Harbor's
+native `agent/trajectory.json`: the root ATIF-v1.7 trace preserves global AEC
+order, while embedded subagent trajectories preserve exact per-role policy and
+credit-assignment boundaries for the Viewer and downstream trace tooling.
+
+Run a real model episode after exporting a task and configuring the provider's
+normal credentials (for OpenAI, `OPENAI_API_KEY`):
+
+```bash
+uv run --extra harbor harbor run \
+  --path /path/to/exported-task \
+  --agent narrative_game.adapters.harbor_agent:HarborMultiAgentArenaAgent \
+  --model openai/gpt-5.6-sol \
+  --agent-kwarg episode_seed=4100 \
+  --agent-kwarg reasoning_effort=high \
+  --agent-kwarg use_responses_api=true \
+  --agent-kwarg trainable=false \
+  --job-name sybils-cave-live
+```
+
+`trainable=false` still records real prompt/output/cache token counts, cost, safe
+decision rationales, actions, and ATIF traces. Set it to `true` only for a
+provider that returns exact prompt and completion token IDs; the agent fails
+closed if a nominally trainable policy lacks those receipts. Use
+`role_models_json` or `host_model_name` agent kwargs to run heterogeneous model
+lineups without changing the Release or reward contract.
+
+A bounded live Sybil's Cave episode with five isolated `gpt-5.6-sol` contexts
+reached an accepted, correct, proof-bearing resolution in 18 actions. The frozen
+verifier passed all six hard gates and scored the episode `0.7625`; provider
+usage was 193,252 input tokens, 5,231 output tokens, and `$0.46257575`. This is
+one evaluation smoke result, not trainable standing or a 20-episode benchmark.
+
+The complete contract, reward definitions, and Sybil's Cave falsifying matrix
+are in [Harbor as a multi-agent RL environment](docs/harbor-multi-agent-rl-environment.md).
 
 ## Generate a game from a brief
 
