@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.21.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.22.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -67,6 +67,13 @@ scheduler, replayed from hash-chained Session and arena Events, verified under
 hard-zero authorization and proof gates, expanded into one token-attributed
 trajectory per trainable role, and exported as a Harbor task. Harbor is an
 optional downstream harness; it never invokes game generation or Verismill.
+
+Version 0.22 adds a native Prime Verifiers v1 plugin. Prime owns model/runtime
+placement and one trace per interaction; the library still owns authorization,
+the deterministic AEC scheduler, the hash-chained Episode Archive, replay, and
+binary outcome-and-integrity reward. One host interaction and one separately
+opened interaction per player Seat provide variable-cast role isolation even
+when all Seats share one trainable player policy.
 
 ## Multi-agent RL episodes with Harbor
 
@@ -156,6 +163,31 @@ would receive the binary passing reward `1.0`.
 
 The complete contract, reward definitions, and Sybil's Cave falsifying matrix
 are in [Harbor as a multi-agent RL environment](docs/harbor-multi-agent-rl-environment.md).
+
+## Multi-agent RL episodes on Prime
+
+Install the optional adapter and point the taskset at any frozen Game Release:
+
+```bash
+uv sync --extra prime
+uv run eval narrative_game_prime \
+  -m deepseek/deepseek-v4-flash -n 1 -r 1 -c 1 \
+  --env.taskset.release-paths /absolute/path/game-release.zip \
+  --env.taskset.episode-seeds 4100 \
+  --env.host.runtime.type prime \
+  --env.player.runtime.type prime \
+  --env.host.model deepseek/deepseek-v4-flash \
+  --env.player.model deepseek/deepseek-v4-flash \
+  --sampling.max-tokens 1600 \
+  --sampling.temperature 0
+```
+
+Prime may run different models for host and player without changing the Release
+or verifier. Set `--env.train-host true` and/or `--env.train-players true` to
+declare which shared policy receives the team reward. Every Seat still receives
+its own interaction and private transcript. See
+[Prime hosted multi-agent execution](docs/prime-hosted-multi-agent.md) for the
+execution boundary, outputs, local-debug command, and training sequence.
 
 ## Generate a game from a brief
 

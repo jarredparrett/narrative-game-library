@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.21.0"
+version = "0.22.0"
 description = "Deterministic narrative game building with agentic, inspectable hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -22,9 +22,15 @@ forge = [
 harbor = [
   "harbor>=0.20; python_version >= '3.12'",
 ]
+prime = [
+  "verifiers==0.3.0",
+]
 
 [dependency-groups]
-dev = ["pytest>=8,<9"]
+dev = [
+  "pytest>=8,<9",
+  "verifiers==0.3.0",
+]
 
 [project.scripts]
 narrative-game-stage0 = "narrative_game.stage0_fixture:main"

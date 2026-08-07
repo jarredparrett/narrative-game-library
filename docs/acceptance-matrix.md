@@ -360,3 +360,9 @@ public-release standing claim.
 | `harbor-rl.agent-run` | concrete Harbor arena agent | `test_concrete_harbor_agent_runs_a_complete_isolated_trial_offline` | async isolated policies drive a frozen Release to verified termination and emit artifacts, usage, and native ATIF | implemented |
 | `harbor-rl.policy-variable` | arena boundary | `test_policy_behavior_can_change_without_changing_release_or_reward_contract` | changed policy behavior changes trace while Release and reward locks remain exact | implemented |
 | `harbor-rl.falsifying-matrix` | `simulation.experiment` | `test_twenty_episode_plan_rotates_four_roles_across_two_model_families` | deterministic 20-episode matrix covers every Seat with both model families; accepted Sybil v5 Release exports as a Harbor 0.20-valid task; one live five-context Sol reward-v1 episode passed every check at historical score `0.7625` | implemented; full reward-v2 evaluation pending |
+
+## Version 0.22 - Prime hosted multi-agent execution
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `prime-rl.multi-agent` | `narrative_game_prime.NarrativeGameEnv` | `test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outcome` | one persistent host interaction and one isolated interaction per Seat produce a replay-verified canonical archive; Prime records the shared binary outcome-and-integrity reward on every trace | implemented |

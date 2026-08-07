@@ -13,3 +13,4 @@ artifacts/
 .agents/
 skills-lock.json
 tmp/
+.prime-test/

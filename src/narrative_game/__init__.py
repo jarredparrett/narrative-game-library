@@ -155,4 +155,4 @@ __all__ = [
     "write_generation_status",
 ]
 
-__version__ = "0.21.0"
+__version__ = "0.22.0"
