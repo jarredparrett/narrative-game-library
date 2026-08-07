@@ -366,3 +366,4 @@ public-release standing claim.
 | Requirement | Owner | Capability test | Evidence | Status |
 |---|---|---|---|---|
 | `prime-rl.multi-agent` | `narrative_game_prime.NarrativeGameEnv` | `test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outcome` | one persistent host interaction and one isolated interaction per Seat produce a replay-verified canonical archive; Prime records the shared binary outcome-and-integrity reward on every trace | implemented |
+| `prime-rl.hub-package` | `environments/narrative_game_arena` | `test_prime_hub_package_materializes_its_frozen_release_without_local_paths` | the publishable Prime Hub package contains an exact frozen Release and materializes its task without a caller-local path | implemented |
