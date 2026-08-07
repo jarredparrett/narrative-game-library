@@ -330,3 +330,39 @@ public-release standing claim.
 | `generation.artifact-truth` | Blueprint + artifact plan | `test_artifact_truth_binding_invalidates_every_canonical_world_drift` | exact pins/canon are content-bound to referenced Proposition meanings, truth assignments, and Events; either-side drift invalidates the plan | implemented |
 | `generation.coordinator` | `GenerationCoordinator` | `test_brief_to_passing_candidate_is_resumable_and_fully_receipted` | brief → creator → independent review → failed blind round → answer-safe revision → fresh passing round → selected child; replay invokes no model twice | implemented |
 | `generation.artifacts` | Verismill suite importer + compiler | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | import-only public suite verification, world binding, member qualification, request/manifest agreement, PDF replacement, and preserved attestations | implemented |
+
+## Version 0.20 - production artifact closure
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `generation.production-artifacts` | facilitated-investigation adapter | `test_production_target_requires_complete_evidence_artifact_coverage` | production derives the full non-Dossier evidence set and rejects empty or partial Artifact Plans | implemented |
+| `generation.release-target` | `GenerationPlan` + status projection | `test_release_target_is_frozen_without_changing_legacy_plan_identity` | production intent is content-addressed while legacy development Plan identities remain stable | implemented |
+| `generation.production-measurement` | facilitated-investigation adapter + blind panel | `test_production_instrument_requires_visual_and_host_quality_floors` | production requires independent design/usability floors, three judges, and visual inspection of exact print PDFs | implemented |
+| `generation.production-visual-inspection` | blind panel | `test_visual_panel_requires_a_verified_receipt_for_every_print_pdf` | every judge returns exact paths, verified page counts, and visual observations for the complete print set; text-only scoring is rejected | implemented |
+| `generation.exact-artifact-bytes` | Physical Export + Verismill suite importer | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | accepted PDFs keep native geometry and enter the player package byte-identically; preflight proves the content hash | implemented |
+| `generation.production-accessibility` | Verismill suite importer | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | every production artifact requires an accessible specification and embedded extractable/OCR text | implemented |
+
+## Version 0.21 - Harbor multi-agent RL environment
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `harbor-rl.reset-isolation` | `simulation.MultiAgentEpisode` | `test_reset_binds_isolated_roles_and_seeded_schedule_without_truth_leakage` | exact role credentials, deterministic order, and distinct authorized projections | implemented |
+| `harbor-rl.hard-authorization` | simulation + Session Authority | `test_unauthorized_evidence_attempt_terminates_and_hard_zeros_reward` | cross-seat evidence read is rejected, terminates, and scores zero | implemented |
+| `harbor-rl.resolution-menu` | simulation role projection | `test_resolution_phase_exposes_choices_without_the_answer_key` | exact hypothesis and proof-path submission IDs become visible only at resolution; correctness markers and path-to-answer bindings remain hidden | implemented |
+| `harbor-rl.replay-reward` | `simulation.verification` | `test_complete_episode_replays_exactly_and_emits_binary_reward_plus_diagnostics`; `test_edited_arena_trace_fails_replay_and_cannot_retain_reward` | outcome and integrity jointly produce one shared binary reward; explanatory diagnostics survive archive round-trip; edited trace hard-zeros | implemented |
+| `harbor-rl.binary-reward` | `simulation.verification` | `test_incorrect_outcome_scores_zero_without_becoming_an_integrity_failure` | an intact but incorrect episode records integrity `1`, outcome `0`, and reward `0` | implemented |
+| `harbor-rl.reward-versioning` | `simulation.verification` | `test_reward_v1_archives_keep_their_original_aggregate_semantics` | reward v2 becomes the default without reinterpreting immutable v1 episodes | implemented |
+| `harbor-rl.credit-assignment` | Harbor rollout adapter | `test_each_trainable_role_has_a_separate_token_attributed_rollout` | one trial expands to one token/mask/logprob-bearing rollout per trainable role | implemented |
+| `harbor-rl.packaging` | Harbor task adapter | `test_harbor_task_and_trial_artifacts_are_complete_and_offline_verifiable` | frozen Release task plus standard reward, trajectory, attestation, and Session artifacts | implemented |
+| `harbor-rl.atif` | Harbor agent adapter | `test_harbor_agent_writes_native_atif_with_global_and_role_local_traces` | native ATIF root preserves global order and embeds one independently valid trace per role | implemented |
+| `harbor-rl.concrete-agent` | Harbor agent adapter | `test_concrete_harbor_agent_builds_deterministic_isolated_role_lineup` | Harbor instantiates the arena directly with deterministic, distinct role contexts and heterogeneous model overrides | implemented |
+| `harbor-rl.provider-policy` | Harbor LiteLLM adapter | `test_harbor_model_policy_records_safe_rationale_usage_and_exact_tokens` | one real provider boundary emits a structured action, safe rationale, usage, and exact token receipt without persisting private reasoning | implemented |
+| `harbor-rl.agent-run` | concrete Harbor arena agent | `test_concrete_harbor_agent_runs_a_complete_isolated_trial_offline` | async isolated policies drive a frozen Release to verified termination and emit artifacts, usage, and native ATIF | implemented |
+| `harbor-rl.policy-variable` | arena boundary | `test_policy_behavior_can_change_without_changing_release_or_reward_contract` | changed policy behavior changes trace while Release and reward locks remain exact | implemented |
+| `harbor-rl.falsifying-matrix` | `simulation.experiment` | `test_twenty_episode_plan_rotates_four_roles_across_two_model_families` | deterministic 20-episode matrix covers every Seat with both model families; accepted Sybil v5 Release exports as a Harbor 0.20-valid task; one live five-context Sol reward-v1 episode passed every check at historical score `0.7625` | implemented; full reward-v2 evaluation pending |
+
+## Version 0.22 - Prime hosted multi-agent execution
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `prime-rl.multi-agent` | `narrative_game_prime.NarrativeGameEnv` | `test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outcome` | one persistent host interaction and one isolated interaction per Seat produce a replay-verified canonical archive; Prime records the shared binary outcome-and-integrity reward on every trace | implemented |

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import BytesIO
 import json
 from pathlib import Path
 from statistics import median
 from typing import Any, Mapping, Protocol
+
+from pypdf import PdfReader
 
 from narrative_game.climb import (
     AgentReview,
@@ -553,6 +556,54 @@ class Experiment:
             )
         return dict(scores), tuple(parsed_findings)
 
+    @staticmethod
+    def _validate_print_inspection(
+        trial: BlindTrial, inspection: Any
+    ) -> None:
+        """Require one verified visual-inspection receipt per print PDF."""
+        if not isinstance(inspection, (list, tuple)):
+            raise ValueError("judge print inspection must be a list")
+        expected = {
+            item.path: len(PdfReader(BytesIO(item.data)).pages)
+            for item in trial.files
+            if item.path.startswith("trial/print/")
+            and item.media_type == "application/pdf"
+        }
+        observed: dict[str, int] = {}
+        for index, item in enumerate(inspection):
+            if not isinstance(item, Mapping) or set(item) != {
+                "resource_path",
+                "page_count",
+                "visual_observation",
+            }:
+                raise ValueError(
+                    f"judge print inspection {index} does not match the contract"
+                )
+            path = item["resource_path"]
+            page_count = item["page_count"]
+            observation = item["visual_observation"]
+            if path not in expected or path in observed:
+                raise ValueError(
+                    f"judge print inspection names an unexpected or duplicate path: {path}"
+                )
+            if isinstance(page_count, bool) or not isinstance(page_count, int):
+                raise ValueError("judge print inspection page count must be an integer")
+            if page_count != expected[path]:
+                raise ValueError(
+                    f"judge print inspection page count differs for {path}"
+                )
+            if not isinstance(observation, str) or not observation.strip():
+                raise ValueError(
+                    f"judge print inspection requires a visual observation for {path}"
+                )
+            observed[path] = page_count
+        if set(observed) != set(expected):
+            missing = sorted(set(expected) - set(observed))
+            raise ValueError(
+                "judge print inspection does not cover every rendition: "
+                f"{', '.join(missing)}"
+            )
+
     def _record_findings(
         self,
         *,
@@ -652,13 +703,25 @@ class Experiment:
         receipt_ids: list[str] = []
         finding_ids: list[str] = []
         executions = []
+        inspect_print = self.instrument.blind_protocol.get(
+            "inspect_print_renditions"
+        ) is True
+        inspection_instruction = (
+            " Open and visually inspect every supplied trial/print PDF; scores "
+            "for production design and usability must be based on those exact "
+            "player-visible renditions, not only extracted source text."
+            if inspect_print else ""
+        )
         for member in members:
             invocation = ModelInvocation(
                 task.task_id,
                 member.authority_id,
                 "judge",
                 member.requested_model,
-                "Judge the attached anonymous complete Trial under every frozen dimension. Apply the assigned lens as extra scrutiny. Return only the contracted JSON evaluation and quote exact spans from exact trial paths for every finding.",
+                "Judge the attached anonymous complete Trial under every frozen dimension. "
+                "Apply the assigned lens as extra scrutiny. Return only the contracted JSON "
+                "evaluation and quote exact spans from exact trial paths for every finding."
+                + inspection_instruction,
                 {
                     "cover_story": self.instrument.blind_protocol.get(
                         "cover_story", "Anonymous narrative game"
@@ -666,6 +729,7 @@ class Experiment:
                     "instrument": self.instrument.to_mapping(),
                     "assigned_lens": member.assigned_lens,
                     "standing_warning": "Measurement alone cannot claim human-play standing.",
+                    "required_visual_inspection": inspect_print,
                 },
                 {
                     "schema_version": "0.8",
@@ -684,6 +748,22 @@ class Experiment:
                                 "message": "why this is a quality tell",
                             }
                         ],
+                        **(
+                            {
+                                "print_inspection": [
+                                    {
+                                        "resource_path": "exact trial/print/*.pdf path",
+                                        "page_count": "integer page count",
+                                        "visual_observation": (
+                                            "specific nonempty observation about layout, "
+                                            "legibility, hierarchy, or material realism"
+                                        ),
+                                    }
+                                ]
+                            }
+                            if inspect_print
+                            else {}
+                        ),
                     },
                 },
                 (
@@ -706,11 +786,18 @@ class Experiment:
         for member, record in zip(members, records, strict=True):
             receipt = record.value
             parsed = self.workspace.store.read_json(receipt.parsed_output_ref)
-            if not isinstance(parsed, Mapping) or set(parsed) != {"scores", "findings"}:
+            expected_fields = {
+                "scores",
+                "findings",
+                *({"print_inspection"} if inspect_print else set()),
+            }
+            if not isinstance(parsed, Mapping) or set(parsed) != expected_fields:
                 raise ValueError("judge output does not match the panel contract")
             member_scores, member_findings = self._validate_observation(
                 trial, parsed["scores"], parsed["findings"]
             )
+            if inspect_print:
+                self._validate_print_inspection(trial, parsed["print_inspection"])
             scores[member.authority_id] = member_scores
             receipt_ids.append(receipt.receipt_id)
             for finding_id in self._record_findings(

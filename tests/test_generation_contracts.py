@@ -15,7 +15,8 @@ from narrative_game.blueprint import (
     bind_artifact_specification,
     validate_blueprint,
 )
-from narrative_game.contracts import canonical_json
+from narrative_game.contracts import ArtifactResult, canonical_json, digest_bytes
+from narrative_game.climb import Dimension, FrozenInstrument
 from narrative_game.examples import vanished_ledger_blueprint
 from narrative_game.generation.model import (
     GENERATION_SCHEMA_VERSION,
@@ -125,6 +126,107 @@ print(canonical_json({'brief': brief.to_mapping(), 'plan': plan.to_mapping()}).d
             )
         )
     assert outputs[0] == outputs[1]
+
+
+def test_artifact_result_immutable_views_have_plain_workspace_values():
+    """generation.artifact-persistence: immutable result views cross the
+    Workspace JSON boundary as ordinary mappings without changing content."""
+    document = b"%PDF-1.4\nfixture\n"
+    content_hash = digest_bytes(document)
+    result = ArtifactResult(
+        "fixture",
+        document,
+        {"sha256": content_hash, "canon": {"record": "R-1"}},
+        {"artifact_hash": content_hash, "measurement": {"status": "accepted"}},
+        {"artifact_id": "fixture", "pins": {}, "canon": {"record": "R-1"}},
+    )
+    encoded = canonical_json({
+        "manifest": dict(result.manifest),
+        "attestation": dict(result.attestation),
+        "request": dict(result.request),
+    })
+    assert b'"record":"R-1"' in encoded
+
+
+def test_production_target_requires_complete_evidence_artifact_coverage():
+    """generation.production-artifacts: production cannot opt out of realism
+    by omitting Artifact Specifications for player-visible evidence records."""
+    blueprint = vanished_ledger_blueprint()
+    adapter = FacilitatedInvestigationAuthoringAdapter()
+
+    adapter.validate_release_target(
+        blueprint, ArtifactPlan((), ()), release_target="development"
+    )
+    with pytest.raises(ValueError, match="camera-log.*closing-interview.*key-register"):
+        adapter.validate_release_target(
+            blueprint, ArtifactPlan((), ()), release_target="production"
+        )
+
+    one = _specification()
+    partial = replace(blueprint, artifact_specifications=(one,))
+    with pytest.raises(ValueError, match="camera-log.*closing-interview.*key-register"):
+        adapter.validate_release_target(
+            partial,
+            ArtifactPlan((one,), (one.artifact_id,)),
+            release_target="production",
+        )
+
+
+def test_release_target_is_frozen_without_changing_legacy_plan_identity():
+    """generation.release-target: production intent is content-addressed while
+    legacy development Plans preserve their serialized identity."""
+    brief = _brief()
+    legacy = GenerationPlan(
+        "generation-example", "narrative.facilitated-investigation-authoring",
+        "1.0.0", brief.seed, _roles(), GenerationBudget(12, 48_000, 4),
+        StopPolicy(2), ArtifactPlan((), ()),
+    )
+    assert "release_target" not in legacy.to_mapping()
+    assert GenerationPlan.from_mapping(legacy.to_mapping()) == legacy
+
+    production = replace(legacy, release_target="production")
+    assert production.to_mapping()["release_target"] == "production"
+    assert production.plan_id != legacy.plan_id
+    assert GenerationPlan.from_mapping(production.to_mapping()) == production
+
+
+def test_production_instrument_requires_visual_and_host_quality_floors():
+    """generation.production-measurement: a narrative-only rubric cannot
+    qualify a player-visible production package."""
+    adapter = FacilitatedInvestigationAuthoringAdapter()
+    weak = FrozenInstrument(
+        "weak", "1", "game", (
+            Dimension("world_coherence", "Coherent.", 1, {"0": "no", "100": "yes"}),
+        ),
+        ({"metric": "overall", "operator": ">=", "value": 70},),
+        {"panel_size": 3},
+        ("authoring.valid",),
+    )
+    with pytest.raises(ValueError, match="required dimensions"):
+        adapter.validate_release_instrument(weak, release_target="production")
+
+    dimensions = weak.dimensions + tuple(
+        Dimension(code, code, 1, {"0": "unusable", "100": "excellent"})
+        for code in adapter.production_dimension_floors
+    )
+    missing_inspection = replace(
+        weak,
+        dimensions=dimensions,
+        acceptance_rules=tuple(
+            {"metric": code, "operator": ">=", "value": floor}
+            for code, floor in adapter.production_dimension_floors.items()
+        ),
+    )
+    with pytest.raises(ValueError, match="inspect exact trial/print"):
+        adapter.validate_release_instrument(
+            missing_inspection, release_target="production"
+        )
+
+    production = replace(
+        missing_inspection,
+        blind_protocol={"panel_size": 3, "inspect_print_renditions": True},
+    )
+    adapter.validate_release_instrument(production, release_target="production")
 
 
 def test_blueprint_preserves_legacy_serialization_and_validates_artifact_references():

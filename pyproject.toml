@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.19.0"
+version = "0.22.0"
 description = "Deterministic narrative game building with agentic, inspectable hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,9 +19,18 @@ forge = [
   "verismill @ git+https://github.com/jarredparrett/verismill-lean.git@94a88e73a82ec442496fd4d7f9550454f9c60caf",
   "mattermill @ git+https://github.com/jarredparrett/verismill-lean.git@94a88e73a82ec442496fd4d7f9550454f9c60caf#subdirectory=libs/mattermill",
 ]
+harbor = [
+  "harbor>=0.20; python_version >= '3.12'",
+]
+prime = [
+  "verifiers==0.3.0",
+]
 
 [dependency-groups]
-dev = ["pytest>=8,<9"]
+dev = [
+  "pytest>=8,<9",
+  "verifiers==0.3.0",
+]
 
 [project.scripts]
 narrative-game-stage0 = "narrative_game.stage0_fixture:main"
@@ -38,6 +47,7 @@ narrative-game-playtest-model-baseline = "narrative_game.playtest.model_baseline
 narrative-game-playtest-review = "narrative_game.playtest.review:main"
 narrative-game-codex-judge-driver = "narrative_game.playtest.codex_driver:main"
 narrative-game-release-qualify = "narrative_game.stage12_qualification:main"
+narrative-game-harbor-verify = "narrative_game.adapters.harbor:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

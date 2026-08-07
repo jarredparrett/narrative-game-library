@@ -1,13 +1,16 @@
 # Agentic game generation
 
-Version 0.19 adds a resumable path from a `CreativeBrief` to a measured game.
+Version 0.20 adds a resumable path from a `CreativeBrief` to a measured game and
+an explicit, fail-closed boundary between development evidence and a production
+Candidate.
 The path is human-triggered and can run without human approval gates; human
 feedback remains optional first-order evidence after generation.
 
 ## Process
 
-1. Freeze a `CreativeBrief`, `GenerationPlan`, quality Instrument, model-role
-   assignments, budgets, stop policy, and optional `ArtifactPlan`.
+1. Freeze a `CreativeBrief`, `GenerationPlan`, release target, quality
+   Instrument, model-role assignments, budgets, stop policy, and
+   `ArtifactPlan`. The plan is optional only for a development target.
 2. Invoke the assigned creator through a typed `build` Task. The response must
    be one complete canonical `GameBlueprint`; invalid output is receipted and
    rejected rather than repaired silently.
@@ -15,9 +18,11 @@ feedback remains optional first-order evidence after generation.
    The reviewer cannot share the builder's Authority, receipted agent identity,
    or context identity.
 4. Apply an approved Proposal to the development Draft.
-5. If the Blueprint plans realism-sensitive documents, bind one exact accepted
-   Verismill `ArtifactSuite`. Every suite member keeps its own Experiment,
-   rubric, approval, blind measurement, standing, and Artifact Attestation.
+5. For a production target, derive every evidence Resource except character
+   Dossiers and bind one exact accepted Verismill `ArtifactSuite` covering the
+   entire set. Every suite member keeps its own Experiment, rubric, approval,
+   blind measurement, standing, and Artifact Attestation. Empty or partial
+   coverage is a hard failure.
 6. Compile the complete Candidate and run a fresh blind game-quality panel.
 7. Translate quoted Findings into answer-safe Requirements, propose and review
    a child, rebuild affected artifacts, remeasure, and select under the frozen
@@ -72,6 +77,39 @@ The game score and artifact realism scores are never averaged. A game can be
 good while an artifact remains unaccepted, but that combination cannot compile
 through the release-ready generation path.
 
+Accepted PDF members are copied byte-for-byte into the physical package. The
+exporter must not resize, annotate, regenerate, or otherwise decorate them after
+measurement; their native geometry is part of the accepted artifact. Package
+labels carry fictional-game provenance instead. Production members must also
+contain extractable text or an OCR text layer so accessibility is not traded
+away for visual realism.
+
+## Development and production targets
+
+`GenerationPlan.release_target` defaults to `development` for compatibility.
+That target supports quick narrative iteration and may retain rich-text
+evidence. Its status is always `development_only`, even after a passing game
+panel.
+
+Set the target to `production` only when building the shareable game. The
+facilitated-investigation adapter then requires, before any output can qualify:
+
+- one bound Artifact Specification for every evidence Resource except a
+  character Dossier;
+- an accepted, attested Verismill suite with exactly the same members;
+- accessible/OCR-capable exact PDF bytes for every artifact;
+- a complete `CharacterProgram` with private Dossiers;
+- at least one host-only guide Resource;
+- independent `production_design_quality` and
+  `host_and_dossier_usability` dimensions, each with a score floor of 75;
+- a blind protocol with at least three judges and
+  `inspect_print_renditions: true`.
+
+The final projection reports `release_qualification.status` as
+`production_candidate_ready` only after the selected game Candidate passes and
+all required artifact members have been materialized. This is production
+Candidate evidence, not public-release qualification or human-play standing.
+
 ## Monitoring and replay
 
 The Workspace journals and object store are authoritative. The coordinator
@@ -80,7 +118,8 @@ also rewrites two disposable projections after every transition:
 - `generation-status.json` for tools and dashboards;
 - `generation-status.md` for people.
 
-They report the current phase, development Draft, selected Candidate, active
+They report the current phase, explicit release target and qualification,
+development Draft, selected Candidate, active
 target, used and remaining model calls/tokens/rounds, artifact completion,
 stop reason, journal heads, and legal next actions. Deleting either projection
 loses no experiment state; opening or advancing the coordinator recreates it.

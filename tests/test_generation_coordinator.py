@@ -313,6 +313,11 @@ def test_brief_to_passing_candidate_is_resumable_and_fully_receipted(tmp_path):
     assert judge.calls == 3
     status = json.loads((tmp_path / "experiment/generation-status.json").read_text())
     assert status["phase"] == "passed"
+    assert status["release_qualification"] == {
+        "target": "development",
+        "status": "development_only",
+        "production_candidate_ready": False,
+    }
     assert status["budget"] == {
         "model_calls_used": 6,
         "model_calls_remaining": 0,
@@ -409,8 +414,11 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
             seed=6103,
             proposition_ids=("cash-payment",),
             event_ids=("payment-made",),
-            pins={"currency": "USD", "amount": "$4,000 cash"},
-            canon={"represented_date": "1997-10-14"},
+            pins={},
+            canon={
+                "represented_date": "1997-10-14",
+                "amount": "$4,000 cash",
+            },
             accessibility={"required": True},
             permitted_audience_ids=("avery", "host"),
         ),
@@ -423,7 +431,7 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
                 item.proposition_id,
                 "",
                 "artifact-request",
-                "amount",
+                "canon.amount",
             )
             if item.resource_id == specification.resource_id
             else item
@@ -499,6 +507,8 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
         importer.import_suite(artifact_plan, GameBlueprint.from_mapping(stale_mapping))
 
     materialization = importer.import_suite(artifact_plan, blueprint)
+    with pytest.raises(ValueError, match="embedded text or OCR"):
+        materialization.validate_production_for(artifact_plan)
     package = FacilitatedInvestigationAuthoringAdapter(
         materialization
     ).build(blueprint.to_mapping(), scratch_root=tmp_path, instrument=_instrument())
@@ -506,3 +516,24 @@ def test_accepted_artifact_suite_replaces_source_text_at_compilation(tmp_path):
         code: True for code in _instrument().hard_gate_codes
     }
     assert content_hash.encode() in package.release_bytes
+    with ZipFile(BytesIO(package.physical_archive)) as archive:
+        player_visible = archive.read("print/resources/cash-receipt.pdf")
+        preflight = json.loads(archive.read("trusted/preflight.json"))
+        claim_trace = json.loads(archive.read("trusted/claim-trace.json"))
+    assert player_visible == document
+    exact = next(
+        item for item in preflight["files"]
+        if item["path"] == "print/resources/cash-receipt.pdf"
+    )["pdf_checks"]["exact_attested_bytes"]
+    assert exact == {
+        "executed": True,
+        "source_content_hash": content_hash,
+        "player_visible_content_hash": content_hash,
+        "passed": True,
+    }
+    claim = next(
+        item for item in claim_trace["claims"]
+        if item["resource_id"] == specification.resource_id
+    )
+    assert claim["verified_evidence"]["pin"] == "canon.amount"
+    assert claim["verified_evidence"]["value"] == "$4,000 cash"

@@ -60,6 +60,29 @@ def test_content_addressed_store_detects_tampering_and_deduplicates(tmp_path):
     assert workspace.verify()["ok"] is False
 
 
+def test_external_attestation_hashes_are_not_local_workspace_edges(tmp_path):
+    """workspace.external-evidence: foreign content hashes remain opaque while
+    their enclosing imported record stays content-addressed and verified."""
+    workspace = Workspace.create(tmp_path / "external", workspace_id="external")
+    external = workspace.store.put_json({
+        "schema_version": "0.1",
+        "kind": "external_artifact_attestation",
+        "external_payload": {
+            "candidate": "sha256:" + "1" * 64,
+            "attestation": "sha256:" + "2" * 64,
+            "verification": {"ok": True},
+        },
+    })
+    workspace.operational.append(
+        "external_artifact_imported",
+        actor="test",
+        payload={"attestation_ref": external},
+        object_refs=(external,),
+        idempotency_key="external-artifact-imported",
+    )
+    assert Workspace.open(workspace.root).verify()["ok"]
+
+
 def test_draft_transitions_are_idempotent_branchable_and_human_readable(tmp_path):
     """stage1.lineage: immutable Draft transitions retain why and authority."""
     workspace, first = initial_workspace(tmp_path)

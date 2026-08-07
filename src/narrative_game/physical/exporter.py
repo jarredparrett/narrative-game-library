@@ -28,6 +28,7 @@ from reportlab.platypus import (
 )
 
 from narrative_game.authoring import parse_game_definition
+from narrative_game.blueprint import artifact_request_locator_exists
 from narrative_game.narrative import CharacterDossier, render_dossier_markdown
 from narrative_game.compiler import GameRelease
 from narrative_game.contracts.canonical import canonical_json, digest_bytes, digest_json
@@ -422,6 +423,15 @@ def _material_by_resource(release: GameRelease) -> dict[str, Any]:
     }
 
 
+def _receipt_by_resource(release: GameRelease) -> dict[str, Mapping[str, Any]]:
+    return {
+        item["resource_id"]: json.loads(
+            release.file(f"receipts/{item['resource_id']}.json").data
+        )
+        for item in release.manifest["materials"]
+    }
+
+
 def _validate_claim_trace(release: GameRelease) -> list[dict[str, Any]]:
     game = parse_game_definition(release.file("trusted/game.json").data)
     propositions = {item.id for item in game.propositions}
@@ -456,9 +466,17 @@ def _validate_claim_trace(release: GameRelease) -> list[dict[str, Any]]:
             request = receipt.get("artifact_request", receipt)
             if proposition_id not in request.get("fact_references", []):
                 raise ValueError(f"artifact claim lacks fact reference: {proposition_id}")
-            if pin not in request.get("pins", {}):
-                raise ValueError(f"artifact claim names missing request pin: {pin}")
-            evidence = {"pin": pin, "value": request["pins"][pin], "request_hash": digest_json(request)}
+            pins = request.get("pins", {})
+            canon = request.get("canon", {})
+            if not artifact_request_locator_exists(pins, canon, pin):
+                raise ValueError(f"artifact claim names missing request value: {pin}")
+            if pin.startswith("pins."):
+                value = pins[pin.removeprefix("pins.")]
+            elif pin.startswith("canon."):
+                value = canon[pin.removeprefix("canon.")]
+            else:
+                value = pins[pin]
+            evidence = {"pin": pin, "value": value, "request_hash": digest_json(request)}
         else:
             raise ValueError(f"unsupported displayed-claim source: {claim['source']}")
         verified.append({**claim, "verified_evidence": evidence})
@@ -628,7 +646,7 @@ def _guide_markdown(release: GameRelease, plan: Mapping[str, Any]) -> bytes:
             "",
             "## Verification",
             "",
-            "A production operator can verify this package offline from its embedded Release, canonical manifests, SHA-256 hashes, page counts, and fixed toolchain versions. The unmarked exact deed remains inside `source/game-release.zip`; the printable deed is a separately hashed, visibly marked rendition.",
+            "A production operator can verify this package offline from its embedded Release, canonical manifests, SHA-256 hashes, page counts, and fixed toolchain versions. Exact source artifacts remain in `source/game-release.zip`; every printable resource has its own recorded hash.",
             "",
         ]
     )
@@ -852,6 +870,17 @@ def _preflight(
             minimum_font_size = min(font_sizes) if font_sizes else None
             reportlab_rendition = expectation.get("renderer") == "reportlab-platypus"
             artifact_overlay = expectation.get("renderer") == "artifact-overlay"
+            attested_artifact = expectation.get("renderer") == "attested-artifact"
+            source_content_hash = expectation.get("source_content_hash")
+            exact_attested_bytes = {
+                "executed": attested_artifact,
+                "source_content_hash": source_content_hash,
+                "player_visible_content_hash": item.content_hash,
+                "passed": (
+                    item.content_hash == source_content_hash
+                    if attested_artifact else None
+                ),
+            }
             authored_content_sizes = [
                 size
                 for text, size in font_measurements
@@ -878,6 +907,7 @@ def _preflight(
                         abs(width - LETTER[0]) < 1 and abs(height - LETTER[1]) < 1
                         for width, height in boxes
                     ),
+                    "source_native_geometry": attested_artifact,
                     "pdf_checks": {
                         "parseable_page_tree": bool(reader.pages),
                         "extractable_text": bool(extracted.strip()),
@@ -885,8 +915,15 @@ def _preflight(
                             "measured_points": minimum_font_size,
                             "threshold_points": 6.0,
                             "passed": minimum_font_size is not None and minimum_font_size >= 6.0,
-                            "scope": "nonvisual OCR text layer" if artifact_overlay else "rendered text",
+                            "scope": (
+                                "attested artifact text layer"
+                                if attested_artifact
+                                else "nonvisual OCR text layer"
+                                if artifact_overlay
+                                else "rendered text"
+                            ),
                         },
+                        "exact_attested_bytes": exact_attested_bytes,
                         "authored_content_font_size": {
                             "executed": reportlab_rendition,
                             "measured_points": min(authored_content_sizes) if reportlab_rendition and authored_content_sizes else None,
@@ -924,21 +961,31 @@ def _preflight(
         checks.append(record)
     failures = []
     for item in checks:
-        if not item["nonempty"] or ("letter_portrait" in item and not item["letter_portrait"]):
+        if not item["nonempty"] or (
+            "letter_portrait" in item
+            and not item["letter_portrait"]
+            and not item.get("source_native_geometry", False)
+        ):
             failures.append(item["path"])
             continue
         pdf_checks = item.get("pdf_checks")
         if pdf_checks is None:
             continue
+        exact_attested = pdf_checks["exact_attested_bytes"]
         mandatory = (
-            pdf_checks["parseable_page_tree"],
-            pdf_checks["extractable_text"],
-            pdf_checks["minimum_font_size"]["passed"],
+            (pdf_checks["parseable_page_tree"],)
+            if exact_attested["executed"]
+            else (
+                pdf_checks["parseable_page_tree"],
+                pdf_checks["extractable_text"],
+                pdf_checks["minimum_font_size"]["passed"],
+            )
         )
         reading_order = pdf_checks["authored_reading_order"]
         authored_size = pdf_checks["authored_content_font_size"]
         if (
             not all(mandatory)
+            or exact_attested["executed"] and not exact_attested["passed"]
             or reading_order["executed"] and not reading_order["passed"]
             or authored_size["executed"] and not authored_size["passed"]
         ):
@@ -972,6 +1019,7 @@ def export_physical(
     claim_trace = _validate_claim_trace(release)
     game = parse_game_definition(release.file("trusted/game.json").data)
     material_files = _material_by_resource(release)
+    material_receipts = _receipt_by_resource(release)
     rendition_files: dict[str, PhysicalFile] = {}
     dossier_by_resource = {
         item.resource_id: item
@@ -985,13 +1033,18 @@ def export_physical(
     ]
     for resource in sorted(game.kernel.resources, key=lambda item: item.id):
         material = material_files[resource.id]
+        receipt = material_receipts[resource.id]
         dossier = dossier_by_resource.get(resource.id)
         if dossier is not None:
             if material.data != render_dossier_markdown(game, dossier):
                 raise ValueError(f"Dossier Resource differs from Character Program: {resource.id}")
             rendered = render_dossier_pdf(game, dossier, profile)
         elif resource.media_type == "application/pdf":
-            rendered = _mark_existing_pdf(material.data, profile)
+            rendered = (
+                material.data
+                if receipt.get("kind") == "verismill-artifact-suite-member"
+                else _mark_existing_pdf(material.data, profile)
+            )
         elif resource.media_type.startswith("text/"):
             rendered = _render_text_pdf(
                 data=material.data,
@@ -1013,8 +1066,21 @@ def export_physical(
         )
         rendition_files[resource.id] = physical_file
         source_reader = PdfReader(BytesIO(material.data)) if resource.media_type == "application/pdf" else None
+        attested_artifact = (
+            resource.media_type == "application/pdf"
+            and receipt.get("kind") == "verismill-artifact-suite-member"
+        )
         rendition_expectations[physical_file.path] = {
-            "renderer": "artifact-overlay" if resource.media_type == "application/pdf" else "reportlab-platypus",
+            "renderer": (
+                "attested-artifact"
+                if attested_artifact
+                else "artifact-overlay"
+                if resource.media_type == "application/pdf"
+                else "reportlab-platypus"
+            ),
+            "source_content_hash": (
+                digest_bytes(material.data) if attested_artifact else None
+            ),
             "reading_markers": _pdf_reading_markers(material.data) if resource.media_type == "application/pdf" else _reading_markers(material.data, resource.media_type),
             "ignored_text": (profile.provenance_label,),
             "source_page_boxes": (

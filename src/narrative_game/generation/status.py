@@ -25,10 +25,13 @@ class GenerationStatus:
     rounds_remaining: int
     artifact_members_required: int
     artifact_members_completed: int
+    release_target: str
+    qualification_status: str
+    production_candidate_ready: bool
     stop_reason: str | None
     next_actions: tuple[str, ...]
     journal_heads: Mapping[str, str | None]
-    schema_version: str = "0.19"
+    schema_version: str = "0.20"
 
     def to_mapping(self) -> dict[str, Any]:
         return {
@@ -48,6 +51,11 @@ class GenerationStatus:
             "artifact_suite": {
                 "members_required": self.artifact_members_required,
                 "members_completed": self.artifact_members_completed,
+            },
+            "release_qualification": {
+                "target": self.release_target,
+                "status": self.qualification_status,
+                "production_candidate_ready": self.production_candidate_ready,
             },
             "stop_reason": self.stop_reason,
             "next_actions": list(self.next_actions),
@@ -77,7 +85,14 @@ def _phase_and_actions(
     if stopped:
         return "stopped", ("inspect_stop_reason", "resume_with_new_plan",)
     if any(event["event_type"] == "generation_completed" for event in events):
-        return "passed", ("inspect_evidence", "qualify_release",)
+        return (
+            "passed",
+            (
+                ("inspect_evidence", "qualify_release")
+                if plan.release_target == "production"
+                else ("inspect_evidence", "plan_production_run")
+            ),
+        )
     if isinstance(draft, Mapping) and draft.get("kind") == "generation_brief":
         return "awaiting_initial_blueprint", ("create_initial_blueprint",)
     artifact_events = [
@@ -157,6 +172,24 @@ def derive_generation_status(experiment: Any, plan: Any) -> GenerationStatus:
         if artifact_events
         else 0
     )
+    generation_completed = bool(completed)
+    artifact_complete = artifact_completed == len(
+        plan.artifact_plan.specifications
+    )
+    production_candidate_ready = (
+        plan.release_target == "production"
+        and generation_completed
+        and artifact_complete
+    )
+    qualification_status = (
+        "production_candidate_ready"
+        if production_candidate_ready
+        else "development_only"
+        if generation_completed and plan.release_target == "development"
+        else "pending_production_evidence"
+        if plan.release_target == "production"
+        else "development_in_progress"
+    )
     return GenerationStatus(
         phase=phase,
         development_draft_ref=experiment.current_draft_ref,
@@ -170,6 +203,9 @@ def derive_generation_status(experiment: Any, plan: Any) -> GenerationStatus:
         rounds_remaining=max(0, plan.budget.max_rounds - rounds_used),
         artifact_members_required=len(plan.artifact_plan.specifications),
         artifact_members_completed=artifact_completed,
+        release_target=plan.release_target,
+        qualification_status=qualification_status,
+        production_candidate_ready=production_candidate_ready,
         stop_reason=stop_reason,
         next_actions=actions,
         journal_heads=experiment.workspace.manifest["journal_heads"],
@@ -197,6 +233,9 @@ def write_generation_status(experiment: Any, plan: Any) -> GenerationStatus:
         f"`{status.rounds_remaining}` remaining",
         f"- Artifact members: `{status.artifact_members_completed}` completed of "
         f"`{status.artifact_members_required}` required",
+        f"- Release target: `{status.release_target}`",
+        f"- Qualification: `{status.qualification_status}`",
+        f"- Production Candidate ready: `{status.production_candidate_ready}`",
         f"- Stop reason: `{status.stop_reason or 'none'}`",
         "",
         "## Next actions",

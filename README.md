@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.19.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.22.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -49,6 +49,146 @@ durable progress projections. Realism-sensitive documents are supplied as an
 accepted Verismill Artifact Suite; each document keeps its own climb and is
 never hidden inside a blended game score.
 
+Version 0.20 closes the production-realism loophole exposed by the Sybil's Cave
+end-to-end run. A Plan now declares either a `development` or `production`
+release target. Development may use authored text and is always reported as
+development-only. Production fails closed unless every evidence Resource other
+than a character Dossier has a bound Artifact Specification, every exact member
+has accepted Verismill standing and embedded accessible text, complete private
+Dossiers and host-only instructions exist, and the blind panel visually inspects
+the exact print PDFs under independent design and host-usability floors. Accepted
+artifact bytes enter the player package unchanged; provenance stays on the
+container so post-measurement decoration cannot invalidate the attestation.
+
+Version 0.21 adds a deterministic multi-agent episode boundary for evaluation
+and reinforcement learning. A frozen Game Release can now be reset with a
+role-isolated model lineup, played through a seeded agent-environment-cycle
+scheduler, replayed from hash-chained Session and arena Events, verified under
+hard-zero authorization and proof gates, expanded into one token-attributed
+trajectory per trainable role, and exported as a Harbor task. Harbor is an
+optional downstream harness; it never invokes game generation or Verismill.
+
+Version 0.22 adds a native Prime Verifiers v1 plugin. Prime owns model/runtime
+placement and one trace per interaction; the library still owns authorization,
+the deterministic AEC scheduler, the hash-chained Episode Archive, replay, and
+binary outcome-and-integrity reward. One host interaction and one separately
+opened interaction per player Seat provide variable-cast role isolation even
+when all Seats share one trainable player policy.
+
+## Multi-agent RL episodes with Harbor
+
+The environment lives in `narrative_game.simulation` and runs without Harbor:
+
+```python
+from narrative_game.simulation import (
+    EpisodeConfig, MultiAgentEpisode, PolicyLineup, SeatAssignment,
+)
+
+lineup = PolicyLineup(
+    seats=(
+        SeatAssignment("historian", historian_policy),
+        SeatAssignment("reporter", reporter_policy),
+        SeatAssignment("conservator", conservator_policy),
+        SeatAssignment("appraiser", appraiser_policy),
+    ),
+    host=deterministic_host_policy,
+)
+episode = MultiAgentEpisode.reset(
+    frozen_release,
+    episode_seed=4100,
+    lineup=lineup,
+    config=EpisodeConfig(max_steps=80),
+)
+```
+
+Only the arena runner holds the returned role credentials. Each policy receives
+its own `observe()` projection and may call only the tools legal for its current
+turn. `MultiAgentArenaRunner` accepts provider-specific policy adapters and
+returns a portable `EpisodeArchive`. Verify and score it with
+`verify_episode(...)` and `evaluate_episode(...)`.
+
+New episodes use `narrative-multi-agent-reward-v2`: the official reward is
+binary and shared. It is `1.0` only when both integrity and outcome pass;
+otherwise it is `0.0`. Participation, communication, turn use, intervention
+dependence, objective progress, cost, and token attribution remain persisted as
+diagnostics and never dilute a successful outcome.
+
+For Harbor, use `HarborTaskExporter` to package one exact Release as a task and
+`write_trial_artifacts(...)` to write the Episode Archive, Session history,
+per-role trajectories, trainer rollouts, release attestation, and full reward
+details under `/logs/artifacts/`. On Python 3.12+, install `.[harbor]` only when
+running the concrete `HarborMultiAgentArenaAgent`. The agent uses Harbor's
+LiteLLM boundary and creates one stateful model session per exact role; the
+shared library retains game authority, scheduling, replay, and reward semantics.
+Responses API sessions chain by provider response ID, and later turns send only
+new dialogue, newly visible evidence, current phase state, and the role's newest
+tool result. Seat observations name requestable resource IDs without exposing
+their contents; the resolution phase names candidate hypothesis and proof-path
+IDs without exposing the answer key.
+It also writes Harbor's
+native `agent/trajectory.json`: the root ATIF-v1.7 trace preserves global AEC
+order, while embedded subagent trajectories preserve exact per-role policy and
+credit-assignment boundaries for the Viewer and downstream trace tooling.
+
+Run a real model episode after exporting a task and configuring the provider's
+normal credentials (for OpenAI, `OPENAI_API_KEY`):
+
+```bash
+uv run --extra harbor harbor run \
+  --path /path/to/exported-task \
+  --agent narrative_game.adapters.harbor_agent:HarborMultiAgentArenaAgent \
+  --model openai/gpt-5.6-sol \
+  --agent-kwarg episode_seed=4100 \
+  --agent-kwarg reasoning_effort=high \
+  --agent-kwarg use_responses_api=true \
+  --agent-kwarg trainable=false \
+  --job-name sybils-cave-live
+```
+
+`trainable=false` still records real prompt/output/cache token counts, cost, safe
+decision rationales, actions, and ATIF traces. Set it to `true` only for a
+provider that returns exact prompt and completion token IDs; the agent fails
+closed if a nominally trainable policy lacks those receipts. Use
+`role_models_json` or `host_model_name` agent kwargs to run heterogeneous model
+lineups without changing the Release or reward contract.
+
+A bounded live Sybil's Cave episode with five isolated `gpt-5.6-sol` contexts
+reached an accepted, correct, proof-bearing resolution in 18 actions. The frozen
+v1 verifier passed all six hard gates and scored the historical episode
+`0.7625`; provider
+usage was 193,252 input tokens, 5,231 output tokens, and `$0.46257575`. This is
+one evaluation smoke result, not trainable standing or a 20-episode benchmark.
+The immutable v1 archive is not reinterpreted; an equivalent new v2 episode
+would receive the binary passing reward `1.0`.
+
+The complete contract, reward definitions, and Sybil's Cave falsifying matrix
+are in [Harbor as a multi-agent RL environment](docs/harbor-multi-agent-rl-environment.md).
+
+## Multi-agent RL episodes on Prime
+
+Install the optional adapter and point the taskset at any frozen Game Release:
+
+```bash
+uv sync --extra prime
+uv run eval narrative_game_prime \
+  -m deepseek/deepseek-v4-flash -n 1 -r 1 -c 1 \
+  --env.taskset.release-paths /absolute/path/game-release.zip \
+  --env.taskset.episode-seeds 4100 \
+  --env.host.runtime.type prime \
+  --env.player.runtime.type prime \
+  --env.host.model deepseek/deepseek-v4-flash \
+  --env.player.model deepseek/deepseek-v4-flash \
+  --sampling.max-tokens 1600 \
+  --sampling.temperature 0
+```
+
+Prime may run different models for host and player without changing the Release
+or verifier. Set `--env.train-host true` and/or `--env.train-players true` to
+declare which shared policy receives the team reward. Every Seat still receives
+its own interaction and private transcript. See
+[Prime hosted multi-agent execution](docs/prime-hosted-multi-agent.md) for the
+execution boundary, outputs, local-debug command, and training sequence.
+
 ## Generate a game from a brief
 
 The public generation path starts from intent rather than prepared game JSON:
@@ -83,6 +223,7 @@ plan = GenerationPlan(
     budget=GenerationBudget(max_model_calls=12, max_tokens=60_000, max_rounds=3),
     stop_policy=StopPolicy(max_consecutive_invalid_outputs=2),
     artifact_plan=ArtifactPlan((), ()),
+    release_target="development",
 )
 
 coordinator = GenerationCoordinator.create(
@@ -112,7 +253,8 @@ interruption with `GenerationCoordinator.open(...)`; model
 calls, proposals, reviews, artifact suites, measurements, and selections are
 idempotent. Humans can monitor `generation-status.md` or
 `generation-status.json` without treating either projection as authoritative
-state.
+state. Read `release_qualification`, not `phase`, before describing an output:
+only `production_candidate_ready` means the production contract was satisfied.
 
 For realistic documents, bind each `ArtifactSpecification` to the Blueprint's
 referenced world facts with `bind_artifact_specification`, put those exact bound
@@ -123,6 +265,14 @@ standing; it does not forge or remeasure artifacts. Artifact display claims
 trace to canonical fact references and request pins, and any relevant world
 change invalidates the binding. Authored text remains a design source, not the
 shipped PDF.
+
+For a shareable package set `release_target="production"`. The facilitated
+investigation adapter derives the mandatory Artifact coverage from the complete
+evidence graph; an empty or partial `ArtifactPlan` is rejected before generation.
+This target also requires a complete `CharacterProgram`, a host-only guide,
+accessible artifact renditions, and a production Instrument with explicit
+`production_design_quality` and `host_and_dossier_usability` floors. The blind
+protocol must set `inspect_print_renditions=True` and use at least three judges.
 
 See [Agentic game generation](docs/generation.md) for the complete lifecycle,
 model replacement rules, artifact boundary, monitoring projection, and
