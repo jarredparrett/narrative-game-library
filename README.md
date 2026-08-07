@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.18.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.19.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -41,6 +41,92 @@ their replay receipts and aggregation remain deterministically ordered.
 Version 0.18 makes qualification non-blocking: independent agents may review
 Proposals, establish machine-qualified Standing, and attest releases. Human
 feedback remains first-order evidence but is not a mandatory gate.
+
+Version 0.19 adds the missing front half: a strict Creative Brief and
+Generation Plan can now drive initial Blueprint creation, independent agent
+review, compilation, blind measurement, bounded revision, selection, and
+durable progress projections. Realism-sensitive documents are supplied as an
+accepted Verismill Artifact Suite; each document keeps its own climb and is
+never hidden inside a blended game score.
+
+## Generate a game from a brief
+
+The public generation path starts from intent rather than prepared game JSON:
+
+```python
+from narrative_game import (
+    ArtifactPlan, CreativeBrief, FacilitatedInvestigationAuthoringAdapter,
+    GenerationBudget, GenerationCoordinator, GenerationDrivers,
+    GenerationPlan, ModelRoleAssignment, StopPolicy,
+)
+
+brief = CreativeBrief(
+    title="The Vanished Ledger",
+    premise="A private ledger disappears during an estate inventory.",
+    experience_targets=("deduction", "negotiation"),
+    content_boundaries=("no graphic violence",),
+    player_count=4,
+    target_minutes=120,
+    delivery_format="hybrid",
+    seed=6103,
+)
+plan = GenerationPlan(
+    experiment_id="vanished-ledger-1",
+    profile_id=FacilitatedInvestigationAuthoringAdapter.profile_id,
+    profile_version=FacilitatedInvestigationAuthoringAdapter.profile_version,
+    seed=brief.seed,
+    role_assignments=(
+        ModelRoleAssignment("builder", "creator", "your-provider", "creator-model", "creator-agent", "creator-context"),
+        ModelRoleAssignment("reviewer", "reviewer", "your-provider", "review-model", "review-agent", "review-context"),
+        ModelRoleAssignment("judge", "judge-a", "your-provider", "judge-model", "judge-agent", "judge-context"),
+    ),
+    budget=GenerationBudget(max_model_calls=12, max_tokens=60_000, max_rounds=3),
+    stop_policy=StopPolicy(max_consecutive_invalid_outputs=2),
+    artifact_plan=ArtifactPlan((), ()),
+)
+
+coordinator = GenerationCoordinator.create(
+    "/path/to/user-data/vanished-ledger-1",
+    plan=plan,
+    brief=brief,
+    instrument=your_frozen_instrument,
+    component_lock=FacilitatedInvestigationAuthoringAdapter.component_lock,
+)
+coordinator.run(
+    FacilitatedInvestigationAuthoringAdapter(),
+    drivers=GenerationDrivers({
+        "creator": creator_driver,
+        "reviewer": reviewer_driver,
+        "judge-a": judge_driver,
+    }),
+    translator=your_answer_safe_requirement_translator,
+    scratch_root="/path/to/user-data/vanished-ledger-1/scratch",
+)
+```
+
+Drivers are provider-neutral and must return the resolved model, actual agent
+identity, isolated context identity, and token usage. The coordinator rejects a
+receipt that differs from its frozen assignment, and a Plan cannot reuse an
+agent or context across builder, reviewer, or judge roles. Reopen after
+interruption with `GenerationCoordinator.open(...)`; model
+calls, proposals, reviews, artifact suites, measurements, and selections are
+idempotent. Humans can monitor `generation-status.md` or
+`generation-status.json` without treating either projection as authoritative
+state.
+
+For realistic documents, bind each `ArtifactSpecification` to the Blueprint's
+referenced world facts with `bind_artifact_specification`, put those exact bound
+values in both the Plan and generated Blueprint, and supply a
+`VerismillArtifactSuiteImporter`. The importer accepts only a pre-existing,
+attested, release-ready suite whose every member has accepted Verismill
+standing; it does not forge or remeasure artifacts. Artifact display claims
+trace to canonical fact references and request pins, and any relevant world
+change invalidates the binding. Authored text remains a design source, not the
+shipped PDF.
+
+See [Agentic game generation](docs/generation.md) for the complete lifecycle,
+model replacement rules, artifact boundary, monitoring projection, and
+evidence limits.
 
 ## Repository boundary
 

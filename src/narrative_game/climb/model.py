@@ -175,10 +175,20 @@ class ModelReceipt:
     tool_contract_ref: str | None = None
     input_refs: Mapping[str, str] | None = None
     evidence_class: str | None = None
+    usage: Mapping[str, int] | None = None
+    agent_id: str | None = None
+    context_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "input_hashes", _copy(self.input_hashes))
         object.__setattr__(self, "input_refs", _copy(self.input_refs or {}))
+        object.__setattr__(self, "usage", _copy(self.usage or {}))
+        if (self.agent_id is None) != (self.context_id is None):
+            raise ValueError("model execution identity requires agent_id and context_id")
+        if self.agent_id is not None and (
+            not self.agent_id.strip() or not self.context_id or not self.context_id.strip()
+        ):
+            raise ValueError("model execution identity values must be non-empty")
 
     def material(self) -> dict[str, Any]:
         result = {
@@ -209,6 +219,13 @@ class ModelReceipt:
             }
         if self.evidence_class is not None:
             result["evidence_class"] = self.evidence_class
+        if self.usage:
+            result["usage"] = dict(self.usage)
+        if self.agent_id is not None or self.context_id is not None:
+            result["execution_identity"] = {
+                "agent_id": self.agent_id,
+                "context_id": self.context_id,
+            }
         return result
 
     @property

@@ -219,11 +219,19 @@ def validate_climb_bundle(
             result.append(_finding("climb.dangling-reference", task.task_id, task.assigned_authority_id, "Task names a missing Authority"))
         if instrument is None:
             result.append(_finding("climb.dangling-reference", task.task_id, task.instrument_id, "Task names a missing Instrument"))
-        if task.kind not in {"build", "fix", "harvest", "blind-measure", "deterministic-validate"}:
+        if task.kind not in {
+            "build",
+            "fix",
+            "review",
+            "harvest",
+            "blind-measure",
+            "deterministic-validate",
+        }:
             result.append(_finding("climb.invalid-task", task.task_id, task.kind, "Task kind is unsupported"))
         expected_roles = {
             "build": {"builder"},
             "fix": {"builder", "fixer"},
+            "review": {"reviewer"},
             "harvest": {"judge"},
             "blind-measure": {"judge"},
             "deterministic-validate": {"validator"},
@@ -265,6 +273,11 @@ def validate_climb_bundle(
             "capability-fixture",
         }:
             result.append(_finding("climb.invalid-evidence-class", receipt.receipt_id, receipt.evidence_class, "Model Receipt evidence class is unsupported"))
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 0
+            for value in receipt.usage.values()
+        ):
+            result.append(_finding("climb.invalid-model-usage", receipt.receipt_id, str(dict(receipt.usage)), "Model Receipt usage values must be non-negative integers"))
         for label, value in {
             **receipt.input_hashes,
             **{f"tool_receipt_{index}": item for index, item in enumerate(receipt.tool_receipt_hashes)},

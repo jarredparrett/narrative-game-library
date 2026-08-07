@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 from typing import Any, Mapping, Protocol
 
@@ -51,9 +51,25 @@ class DriverOutput:
     raw_output: bytes
     parsed_output: Any
     tool_receipts: tuple[bytes, ...] = ()
+    usage: Mapping[str, int] = field(default_factory=dict)
+    agent_id: str | None = None
+    context_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "parsed_output", _copy(self.parsed_output))
+        if (self.agent_id is None) != (self.context_id is None):
+            raise ValueError("Driver Output identity requires agent_id and context_id")
+        if self.agent_id is not None and (
+            not self.agent_id.strip() or not self.context_id or not self.context_id.strip()
+        ):
+            raise ValueError("Driver Output identity values must be non-empty")
+        usage = dict(self.usage)
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 0
+            for value in usage.values()
+        ):
+            raise ValueError("model usage values must be non-negative integers")
+        object.__setattr__(self, "usage", usage)
 
 
 class ModelDriver(Protocol):
@@ -177,6 +193,9 @@ def _persist_output(
         parsed_output=output.parsed_output,
         seed=invocation.seed,
         evidence_class=output.evidence_class,
+        usage=output.usage,
+        agent_id=output.agent_id,
+        context_id=output.context_id,
         actor=f"agent:{authority.principal}",
         idempotency_key=idempotency_key,
     )
