@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
-from typing import Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
 from narrative_game.compiler import MaterialInput
-from narrative_game.contracts import canonical_json, digest_bytes
+from narrative_game.contracts import (
+    ArtifactResult,
+    canonical_json,
+    digest_bytes,
+    digest_json,
+)
 from narrative_game.kernel import Finding, Resource
 from narrative_game.narrative import GameDefinition, validate_facilitated_investigation
+
+if TYPE_CHECKING:
+    from narrative_game.generation.model import ArtifactSpecification
 
 
 BLUEPRINT_SCHEMA_VERSION = "0.9"
@@ -101,29 +109,46 @@ class DisplayedClaim:
     resource_id: str
     proposition_id: str
     quote: str
+    source: str = "material-text"
+    pin: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.source not in {"material-text", "artifact-request"}:
+            raise ValueError(f"unsupported displayed-claim source: {self.source}")
+        if self.source == "material-text" and (not self.quote or self.pin is not None):
+            raise ValueError("material-text claims require a quote and no request pin")
+        if self.source == "artifact-request" and (
+            not isinstance(self.pin, str) or not self.pin.strip()
+        ):
+            raise ValueError("artifact-request claims require an exact request pin")
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "DisplayedClaim":
-        if value.get("source", "material-text") != "material-text":
-            raise ValueError("rich-text Blueprints support material-text claims only")
         return cls(
             resource_id=str(value["resource_id"]),
             proposition_id=str(value["proposition_id"]),
-            quote=str(value["quote"]),
+            quote=str(value.get("quote", "")),
+            source=str(value.get("source", "material-text")),
+            pin=(str(value["pin"]) if value.get("pin") is not None else None),
         )
 
     def to_mapping(self) -> dict[str, str]:
-        return {
+        result = {
             "resource_id": self.resource_id,
             "proposition_id": self.proposition_id,
-            "source": "material-text",
-            "quote": self.quote,
+            "source": self.source,
         }
+        if self.source == "material-text":
+            result["quote"] = self.quote
+        else:
+            assert self.pin is not None
+            result["pin"] = self.pin
+        return result
 
 
 @dataclass(frozen=True)
 class GameBlueprint:
-    """An editable game source: canonical structure, rich text, and arc intent."""
+    """An editable game source with text, artifact intent, and one canonical world."""
 
     game: Mapping[str, Any]
     materials: tuple[RichTextMaterial, ...]
@@ -131,6 +156,7 @@ class GameBlueprint:
     displayed_claims: tuple[DisplayedClaim, ...]
     seed: int
     schema_version: str = BLUEPRINT_SCHEMA_VERSION
+    artifact_specifications: tuple["ArtifactSpecification", ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "game", _copy(self.game))
@@ -141,6 +167,8 @@ class GameBlueprint:
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "GameBlueprint":
+        from narrative_game.generation.model import ArtifactSpecification
+
         return cls(
             game=value["game"],
             materials=tuple(
@@ -152,11 +180,15 @@ class GameBlueprint:
                 for item in value.get("displayed_claims", ())
             ),
             seed=int(value["seed"]),
+            artifact_specifications=tuple(
+                ArtifactSpecification.from_mapping(item)
+                for item in value.get("artifact_specifications", ())
+            ),
             schema_version=str(value.get("schema_version", "")),
         )
 
     def to_mapping(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": self.schema_version,
             "game": _copy(self.game),
             "materials": [item.to_mapping() for item in self.materials],
@@ -164,36 +196,172 @@ class GameBlueprint:
             "displayed_claims": [item.to_mapping() for item in self.displayed_claims],
             "seed": self.seed,
         }
+        # Schema 0.9 Blueprints predate artifact planning. Keeping the key absent
+        # when empty preserves their exact serialized form and content identity.
+        if self.artifact_specifications:
+            result["artifact_specifications"] = [
+                item.to_mapping() for item in self.artifact_specifications
+            ]
+        return result
 
-    def materialize_game(self) -> GameDefinition:
+    def materialize_game(
+        self,
+        artifact_results: Mapping[str, ArtifactResult] | None = None,
+        artifact_media_types: Mapping[str, str] | None = None,
+    ) -> GameDefinition:
         """Derive canonical Resource hashes from the rich-text sources."""
+        artifact_results = dict(artifact_results or {})
+        artifact_media_types = dict(artifact_media_types or {})
         mapping = _copy(self.game)
         kernel = mapping.setdefault("kernel", {})
         kernel["resources"] = [
             Resource(
                 item.resource_id,
-                item.media_type,
-                item.content_hash,
+                artifact_media_types.get(item.resource_id, item.media_type),
+                (
+                    artifact_results[item.resource_id].content_hash
+                    if item.resource_id in artifact_results
+                    else item.content_hash
+                ),
                 item.label,
             ).__dict__
             for item in self.materials
         ]
         return GameDefinition.from_mapping(mapping)
 
-    def material_inputs(self) -> tuple[MaterialInput, ...]:
+    def material_inputs(
+        self,
+        artifact_results: Mapping[str, ArtifactResult] | None = None,
+        *,
+        artifact_media_types: Mapping[str, str] | None = None,
+        suite_attestation: Mapping[str, Any] | None = None,
+    ) -> tuple[MaterialInput, ...]:
+        artifact_results = dict(artifact_results or {})
+        artifact_media_types = dict(artifact_media_types or {})
         return tuple(
             MaterialInput(
                 item.resource_id,
-                item.media_type,
-                item.data,
-                {
-                    "kind": "authored-rich-text",
-                    "schema_version": BLUEPRINT_SCHEMA_VERSION,
-                    "source_hash": item.content_hash,
-                },
+                artifact_media_types.get(item.resource_id, item.media_type),
+                (
+                    artifact_results[item.resource_id].document
+                    if item.resource_id in artifact_results
+                    else item.data
+                ),
+                (
+                    {
+                        "kind": "verismill-artifact-suite-member",
+                        "schema_version": BLUEPRINT_SCHEMA_VERSION,
+                        "artifact_request": dict(
+                            artifact_results[item.resource_id].request
+                        ),
+                        "artifact_manifest": dict(
+                            artifact_results[item.resource_id].manifest
+                        ),
+                        "suite_attestation": _copy(suite_attestation or {}),
+                    }
+                    if item.resource_id in artifact_results
+                    else {
+                        "kind": "authored-rich-text",
+                        "schema_version": BLUEPRINT_SCHEMA_VERSION,
+                        "source_hash": item.content_hash,
+                    }
+                ),
+                (
+                    dict(artifact_results[item.resource_id].attestation)
+                    if item.resource_id in artifact_results
+                    else None
+                ),
             )
             for item in self.materials
         )
+
+
+def artifact_truth_binding_material(
+    blueprint: GameBlueprint, specification: "ArtifactSpecification"
+) -> dict[str, Any]:
+    """Project the exact canonical facts one artifact request claims to express.
+
+    Mattermill pins and canon are emitter-specific values, so this layer cannot
+    safely infer their meaning. It can make them non-floating: the projection
+    binds those exact values to the complete referenced Proposition meanings,
+    truth assignments, and represented Events.
+    """
+
+    game = blueprint.materialize_game()
+    propositions = {item.id: item for item in game.propositions}
+    events = {item.id: item for item in game.events}
+    truth_by_proposition: dict[str, list[Any]] = {}
+    for assignment in game.truth_model:
+        truth_by_proposition.setdefault(assignment.proposition_id, []).append(assignment)
+
+    proposition_material = []
+    for proposition_id in specification.proposition_ids:
+        if proposition_id not in propositions:
+            raise ValueError(f"missing canonical Proposition: {proposition_id}")
+        assignments = truth_by_proposition.get(proposition_id, [])
+        if len(assignments) != 1:
+            raise ValueError(
+                f"canonical Proposition {proposition_id} must have exactly one truth assignment"
+            )
+        proposition = propositions[proposition_id]
+        proposition_material.append(
+            {
+                "proposition": {
+                    "id": proposition.id,
+                    "expression": proposition.expression,
+                },
+                "truth_assignment": {
+                    "proposition_id": assignments[0].proposition_id,
+                    "value": assignments[0].value,
+                },
+            }
+        )
+
+    event_material = []
+    for event_id in specification.event_ids:
+        if event_id not in events:
+            raise ValueError(f"missing represented Event: {event_id}")
+        event = events[event_id]
+        event_material.append(
+            {
+                "id": event.id,
+                "summary": event.summary,
+                "order": event.order,
+                "proposition_ids": list(event.proposition_ids),
+                "causes": list(event.causes),
+            }
+        )
+
+    return {
+        "schema_version": "artifact-truth-binding.1",
+        "artifact_id": specification.artifact_id,
+        "resource_id": specification.resource_id,
+        "request_truth_values": {
+            "pins": _copy(specification.pins),
+            "canon": _copy(specification.canon),
+        },
+        "propositions": proposition_material,
+        "events": event_material,
+    }
+
+
+def derive_artifact_truth_binding(
+    blueprint: GameBlueprint, specification: "ArtifactSpecification"
+) -> str:
+    """Derive the content identity that invalidates an artifact on world drift."""
+
+    return digest_json(artifact_truth_binding_material(blueprint, specification))
+
+
+def bind_artifact_specification(
+    blueprint: GameBlueprint, specification: "ArtifactSpecification"
+) -> "ArtifactSpecification":
+    """Return the specification bound to this Blueprint's current canonical world."""
+
+    return replace(
+        specification,
+        truth_binding=derive_artifact_truth_binding(blueprint, specification),
+    )
 
 
 @dataclass(frozen=True)
@@ -312,7 +480,111 @@ def validate_blueprint(blueprint: GameBlueprint) -> tuple[Finding, ...]:
     evidence_ids = {item.id for item in game.evidence}
     proposition_ids = {item.id for item in game.propositions}
     material_by_id = {item.resource_id: item for item in blueprint.materials}
+    artifact_ids = [item.artifact_id for item in blueprint.artifact_specifications]
+    artifact_resource_ids = [
+        item.resource_id for item in blueprint.artifact_specifications
+    ]
+    for artifact_id in sorted(
+        {item for item in artifact_ids if artifact_ids.count(item) > 1}
+    ):
+        findings.append(
+            _finding(
+                "authoring.duplicate-artifact-specification",
+                f"artifact:{artifact_id}",
+                artifact_id,
+                "one artifact identity has more than one specification",
+            )
+        )
+    for resource_id in sorted(
+        {
+            item
+            for item in artifact_resource_ids
+            if artifact_resource_ids.count(item) > 1
+        }
+    ):
+        findings.append(
+            _finding(
+                "authoring.duplicate-artifact-resource",
+                f"material:{resource_id}",
+                resource_id,
+                "one authored Resource has more than one artifact specification",
+            )
+        )
+    event_ids = {item.id for item in game.events}
+    seat_ids = {item.id for item in game.kernel.seats}
+    for specification in blueprint.artifact_specifications:
+        if specification.resource_id not in material_by_id:
+            findings.append(
+                _finding(
+                    "authoring.dangling-artifact-resource",
+                    f"artifact:{specification.artifact_id}.resource",
+                    specification.resource_id,
+                    "Artifact Specification must name an authored Resource",
+                )
+            )
+        unknown_propositions = sorted(
+            set(specification.proposition_ids) - proposition_ids
+        )
+        if unknown_propositions:
+            findings.append(
+                _finding(
+                    "authoring.dangling-artifact-proposition",
+                    f"artifact:{specification.artifact_id}.propositions",
+                    ", ".join(unknown_propositions),
+                    "Artifact Specification refers to missing canonical Propositions",
+                )
+            )
+        unknown_events = sorted(set(specification.event_ids) - event_ids)
+        if unknown_events:
+            findings.append(
+                _finding(
+                    "authoring.dangling-artifact-event",
+                    f"artifact:{specification.artifact_id}.events",
+                    ", ".join(unknown_events),
+                    "Artifact Specification refers to missing represented Events",
+                )
+            )
+        if not unknown_propositions and not unknown_events:
+            try:
+                expected_binding = derive_artifact_truth_binding(
+                    blueprint, specification
+                )
+            except ValueError as exc:
+                findings.append(
+                    _finding(
+                        "authoring.invalid-artifact-truth-projection",
+                        f"artifact:{specification.artifact_id}.truth-binding",
+                        specification.truth_binding,
+                        str(exc),
+                    )
+                )
+            else:
+                if specification.truth_binding != expected_binding:
+                    findings.append(
+                        _finding(
+                            "authoring.stale-artifact-truth-binding",
+                            f"artifact:{specification.artifact_id}.truth-binding",
+                            specification.truth_binding,
+                            "Artifact Specification pins/canon are not bound to the "
+                            "current canonical Proposition, truth, and Event projection",
+                        )
+                    )
+        unknown_audiences = sorted(
+            set(specification.permitted_audience_ids) - seat_ids - {"host"}
+        )
+        if unknown_audiences:
+            findings.append(
+                _finding(
+                    "authoring.dangling-artifact-audience",
+                    f"artifact:{specification.artifact_id}.audiences",
+                    ", ".join(unknown_audiences),
+                    "Artifact Specification refers to an unsupported Seat or audience",
+                )
+            )
     claimed_resources: set[str] = set()
+    artifact_by_resource = {
+        item.resource_id: item for item in blueprint.artifact_specifications
+    }
     for claim in blueprint.displayed_claims:
         material = material_by_id.get(claim.resource_id)
         if material is None or claim.proposition_id not in proposition_ids:
@@ -324,7 +596,9 @@ def validate_blueprint(blueprint: GameBlueprint) -> tuple[Finding, ...]:
                     "Displayed Claim must name an authored Resource and canonical Proposition",
                 )
             )
-        elif not claim.quote or claim.quote not in material.content:
+        elif claim.source == "material-text" and (
+            not claim.quote or claim.quote not in material.content
+        ):
             findings.append(
                 _finding(
                     "authoring.unquoted-displayed-claim",
@@ -333,6 +607,23 @@ def validate_blueprint(blueprint: GameBlueprint) -> tuple[Finding, ...]:
                     "Displayed Claim quote must be an exact visible span in its Material",
                 )
             )
+        elif claim.source == "artifact-request":
+            specification = artifact_by_resource.get(claim.resource_id)
+            if (
+                specification is None
+                or claim.proposition_id not in specification.proposition_ids
+                or claim.pin not in specification.pins
+            ):
+                findings.append(
+                    _finding(
+                        "authoring.invalid-artifact-claim",
+                        f"claim:{claim.resource_id}",
+                        claim.pin or "",
+                        "Artifact Claim must name a planned request pin and fact reference",
+                    )
+                )
+            else:
+                claimed_resources.add(claim.resource_id)
         else:
             claimed_resources.add(claim.resource_id)
     untraced = sorted({item.resource_id for item in game.evidence} - claimed_resources)

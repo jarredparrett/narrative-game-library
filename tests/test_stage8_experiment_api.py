@@ -129,6 +129,15 @@ class JudgeDriver:
         )
 
 
+class FailingJudgeDriver:
+    def __init__(self):
+        self.calls = 0
+
+    def invoke(self, invocation):
+        self.calls += 1
+        raise RuntimeError("simulated provider interruption")
+
+
 class BuilderDriver:
     def invoke(self, invocation):
         parsed = {
@@ -336,6 +345,50 @@ def test_model_and_human_judges_are_distinct_first_order_receipts(
     )
     assert decision.outcome == "select_child"
     assert experiment.ledger.snapshot()["standings"] == ()
+    assert experiment.verify()["ok"]
+
+
+def test_interrupted_model_panel_resumes_its_exact_task(
+    tmp_path, complete_package
+):
+    """stage8.panel-resume: an interrupted panel reuses its Task and exact receipt keys."""
+    experiment = create_experiment(tmp_path)
+    binding = experiment.bind_package(
+        complete_package, idempotency_key="bind-interrupted-panel"
+    )
+    failing = FailingJudgeDriver()
+    member = ModelPanelMember(
+        "resumable-judge",
+        "fixture-model",
+        "judge-latest",
+        "complete-experience",
+        failing,
+    )
+    with pytest.raises(RuntimeError, match="provider interruption"):
+        experiment.measure_model_panel(
+            binding_id=binding.binding_id,
+            task_key="resumable-panel",
+            members=(member,),
+        )
+    assert failing.calls == 1
+    assert len(experiment.ledger.snapshot()["tasks"]) == 1
+    assert experiment.ledger.snapshot()["evaluations"] == ()
+
+    succeeding = JudgeDriver(75)
+    resumed = experiment.measure_model_panel(
+        binding_id=binding.binding_id,
+        task_key="resumable-panel",
+        members=(replace(member, driver=succeeding),),
+    )
+    replayed = experiment.measure_model_panel(
+        binding_id=binding.binding_id,
+        task_key="resumable-panel",
+        members=(replace(member, driver=JudgeDriver(1)),),
+    )
+    assert succeeding.calls == 1
+    assert replayed == resumed
+    assert len(experiment.ledger.snapshot()["tasks"]) == 1
+    assert len(experiment.ledger.snapshot()["evaluations"]) == 1
     assert experiment.verify()["ok"]
 
 

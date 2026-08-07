@@ -14,7 +14,10 @@ from narrative_game.blueprint import (
 )
 from narrative_game.climb import FrozenInstrument, Requirement, prepare_blind_trial
 from narrative_game.compiler import compile_candidate, freeze_candidate, reference_component_lock
+from narrative_game.contracts import canonical_json
 from narrative_game.experiment import CompletePackage, ProposedRevision
+from narrative_game.generation import CreativeBrief, GENERATION_SCHEMA_VERSION
+from narrative_game.generation.artifacts import ArtifactSuiteMaterialization
 from narrative_game.physical import export_physical
 
 
@@ -27,6 +30,17 @@ class FacilitatedInvestigationAuthoringAdapter:
     supported_hard_gates = frozenset(
         {"authoring.valid", "compiler.valid", "physical.valid", "blind.valid"}
     )
+
+    def __init__(
+        self, artifact_suite: ArtifactSuiteMaterialization | None = None
+    ) -> None:
+        self._artifact_suite = artifact_suite
+
+    def with_artifact_suite(
+        self, materialization: ArtifactSuiteMaterialization
+    ) -> "FacilitatedInvestigationAuthoringAdapter":
+        """Return a build adapter bound to one exact accepted suite snapshot."""
+        return type(self)(materialization)
 
     def build(
         self,
@@ -44,9 +58,33 @@ class FacilitatedInvestigationAuthoringAdapter:
         if findings:
             first = findings[0]
             raise ValueError(f"Game Blueprint is invalid: {first.code} at {first.locus}")
+        artifacts_by_resource = {}
+        artifact_media_types = {}
+        suite_attestation = None
+        if self._artifact_suite is not None:
+            specifications = {
+                item.artifact_id: item for item in blueprint.artifact_specifications
+            }
+            if set(specifications) != set(self._artifact_suite.results):
+                raise ValueError("bound Artifact Suite differs from Blueprint specifications")
+            artifacts_by_resource = {
+                specifications[artifact_id].resource_id: result
+                for artifact_id, result in self._artifact_suite.results.items()
+            }
+            artifact_media_types = {
+                specification.resource_id: specification.media_type
+                for specification in specifications.values()
+            }
+            suite_attestation = self._artifact_suite.suite_attestation
         frozen = freeze_candidate(
-            game=blueprint.materialize_game(),
-            materials=blueprint.material_inputs(),
+            game=blueprint.materialize_game(
+                artifacts_by_resource, artifact_media_types
+            ),
+            materials=blueprint.material_inputs(
+                artifacts_by_resource,
+                artifact_media_types=artifact_media_types,
+                suite_attestation=suite_attestation,
+            ),
             seed=blueprint.seed,
             component_lock=self.component_lock,
             compilation_options={
@@ -124,6 +162,97 @@ class FacilitatedInvestigationAuthoringAdapter:
                 "Do not include judge-only quotes, paths, scores, or inferred answers.",
             ],
         }
+
+    def creation_contract(self) -> Mapping[str, Any]:
+        """Return the exact model-output contract for initial creation."""
+        return {
+            "schema_version": GENERATION_SCHEMA_VERSION,
+            "output": {
+                "schema_version": GENERATION_SCHEMA_VERSION,
+                "rationale": "non-empty string",
+                "blueprint": "complete canonical GameBlueprint mapping",
+            },
+            "rules": [
+                "Return exactly the output envelope; unknown or omitted fields are invalid.",
+                "The Blueprint must use the Creative Brief seed, title, direction, player count, and target duration.",
+                "Return complete authored text for every Resource; do not return placeholders.",
+                "Realism-sensitive Artifact Specifications must reference canonical Propositions and represented Events.",
+                "Research is context only: cite it in authored content when relevant, but do not copy provenance into canonical truth.",
+                "Invalid output is rejected and is never repaired, defaulted, or partially accepted.",
+            ],
+        }
+
+    def parse_initial_creation_output(
+        self,
+        brief: CreativeBrief,
+        parsed_output: Any,
+        *,
+        research: Mapping[str, Any] | None = None,
+    ) -> GameBlueprint:
+        """Parse one complete model result without inferring or repairing fields."""
+        if not isinstance(brief, CreativeBrief):
+            raise TypeError("initial creation requires a Creative Brief")
+        if research is not None and not isinstance(research, Mapping):
+            raise TypeError("initial creation research must be an object")
+        if not isinstance(parsed_output, Mapping):
+            raise ValueError("initial creation output must be an object")
+        required = {"schema_version", "rationale", "blueprint"}
+        if set(parsed_output) != required:
+            raise ValueError(
+                "initial creation output must contain exactly schema_version, rationale, and blueprint"
+            )
+        if parsed_output["schema_version"] != GENERATION_SCHEMA_VERSION:
+            raise ValueError(
+                f"initial creation output must use schema {GENERATION_SCHEMA_VERSION}"
+            )
+        rationale = parsed_output["rationale"]
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise ValueError("initial creation output requires a non-empty rationale")
+        raw_blueprint = parsed_output["blueprint"]
+        if not isinstance(raw_blueprint, Mapping):
+            raise ValueError("initial creation output blueprint must be an object")
+        try:
+            blueprint = GameBlueprint.from_mapping(raw_blueprint)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"initial creation Blueprint could not be parsed: {exc}") from exc
+        # A canonical round trip detects ignored fields, implicit defaults, and
+        # scalar coercions in the older Blueprint readers. Initial creation must
+        # supply the exact complete mapping, not a value we can normalize.
+        if canonical_json(raw_blueprint) != canonical_json(blueprint.to_mapping()):
+            raise ValueError("initial creation Blueprint is not an exact canonical mapping")
+        findings = validate_blueprint(blueprint)
+        if findings:
+            first = findings[0]
+            raise ValueError(
+                f"initial creation Blueprint is invalid: {first.code} at {first.locus}"
+            )
+        game = blueprint.materialize_game()
+        canonical_game = game.to_mapping()
+        canonical_game["kernel"].pop("resources")
+        if canonical_json(raw_blueprint["game"]) != canonical_json(canonical_game):
+            raise ValueError(
+                "initial creation Game Definition is not an exact canonical mapping"
+            )
+        direction = game.direction
+        if blueprint.seed != brief.seed:
+            raise ValueError("initial creation Blueprint seed does not match the Creative Brief")
+        if game.kernel.title != brief.title:
+            raise ValueError("initial creation Blueprint title does not match the Creative Brief")
+        if (
+            direction.premise != brief.premise
+            or direction.experience_targets != brief.experience_targets
+            or direction.content_boundaries != brief.content_boundaries
+        ):
+            raise ValueError("initial creation Blueprint direction does not match the Creative Brief")
+        if len(game.profile.supported_seat_ids) != brief.player_count:
+            raise ValueError(
+                "initial creation Blueprint player count does not match the Creative Brief"
+            )
+        if sum(item.target_minutes for item in blueprint.arc) != brief.target_minutes:
+            raise ValueError(
+                "initial creation Blueprint target duration does not match the Creative Brief"
+            )
+        return blueprint
 
     def apply_builder_output(
         self,

@@ -67,4 +67,7 @@ class JsonCommandDriver:
             raw_output,
             response["parsed_output"],
             tool_receipts,
+            response.get("usage", {}),
+            response.get("agent_id"),
+            response.get("context_id"),
         )

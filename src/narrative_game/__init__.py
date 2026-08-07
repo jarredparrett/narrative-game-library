@@ -1,6 +1,11 @@
 """Deterministic narrative game building with agentic, inspectable lineage."""
 
 from .contracts.artifacts import ArtifactRequest, ArtifactResult
+from .adapters import (
+    VerismillArtifactForge,
+    VerismillArtifactSuiteImporter,
+    VerismillArtifactSuiteMaterializer,
+)
 from .authoring import parse_game_definition
 from .blueprint import (
     ArcBeat,
@@ -10,6 +15,8 @@ from .blueprint import (
     GameBlueprint,
     RichTextMaterial,
     apply_blueprint_proposal,
+    bind_artifact_specification,
+    derive_artifact_truth_binding,
     validate_blueprint,
 )
 from .compiler import compile_candidate, freeze_candidate, load_release
@@ -18,6 +25,25 @@ from .experiment import (
     Experiment,
     ExperimentSpine,
     GameProfileAdapter,
+)
+from .generation import (
+    ArtifactPlan,
+    ArtifactSpecification,
+    ArtifactSuiteImporter,
+    ArtifactSuiteMaterialization,
+    ArtifactSuiteMaterializer,
+    CreativeBrief,
+    GenerationBudget,
+    GenerationCoordinator,
+    GenerationDrivers,
+    GenerationPlan,
+    GenerationStatus,
+    GenerationStopped,
+    InvalidGenerationOutput,
+    ModelRoleAssignment,
+    StopPolicy,
+    derive_generation_status,
+    write_generation_status,
 )
 from .experience import (
     ExperienceProjection,
@@ -55,6 +81,14 @@ from .workspace import Workspace
 __all__ = [
     "ArtifactRequest",
     "ArtifactResult",
+    "ArtifactPlan",
+    "ArtifactSpecification",
+    "ArtifactSuiteImporter",
+    "ArtifactSuiteMaterialization",
+    "ArtifactSuiteMaterializer",
+    "VerismillArtifactForge",
+    "VerismillArtifactSuiteImporter",
+    "VerismillArtifactSuiteMaterializer",
     "ArcBeat",
     "AuthoringOperation",
     "BlueprintProposal",
@@ -68,6 +102,15 @@ __all__ = [
     "CharacterProgram",
     "GameBlueprint",
     "GameProfileAdapter",
+    "CreativeBrief",
+    "GenerationBudget",
+    "GenerationCoordinator",
+    "GenerationDrivers",
+    "GenerationPlan",
+    "GenerationStatus",
+    "GenerationStopped",
+    "InvalidGenerationOutput",
+    "ModelRoleAssignment",
     "PhysicalExport",
     "PhysicalExportProfile",
     "PlaytestProgram",
@@ -79,12 +122,16 @@ __all__ = [
     "ReleaseQualificationReport",
     "TutorialProjection",
     "RichTextMaterial",
+    "StopPolicy",
     "FacilitatedInvestigationAuthoringAdapter",
     "Workspace",
     "compile_candidate",
     "dispatch_session_intent",
+    "derive_generation_status",
+    "derive_artifact_truth_binding",
     "apply_command",
     "apply_blueprint_proposal",
+    "bind_artifact_specification",
     "create_session",
     "freeze_candidate",
     "finalize_review",
@@ -105,6 +152,7 @@ __all__ = [
     "seat_snapshot",
     "validate_facilitated_investigation",
     "validate_blueprint",
+    "write_generation_status",
 ]
 
-__version__ = "0.18.0"
+__version__ = "0.19.0"

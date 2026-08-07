@@ -94,6 +94,8 @@ class Workspace:
                 branches[payload["branch"]] = payload["child"]
             elif event["event_type"] == "branch_created":
                 branches[payload["branch"]] = payload["from_revision"]
+            elif event["event_type"] == "branch_selected":
+                branches[payload["branch"]] = payload["selected_revision"]
             elif event["event_type"] == "candidate_frozen":
                 candidates.append(payload["candidate"])
         return {
@@ -254,6 +256,66 @@ class Workspace:
             )
             self._persist_projection()
             return from_revision
+
+    def select_revision(
+        self,
+        *,
+        branch: str,
+        expected_head: str,
+        selected_revision: str,
+        selection_ref: str,
+        actor: str,
+        idempotency_key: str,
+    ) -> str:
+        """Move a development branch to the immutable Draft chosen by evidence.
+
+        No revision is deleted or rewritten. The append-only selection event is
+        the auditable reason a rejected child stops being the next round's parent.
+        """
+        with file_mutex(self.transaction_lock):
+            self._refresh()
+            if not self.store.verify(selected_revision):
+                raise ValueError("selected Draft Revision is unavailable")
+            if not self.store.verify(selection_ref):
+                raise ValueError("Selection Decision record is unavailable")
+            payload = {
+                "branch": branch,
+                "expected_head": expected_head,
+                "selected_revision": selected_revision,
+                "selection_ref": selection_ref,
+            }
+            existing = self.lineage.event_for_key(idempotency_key)
+            if existing is not None:
+                event = self.lineage.append(
+                    "branch_selected",
+                    actor=actor,
+                    payload=payload,
+                    object_refs=[selected_revision, selection_ref],
+                    idempotency_key=idempotency_key,
+                )
+                return event["payload"]["selected_revision"]
+            actual = self.manifest["branches"].get(branch)
+            if actual != expected_head:
+                self._audit_rejection(
+                    operation="branch_selected",
+                    branch=branch,
+                    expected=expected_head,
+                    actual=actual,
+                    idempotency_key=idempotency_key,
+                )
+                self._persist_projection()
+                raise ConcurrencyConflict(
+                    f"Draft Head changed for {branch!r}: expected {expected_head!r}, found {actual!r}"
+                )
+            self.lineage.append(
+                "branch_selected",
+                actor=actor,
+                payload=payload,
+                object_refs=[selected_revision, selection_ref],
+                idempotency_key=idempotency_key,
+            )
+            self._persist_projection()
+            return selected_revision
 
     def freeze_candidate(
         self,

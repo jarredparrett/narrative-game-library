@@ -38,6 +38,8 @@ from narrative_game.climb import (
 )
 from narrative_game.climb.selection import evaluation_passes
 from narrative_game.contracts import canonical_json
+from narrative_game.blueprint import GameBlueprint
+from narrative_game.generation import CreativeBrief
 from narrative_game.workspace import Workspace
 from .efficiency import EfficiencyController
 from .standing import ExperimentSpine
@@ -98,6 +100,18 @@ class GameProfileAdapter(Protocol):
     def authoring_package(self, draft_data: Mapping[str, Any]) -> Mapping[str, Any]: ...
 
     def proposal_contract(self) -> Mapping[str, Any]: ...
+
+    def creation_contract(self) -> Mapping[str, Any]: ...
+
+    def parse_initial_creation_output(
+        self,
+        brief: CreativeBrief,
+        parsed_output: Any,
+        *,
+        research: Mapping[str, Any] | None = None,
+    ) -> GameBlueprint: ...
+
+    def with_artifact_suite(self, materialization: Any) -> "GameProfileAdapter": ...
 
     def apply_builder_output(
         self,
@@ -372,13 +386,18 @@ class Experiment:
         tasks = [item for item in self.ledger.snapshot()["tasks"] if item.task_key == task_key]
         if not tasks:
             return None
+        if len(tasks) != 1:
+            raise ValueError("panel Task key identifies more than one Task")
         evaluations = {
             item.task_id: item for item in self.ledger.snapshot()["evaluations"]
         }
-        if len(tasks) != 1 or tasks[0].task_id not in evaluations:
-            raise ValueError("panel Task exists without one completed Evaluation")
+        if tasks[0].task_id not in evaluations:
+            # A Task is persisted before its provider calls begin. Treat the
+            # absence of an Evaluation as an interrupted attempt that can be
+            # resumed from its idempotent receipts, not as corrupt state.
+            return None
         evaluation = evaluations[tasks[0].task_id]
-        if set(evaluation.judge_authority_ids) != set(member_ids):
+        if evaluation.judge_authority_ids != member_ids:
             raise ValueError("panel Task key was reused for different Authorities")
         scores: dict[str, Mapping[str, int]] = {}
         for receipt_id in evaluation.model_receipt_ids:
@@ -403,41 +422,87 @@ class Experiment:
         binding_record = self.ledger.get("trial_binding", binding_id)
         binding = binding_record.value
         snapshot = self.ledger.snapshot()
-        occupied = {item.authority_id for item in snapshot["authorities"]}
-        reused = occupied & {item.authority_id for item in members}
-        if reused:
-            raise ValueError(f"fresh panel reuses prior Authority identities: {sorted(reused)}")
+        member_ids = tuple(item.authority_id for item in members)
+        authorities = {item.authority_id: item for item in snapshot["authorities"]}
+        matching_tasks = [item for item in snapshot["tasks"] if item.task_key == task_key]
+        if len(matching_tasks) > 1:
+            raise ValueError("panel Task key identifies more than one Task")
+
+        existing_task = matching_tasks[0] if matching_tasks else None
+        if existing_task is not None:
+            expected_inputs = {
+                "blind_trial": binding.blind_trial_ref,
+                "trial_binding": binding_record.record_ref,
+            }
+            if (
+                existing_task.kind != "blind-measure"
+                or existing_task.candidate_id != binding.candidate_id
+                or existing_task.instrument_id != self.instrument.instrument_id
+                or existing_task.occupant_authority_ids != member_ids
+                or dict(existing_task.input_refs) != expected_inputs
+            ):
+                raise ValueError("panel Task key was reused for different inputs")
+        else:
+            used_authorities = {
+                authority_id
+                for task in snapshot["tasks"]
+                for authority_id in task.occupant_authority_ids
+            }
+            used_authorities.update(
+                item.authority_id for item in snapshot["model_receipts"]
+            )
+            used_authorities.update(
+                item.authority_id for item in snapshot["human_receipts"]
+            )
+            used_authorities.update(item.authority_id for item in snapshot["exposures"])
+            reused = used_authorities & set(member_ids)
+            if reused:
+                raise ValueError(
+                    f"fresh panel reuses prior Authority identities: {sorted(reused)}"
+                )
+
         for member in members:
             kind = "agent" if isinstance(member, ModelPanelMember) else "human"
+            expected = Authority(member.authority_id, kind, "judge", member.principal)
+            registered = authorities.get(member.authority_id)
+            if registered is not None and registered != expected:
+                raise ValueError(
+                    f"panel Authority identity names different content: {member.authority_id}"
+                )
             self.ledger.register(
-                Authority(member.authority_id, kind, "judge", member.principal),
+                expected,
                 actor="human:operator",
                 idempotency_key=f"authority-{member.authority_id}",
             )
-        excluded = tuple(
-            sorted(
-                item.authority_id
-                for item in snapshot["authorities"]
-                if item.kind == "agent" and item.role in {"builder", "fixer", "judge"}
+        if existing_task is None:
+            excluded = tuple(
+                sorted(
+                    item.authority_id
+                    for item in snapshot["authorities"]
+                    if item.authority_id not in member_ids
+                    and item.kind == "agent"
+                    and item.role in {"builder", "fixer", "judge"}
+                )
             )
-        )
-        task = Task(
-            task_key,
-            "blind-measure",
-            binding.candidate_id,
-            self.instrument.instrument_id,
-            members[0].authority_id,
-            excluded,
-            {
-                "blind_trial": binding.blind_trial_ref,
-                "trial_binding": binding_record.record_ref,
-            },
-            "Independently score every frozen dimension from the anonymous complete Trial.",
-            tuple(item.authority_id for item in members[1:]),
-        )
-        self.ledger.register(
-            task, actor="human:operator", idempotency_key=f"task-{task_key}"
-        )
+            task = Task(
+                task_key,
+                "blind-measure",
+                binding.candidate_id,
+                self.instrument.instrument_id,
+                members[0].authority_id,
+                excluded,
+                {
+                    "blind_trial": binding.blind_trial_ref,
+                    "trial_binding": binding_record.record_ref,
+                },
+                "Independently score every frozen dimension from the anonymous complete Trial.",
+                tuple(item.authority_id for item in members[1:]),
+            )
+            self.ledger.register(
+                task, actor="human:operator", idempotency_key=f"task-{task_key}"
+            )
+        else:
+            task = existing_task
         for member in members:
             self.ledger.register(
                 Exposure(

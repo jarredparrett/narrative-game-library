@@ -88,6 +88,18 @@ A **Complete Package** binds one Candidate to its exact Game Release, Physical
 Export, Blind Trial, and replayed hard gates before measurement.
 _Avoid_: build output, trial ZIP.
 
+An **Artifact Truth Binding** couples one artifact's exact request truth values
+to the semantic projection of the canonical Propositions, truth assignments,
+and Events they claim to express. Changing either side invalidates the binding;
+it is never a second owner of world truth.
+_Avoid_: copied canon, document facts, truth snapshot.
+
+An **Artifact Suite Import** admits an already forged, independently measured,
+attested Verismill suite into one exact Game Blueprint. Import verifies and
+binds evidence; it never implies that the game library forged, rebuilt,
+remeasured, or upgraded the suite.
+_Avoid_: artifact materialization, forge adapter, suite build.
+
 A **Human Receipt** is the exact persisted observation of a human judge
 occupying a Task. It is first-order evidence and is never represented as a
 Model Receipt.

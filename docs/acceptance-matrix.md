@@ -320,3 +320,13 @@ three-judge formal panel.
 The other eighteen results carry forward only when their artifact bytes are
 content-identical. This is execution-efficiency evidence, not a new realism or
 public-release standing claim.
+
+## Version 0.19 - agentic generation
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `generation.contracts` | `generation.model` | `test_generation_contracts_are_versioned_content_addressed_and_deterministic` | strict cross-process Creative Brief, role, budget, stop, and artifact-plan identities | implemented |
+| `generation.creation-parse` | facilitated-investigation adapter | `test_profile_parses_only_complete_exact_valid_initial_creation_output` | complete canonical Blueprint or rejection without silent repair | implemented |
+| `generation.artifact-truth` | Blueprint + artifact plan | `test_artifact_truth_binding_invalidates_every_canonical_world_drift` | exact pins/canon are content-bound to referenced Proposition meanings, truth assignments, and Events; either-side drift invalidates the plan | implemented |
+| `generation.coordinator` | `GenerationCoordinator` | `test_brief_to_passing_candidate_is_resumable_and_fully_receipted` | brief → creator → independent review → failed blind round → answer-safe revision → fresh passing round → selected child; replay invokes no model twice | implemented |
+| `generation.artifacts` | Verismill suite importer + compiler | `test_accepted_artifact_suite_replaces_source_text_at_compilation` | import-only public suite verification, world binding, member qualification, request/manifest agreement, PDF replacement, and preserved attestations | implemented |

@@ -178,6 +178,7 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
         )
     elif kind == "model_receipt":
         replay = value.get("replay", {})
+        execution_identity = value.get("execution_identity", {})
         result = ModelReceipt(
             value["authority_id"], value["provider"], value["requested_model"],
             value["resolved_model"], value["role"], value["prompt_hash"],
@@ -186,7 +187,9 @@ def _parse(kind: str, value: Mapping[str, Any]) -> Record:
             value["parsed_output_ref"], value.get("seed"),
             replay.get("prompt_ref"), replay.get("context_ref"),
             replay.get("tool_contract_ref"), replay.get("input_refs", {}),
-            value.get("evidence_class"),
+            value.get("evidence_class"), value.get("usage", {}),
+            execution_identity.get("agent_id"),
+            execution_identity.get("context_id"),
         )
     elif kind == "human_receipt":
         result = HumanReceipt(
@@ -445,6 +448,9 @@ class ClimbLedger:
         parsed_output: Any,
         seed: int | None,
         evidence_class: str,
+        usage: Mapping[str, int] | None = None,
+        agent_id: str | None = None,
+        context_id: str | None = None,
         actor: str,
         idempotency_key: str,
     ) -> StoredRecord:
@@ -475,6 +481,9 @@ class ClimbLedger:
             tool_contract_ref=tool_contract_ref,
             input_refs=input_refs,
             evidence_class=evidence_class,
+            usage=usage,
+            agent_id=agent_id,
+            context_id=context_id,
         )
         return self._record(
             receipt,
