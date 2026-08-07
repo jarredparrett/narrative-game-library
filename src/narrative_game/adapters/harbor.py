@@ -174,7 +174,7 @@ keywords = ["multi-agent", "narrative", "rl", "role-isolation"]
 
 [metadata]
 release_id = {json.dumps(release.release_id)}
-arena_version = "1.0.0"
+arena_version = "1.1.0"
 
 [agent]
 timeout_sec = 3600.0

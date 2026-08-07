@@ -31,6 +31,7 @@ from narrative_game.simulation import (
     plan_role_rotated_episodes,
     verify_episode,
 )
+from narrative_game.runtime import replay
 from narrative_game.stage3_fixture import build_micro_candidate
 
 
@@ -70,16 +71,15 @@ def usage(label: str) -> PolicyCallUsage:
 def complete_episode(
     *,
     changed_line: str = "I found the register entry.",
-    reward_version: str = "narrative-multi-agent-reward-v2",
+    reward_version: str = "narrative-multi-agent-reward-v3",
     hypothesis_id: str = "inside-job",
-    proof_path_id: str = "key-and-payment",
 ):
     game_release = release()
     episode = MultiAgentEpisode.reset(
         game_release,
         episode_seed=91,
         lineup=lineup(),
-        config=EpisodeConfig(max_steps=12, reward_version=reward_version),
+        config=EpisodeConfig(max_steps=20, reward_version=reward_version),
     )
     credentials = episode.credentials
     host = episode.active_actor_id
@@ -93,7 +93,7 @@ def complete_episode(
     assert first is not None
     episode.step(
         credentials[first],
-        ToolCall("call-first-opening", "say", {"text": changed_line}),
+        ToolCall("call-first-opening", "inspect_evidence", {"resource_id": "key-register"}),
         policy_receipt=receipt("first-opening"),
         policy_usage=usage("first-opening"),
         reasoning_summary="Share the strongest role-visible record first.",
@@ -102,7 +102,7 @@ def complete_episode(
     assert second is not None
     episode.step(
         credentials[second],
-        ToolCall("call-second-opening", "say", {"text": "Compare that with the interview."}),
+        ToolCall("call-second-opening", "inspect_evidence", {"resource_id": "closing-interview"}),
         policy_receipt=receipt("second-opening"),
     )
     assert episode.active_actor_id == host
@@ -115,19 +115,91 @@ def complete_episode(
     assert first is not None
     episode.step(
         credentials[first],
-        ToolCall("call-first-resolution", "say", {"text": "The two records corroborate."}),
+        ToolCall("call-first-resolution", "request_evidence", {"resource_id": "cash-receipt"}),
         policy_receipt=receipt("first-resolution"),
     )
     second = episode.active_actor_id
     assert second is not None
     episode.step(
         credentials[second],
+        ToolCall("call-second-request", "request_evidence", {"resource_id": "camera-log"}),
+        policy_receipt=receipt("second-request"),
+    )
+    assert episode.active_actor_id == host
+    episode.step(
+        credentials[host],
+        ToolCall(
+            "call-disclose-receipt",
+            "disclose_resource",
+            {
+                "resource_id": "cash-receipt",
+                "audience_seat_ids": ["avery"],
+                "evidence_grade": "runtime-enforced",
+            },
+        ),
+        policy_receipt=receipt("disclose-receipt"),
+    )
+    assert episode.active_actor_id == first
+    episode.step(
+        credentials[first],
+        ToolCall("call-inspect-receipt", "inspect_evidence", {"resource_id": "cash-receipt"}),
+        policy_receipt=receipt("inspect-receipt"),
+    )
+    assert episode.active_actor_id == second
+    episode.step(
+        credentials[second],
+        ToolCall(
+            "call-share-interview",
+            "share_evidence",
+            {"resource_id": "closing-interview", "finding": changed_line},
+        ),
+        policy_receipt=receipt("share-interview"),
+    )
+    assert episode.active_actor_id == host
+    episode.step(
+        credentials[host],
+        ToolCall(
+            "call-disclose-camera",
+            "disclose_resource",
+            {
+                "resource_id": "camera-log",
+                "audience_seat_ids": ["blake"],
+                "evidence_grade": "runtime-enforced",
+            },
+        ),
+        policy_receipt=receipt("disclose-camera"),
+    )
+    assert episode.active_actor_id == first
+    episode.step(
+        credentials[first],
+        ToolCall(
+            "call-share-receipt",
+            "share_evidence",
+            {"resource_id": "cash-receipt", "finding": "The payment was undeclared."},
+        ),
+        policy_receipt=receipt("share-receipt"),
+    )
+    assert episode.active_actor_id == second
+    episode.step(
+        credentials[second],
+        ToolCall("call-inspect-camera", "inspect_evidence", {"resource_id": "camera-log"}),
+        policy_receipt=receipt("inspect-camera"),
+    )
+    assert episode.active_actor_id == host
+    episode.step(
+        credentials[host],
+        ToolCall("call-host-summary", "broadcast", {"text": "Submit only from inspected records."}),
+        policy_receipt=receipt("host-summary"),
+    )
+    assert episode.active_actor_id == first
+    episode.step(
+        credentials[first],
         ToolCall(
             "call-resolution",
             "submit_resolution",
             {
                 "hypothesis_id": hypothesis_id,
-                "proof_path_id": proof_path_id,
+                "evidence_resource_ids": ["key-register", "cash-receipt"],
                 "explanation": "The key and payment records independently agree.",
             },
         ),
@@ -163,6 +235,25 @@ def test_reset_binds_isolated_roles_and_seeded_schedule_without_truth_leakage():
     assert episode.realized_seat_order == MultiAgentEpisode.reset(
         game_release, episode_seed=91, lineup=lineup()
     ).realized_seat_order
+
+
+def test_model_host_receives_facilitator_controls_without_answer_graph():
+    """arena.facilitator-blindness: a model host can facilitate but cannot leak truth."""
+    game_release = release()
+    episode = MultiAgentEpisode.reset(game_release, episode_seed=91, lineup=lineup())
+    host_id = next(item for item in episode.credentials if item.startswith("host:"))
+    observation = episode.observe(episode.credentials[host_id])
+    serialized = json.dumps(observation)
+    assert '"truth_model"' not in serialized
+    assert '"correct_hypothesis_id"' not in serialized
+    assert '"acceptable_proof_path_ids"' not in serialized
+    assert '"hypotheses"' not in serialized
+    assert '"proof_paths"' not in serialized
+    assert '"character_states"' not in serialized
+    assert '"private_notes"' not in serialized
+    facilitator = observation["game"]["game"]["game"]["narrative"]
+    assert facilitator["phases"] and facilitator["reveals"]
+    assert facilitator["interventions"]
 
 
 def test_unauthorized_evidence_attempt_terminates_and_hard_zeros_reward():
@@ -212,17 +303,57 @@ def test_resolution_phase_exposes_choices_without_the_answer_key():
     actor = episode.active_actor_id
     assert actor is not None
     observation = episode.observe(episode.credentials[actor])
-    options = observation["game"]["resolution_options"]
-    assert {item["id"] for item in options["hypotheses"]} == {
+    options = observation["game"]["candidate_theories"]
+    assert {item["id"] for item in options} == {
         "inside-job",
         "outsider-entry",
     }
-    assert {item["id"] for item in options["proof_paths"]} == {
-        "interview-and-camera",
-        "key-and-payment",
-    }
     assert "correct_hypothesis_id" not in json.dumps(observation)
-    assert all("hypothesis_id" not in item for item in options["proof_paths"])
+    assert "proof_paths" not in json.dumps(observation)
+
+
+def test_correct_answer_without_acquired_evidence_is_rejected_and_cannot_score():
+    """arena.epistemic-lineage: knowing the answer key cannot bypass discovery."""
+    game_release = release()
+    episode = MultiAgentEpisode.reset(
+        game_release,
+        episode_seed=91,
+        lineup=lineup(),
+        config=EpisodeConfig(max_steps=12),
+    )
+    credentials = episode.credentials
+    host = episode.active_actor_id
+    assert host is not None
+    episode.step(credentials[host], ToolCall("open", "open_session", {}))
+    for index in range(2):
+        actor = episode.active_actor_id
+        assert actor is not None
+        episode.step(
+            credentials[actor],
+            ToolCall(f"say-{index}", "say", {"text": "No record was inspected."}),
+        )
+    episode.step(
+        credentials[host],
+        ToolCall("phase", "advance_phase", {"phase_id": "resolution"}),
+    )
+    actor = episode.active_actor_id
+    assert actor is not None
+    rejected = episode.step(
+        credentials[actor],
+        ToolCall(
+            "leaked-answer",
+            "submit_resolution",
+            {
+                "hypothesis_id": "inside-job",
+                "evidence_resource_ids": ["key-register", "cash-receipt"],
+                "explanation": "I know the answer but did not acquire its records.",
+            },
+        ),
+    )
+    assert not rejected.accepted
+    assert rejected.content["error"] == "insufficient_acquired_evidence"
+    assert not episode.done
+    assert replay(game_release, episode.history)["submissions"] == []
 
 
 def test_complete_episode_replays_exactly_and_emits_binary_reward_plus_diagnostics():
@@ -242,7 +373,7 @@ def test_complete_episode_replays_exactly_and_emits_binary_reward_plus_diagnosti
         "pacing_completion": 1.0,
         "proof_path_coverage": 1.0,
         "token_attribution": 1.0,
-        "tool_efficiency": 0.5,
+        "tool_efficiency": 0.30000000000000004,
     }
     assert report.aggregate == 1.0
 
@@ -251,7 +382,6 @@ def test_incorrect_outcome_scores_zero_without_becoming_an_integrity_failure():
     """harbor-rl.binary-reward: an intact incorrect episode has integrity one and outcome zero."""
     game_release, archive = complete_episode(
         hypothesis_id="outsider-entry",
-        proof_path_id="interview-and-camera",
     )
     report = evaluate_episode(game_release, archive)
     assert report.team == {"integrity": 1.0, "outcome": 0.0}
@@ -267,7 +397,7 @@ def test_reward_v1_archives_keep_their_original_aggregate_semantics():
     )
     report = evaluate_episode(game_release, archive)
     assert report.team == report.diagnostics
-    assert report.aggregate == 0.9375
+    assert report.aggregate == 0.9125
     assert any(item.code == "proof_bearing_resolution" for item in report.hard_gates)
 
 
@@ -318,7 +448,7 @@ def test_harbor_task_and_trial_artifacts_are_complete_and_offline_verifiable(tmp
     assert reward["reward"] == 1.0
     assert reward["integrity"] == 1.0
     assert reward["outcome"] == 1.0
-    assert reward["diagnostic_tool_efficiency"] == 0.5
+    assert reward["diagnostic_tool_efficiency"] == 0.30000000000000004
     assert len(list((tmp_path / "logs" / "artifacts" / "trajectories").glob("*.json"))) == 3
     verifier_root = tmp_path / "logs" / "verifier"
     assert verify_artifact_files(
@@ -558,7 +688,7 @@ def test_concrete_harbor_agent_runs_a_complete_isolated_trial_offline(tmp_path):
         {
             "release_id": game_release.release_id,
             "bundle_hash": game_release.bundle_hash,
-            "episode_config": EpisodeConfig(max_steps=8).to_mapping(),
+            "episode_config": EpisodeConfig(max_steps=12).to_mapping(),
         }
     )
 
@@ -593,18 +723,43 @@ def test_concrete_harbor_agent_runs_a_complete_isolated_trial_offline(tmp_path):
             snapshot = observation["game"]
             state = snapshot.get("state", snapshot)
             if self.role == "host":
-                if state["status"] == "created":
+                if self.calls == 1:
                     tool, arguments = "open_session", {}
-                else:
+                elif self.calls == 2:
                     tool, arguments = "advance_phase", {"phase_id": "resolution"}
-            elif state["phase_id"] == "resolution":
+                elif self.calls == 3:
+                    tool, arguments = "disclose_resource", {
+                        "resource_id": "cash-receipt",
+                        "audience_seat_ids": ["avery"],
+                        "evidence_grade": "runtime-enforced",
+                    }
+                else:
+                    tool, arguments = "disclose_resource", {
+                        "resource_id": "camera-log",
+                        "audience_seat_ids": ["blake"],
+                        "evidence_grade": "runtime-enforced",
+                    }
+            elif self.role == "avery" and self.calls == 1:
+                tool, arguments = "inspect_evidence", {"resource_id": "key-register"}
+            elif self.role == "avery" and self.calls == 2:
+                tool, arguments = "request_evidence", {"resource_id": "cash-receipt"}
+            elif self.role == "avery" and self.calls == 3:
+                tool, arguments = "inspect_evidence", {"resource_id": "cash-receipt"}
+            elif self.role == "avery":
                 tool, arguments = "submit_resolution", {
                     "hypothesis_id": "inside-job",
-                    "proof_path_id": "key-and-payment",
-                    "explanation": "The independent records agree.",
+                    "evidence_resource_ids": ["key-register", "cash-receipt"],
+                    "explanation": "The independently inspected key and payment records agree.",
                 }
+            elif self.calls == 1:
+                tool, arguments = "inspect_evidence", {"resource_id": "closing-interview"}
+            elif self.calls == 2:
+                tool, arguments = "request_evidence", {"resource_id": "camera-log"}
             else:
-                tool, arguments = "say", {"text": f"{self.role} shares one observation."}
+                tool, arguments = "share_evidence", {
+                    "resource_id": "closing-interview",
+                    "finding": "The clerk admitted returning after a call.",
+                }
             return LLMResponse(
                 content=json.dumps(
                     {

@@ -348,10 +348,10 @@ public-release standing claim.
 |---|---|---|---|---|
 | `harbor-rl.reset-isolation` | `simulation.MultiAgentEpisode` | `test_reset_binds_isolated_roles_and_seeded_schedule_without_truth_leakage` | exact role credentials, deterministic order, and distinct authorized projections | implemented |
 | `harbor-rl.hard-authorization` | simulation + Session Authority | `test_unauthorized_evidence_attempt_terminates_and_hard_zeros_reward` | cross-seat evidence read is rejected, terminates, and scores zero | implemented |
-| `harbor-rl.resolution-menu` | simulation role projection | `test_resolution_phase_exposes_choices_without_the_answer_key` | exact hypothesis and proof-path submission IDs become visible only at resolution; correctness markers and path-to-answer bindings remain hidden | implemented |
+| `harbor-rl.resolution-menu` | simulation role projection | `test_resolution_phase_exposes_choices_without_the_answer_key` | competing theories become visible at resolution while proof paths, required evidence sets, and correctness markers remain hidden | implemented |
 | `harbor-rl.replay-reward` | `simulation.verification` | `test_complete_episode_replays_exactly_and_emits_binary_reward_plus_diagnostics`; `test_edited_arena_trace_fails_replay_and_cannot_retain_reward` | outcome and integrity jointly produce one shared binary reward; explanatory diagnostics survive archive round-trip; edited trace hard-zeros | implemented |
 | `harbor-rl.binary-reward` | `simulation.verification` | `test_incorrect_outcome_scores_zero_without_becoming_an_integrity_failure` | an intact but incorrect episode records integrity `1`, outcome `0`, and reward `0` | implemented |
-| `harbor-rl.reward-versioning` | `simulation.verification` | `test_reward_v1_archives_keep_their_original_aggregate_semantics` | reward v2 becomes the default without reinterpreting immutable v1 episodes | implemented |
+| `harbor-rl.reward-versioning` | `simulation.verification` | `test_reward_v1_archives_keep_their_original_aggregate_semantics` | reward v3 becomes the default without reinterpreting immutable v1 or v2 episodes | implemented |
 | `harbor-rl.credit-assignment` | Harbor rollout adapter | `test_each_trainable_role_has_a_separate_token_attributed_rollout` | one trial expands to one token/mask/logprob-bearing rollout per trainable role | implemented |
 | `harbor-rl.packaging` | Harbor task adapter | `test_harbor_task_and_trial_artifacts_are_complete_and_offline_verifiable` | frozen Release task plus standard reward, trajectory, attestation, and Session artifacts | implemented |
 | `harbor-rl.atif` | Harbor agent adapter | `test_harbor_agent_writes_native_atif_with_global_and_role_local_traces` | native ATIF root preserves global order and embeds one independently valid trace per role | implemented |
@@ -367,3 +367,12 @@ public-release standing claim.
 |---|---|---|---|---|
 | `prime-rl.multi-agent` | `narrative_game_prime.NarrativeGameEnv` | `test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outcome` | one persistent host interaction and one isolated interaction per Seat produce a replay-verified canonical archive; Prime records the shared binary outcome-and-integrity reward on every trace | implemented |
 | `prime-rl.hub-package` | `environments/narrative_game_arena` | `test_prime_hub_package_materializes_its_frozen_release_without_local_paths` | the publishable Prime Hub package contains an exact frozen Release and materializes its task without a caller-local path | implemented |
+
+## Version 0.23 - epistemically valid multi-agent resolution
+
+| Requirement | Owner | Capability test | Evidence | Status |
+|---|---|---|---|---|
+| `arena.epistemic-lineage` | `simulation.MultiAgentEpisode` | `test_correct_answer_without_acquired_evidence_is_rejected_and_cannot_score` | a policy that names the exact correct theory and proof resources without acquiring them receives no submission and cannot terminate successfully | implemented |
+| `arena.facilitator-blindness` | simulation host projection | `test_model_host_receives_facilitator_controls_without_answer_graph` | the model host retains phases, reveal eligibility, and interventions while truth, hypotheses, correctness markers, and proof paths remain absent | implemented |
+| `prime-rl.action-framing` | Prime policy adapter | `test_prime_policy_recovers_one_action_object_from_trailing_model_chatter` | the first valid JSON object alone determines the action; trailing provider prose cannot mutate it or crash the episode | implemented |
+| `prime-rl.embodied-role-prompt` | Prime policy adapter | `test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outcome` | every Seat receives its own stable character identity and conduct boundary in the system prompt while phase knowledge remains in the authorized observation; other characters and answer-key identifiers stay absent | implemented |
