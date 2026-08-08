@@ -171,6 +171,49 @@ Ledger to the occupying principal, model configuration, structured conclusion,
 trace citations, alternatives, confidence, and upstream receipts without
 requiring private chain-of-thought. _Avoid_: context dump, judge transcript.
 
+A **Discovery Sweep** is one independently occupied, truth-blind application of
+a frozen discovery lens to an Episode Evidence Package. It emits trace-cited
+Failure Signal proposals or an explicit no-finding receipt before any
+cross-sweep synthesis, and cannot see other sweeps' conclusions. The Analysis
+Instrument's fixed sweep roster determines discovery coverage.
+_Avoid_: detector pass, generalist review, root-cause analysis.
+
+**Sweep Coverage** records the global Episode structure and factual-graph
+regions a Discovery Sweep traversed, the exact spans it expanded, its search
+for counterevidence, and every omitted, truncated, or failed region. Selective
+inspection without this receipt is not a complete Sweep.
+_Avoid_: context-window size, transcript summary, implied coverage.
+
+**Sweep Completion** is `complete` only when the frozen coverage contract and
+counterevidence search finish. Budget exhaustion produces `partial` with an
+exact continuation cursor; a partial Sweep may preserve provisional Signals but
+cannot corroborate an Incident, and only a complete Sweep may report no finding.
+_Avoid_: timeout as no finding, best-effort complete, discarded partial pass.
+
+A **Novel Signal Proposal** is a trace-cited expected-versus-observed gap that
+a Discovery Sweep cannot express with the Analysis Instrument's frozen known
+patterns. It follows the same Discovery Corroboration rule as a known-pattern
+proposal and cannot create an Atlas class, alter Standing, or harden a task.
+_Avoid_: new failure class, other label, taxonomy update.
+
+**Incident Assembly** is a separately occupied, truth-blind grouping of frozen
+Discovery Sweep outputs into proposed Failure Incidents. It may group, split,
+preserve exclusions and disagreement, or request a targeted additional Sweep;
+it cannot invent a Signal, suppress a sweep receipt, assign cause, consult the
+Failure Atlas, or alter cited evidence. Signals may share an Incident only when
+they concern the same expected milestone, required transition, terminal claim,
+or directly linked obligation and have overlapping windows or an explicit
+factual-graph connection. _Avoid_: root-cause synthesis, thematic clustering,
+majority vote, incident judge.
+
+**Discovery Corroboration** is the independent evidence check required before a
+proposed Failure Incident may enter Semantic Interpretation. Eligibility needs
+either convergence by two independently occupied Discovery Sweeps or
+confirmation by a separately occupied targeted Sweep that receives the claim
+but not the first principal's reasoning. Failed or materially conflicting
+corroboration leaves an unresolved Signal proposal; it is never silently
+discarded. _Avoid_: majority confidence, self-confirmation, duplicate sampling.
+
 An **Analysis Lineage** is the dependency path from one Episode through its
 Signals, Incident, interpretations, Attributions, and any resulting Atlas or
 Challenge proposal. Principal conflicts are enforced within a Lineage so no
