@@ -58,6 +58,16 @@ _OBJECT_REF_KEYS = frozenset(
         "context",
         "tool_contract",
         "transition",
+        "checkpoint",
+        "claim_manifest",
+        "evidence_object",
+        "import_receipt",
+        "migration_receipt",
+        "migrated_object",
+        "root",
+        "schema",
+        "source_object",
+        "verifier",
     }
 )
 

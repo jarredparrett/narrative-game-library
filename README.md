@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.24.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.25.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -92,6 +92,14 @@ visibility, state transitions, and receipts as addressable evidence, and derives
 an answer-safe preflight Discovery view. Two deterministic falsifiers preserve
 the important gap in the current reward: an Episode may pass outcome and
 integrity while omitting a required rescue transition or evidence handoff.
+
+Version 0.25 makes that evidence portable. Typed Evidence Objects now span
+separate lineage, operations, climb, analysis, qualification, and access
+Journals; a Workspace Checkpoint pins one coherent verified prefix across all
+six. Claim Manifests bind complete object, schema, and verifier closures, and a
+deterministic Claim Capsule carries those objects plus Journal proofs for
+offline relocation. Workspace 0.1 evidence migrates through append-only receipts
+rather than in-place rewriting, and imported archives record their own receipt.
 
 ## Multi-agent RL episodes with Harbor
 
