@@ -15,9 +15,10 @@ STAGES = [
     "class-promotion",
     "requirement-freeze",
     "child-generation",
-    "challenge-admission",
+    "challenge-preflight",
     "matched-remeasurement",
     "target-comparison",
+    "challenge-admission",
     "sealed-non-regression",
     "independent-review",
     "hardening-transition",
@@ -96,6 +97,7 @@ def _reference_state(contract: dict[str, Any]) -> dict[str, Any]:
         },
         "admission": {
             "ref": "challenge-admission:handoff-child-v1",
+            "preflight_ref": "challenge-preflight:handoff-child-v1",
             "gate_results": {gate: True for gate in required_gates},
             "solver_principals": [
                 contract["principals"]["admission_solver_a"],
@@ -402,7 +404,7 @@ def advance(contract: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]
             ],
         )
 
-    elif stage == "challenge-admission":
+    elif stage == "challenge-preflight":
         admission = state["admission"]
         failed = sorted(
             name for name, passed in admission["gate_results"].items() if not passed
@@ -419,7 +421,7 @@ def advance(contract: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]
             )
         if len(principals) != len(set(principals)):
             return _halt(state, "rejected", "Challenge Admission principal conflict")
-        _record(state, stage, ["child-release->challenge-admission"])
+        _record(state, stage, ["child-release->challenge-preflight"])
 
     elif stage == "matched-remeasurement":
         if not child["complete"]:
@@ -469,13 +471,23 @@ def advance(contract: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]
             ],
         )
 
+    elif stage == "challenge-admission":
+        _record(
+            state,
+            stage,
+            [
+                "challenge-preflight->challenge-admission",
+                "release-comparison->challenge-admission",
+            ],
+        )
+
     elif stage == "sealed-non-regression":
         sealed = state["sealed"]
         if sealed["contents_exposed"]:
             return _halt(state, "rejected", "sealed cohort contents were exposed")
         if sealed["result"] != contract["comparison_rule"]["required_sealed_result"]:
             return _halt(state, "rejected", "opaque sealed non-regression check failed")
-        _record(state, stage, ["release-comparison->sealed-receipt"])
+        _record(state, stage, ["challenge-admission->sealed-receipt"])
 
     elif stage == "independent-review":
         review = state["review"]
