@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.23.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.24.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -84,6 +84,14 @@ proof path before accepting a resolution. Prime action framing also preserves th
 first valid JSON action when a provider appends non-action prose. A real five-agent
 Sol episode passed the corrected v3 outcome-and-integrity contract with no model
 receiving the answer key.
+
+Version 0.24 starts the agentic-difficulty implementation without claiming the
+analyzer exists yet. It freezes the accepted contract sources by content,
+packages replay-verified Episode actions, observations, results, messages,
+visibility, state transitions, and receipts as addressable evidence, and derives
+an answer-safe preflight Discovery view. Two deterministic falsifiers preserve
+the important gap in the current reward: an Episode may pass outcome and
+integrity while omitting a required rescue transition or evidence handoff.
 
 ## Multi-agent RL episodes with Harbor
 
