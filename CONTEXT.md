@@ -276,6 +276,20 @@ an Incident to contributing actors, interactions, or owning layers while
 preserving confidence and alternative explanations. It may be multi-label and
 unresolved; it is not an assignment of blame. _Avoid_: root cause, guilty agent.
 
+A **Causal Hypothesis Set** is one independently frozen Attribution output. It
+relates candidate factors across Actor, interaction, Seat, host, game, runtime,
+provider, and evaluator layers; names each factor as necessary, sufficient,
+contributing, amplifying, recovery, or confounding; and binds evidence,
+counterevidence, alternatives, confidence, and a falsifiable counterfactual
+prediction. Interaction hypotheses remain explicit rather than being flattened
+into equal labels. _Avoid_: ranked blame list, single root cause, confidence sum.
+
+**Attribution Agreement** is overlap between two isolated Causal Hypothesis
+Sets. It prioritizes a hypothesis for testing but cannot establish an owning
+layer or authorize a repair requirement without counterfactual evidence or a
+deterministic minimal reproduction. _Avoid_: analyst consensus as proof,
+ensemble confidence.
+
 A **Coordination Failure** is a system-level Incident caused by the relationship
 between otherwise locally plausible agent actions, information states, or
 handoffs. It cannot be reduced to an invalid action by one Actor.
@@ -294,6 +308,54 @@ A **Counterfactual Episode** is a new Episode that changes exactly one declared
 experimental factor under an otherwise identical Evaluation Panel to test a
 causal dependency. It is not a replay of the original trajectory.
 _Avoid_: retry, trace edit, ablation replay.
+
+A **Counterfactual Contrast** binds a predeclared causal prediction and fixed
+invariants to matched factual and Counterfactual Episodes that differ in one
+factor. A contrast may test a hypothesis but cannot by itself establish an
+owning layer. _Avoid_: before-and-after anecdote, post-hoc explanation.
+
+A **Counterfactual Plan** is a content-addressed selection of single-factor
+Contrasts designed by a principal distinct from the hypothesis authors. It
+freezes competing hypotheses, discriminating predictions, invariants, controls,
+and stop conditions before new Episodes execute. A fresh isolated Attribution
+pair interprets the results, and neither planners nor interpreters may accept
+their own Owning-Layer Finding. _Avoid_: favorable test selection, adaptive
+story, self-confirming ablation.
+
+A **Counterfactual Factor** is one versioned experimental variable from the
+frozen registry: policy occupancy, Seat or role design, host policy, culprit
+behavior, proof path or evidence availability, communication condition, game
+affordance or reveal policy, runtime or provider, or evaluator or Analysis
+Instrument. Each Contrast changes one Factor; an interaction hypothesis uses a
+minimal factorial matrix whose edges remain single-factor Contrasts.
+_Avoid_: bundled mutation, unnamed condition, post-hoc factor.
+
+A **Diagnostic Cross-Contract Contrast** tests a runtime, provider, evaluator,
+or Analysis Instrument factor that cannot vary within one primary experiment
+identity. It creates an explicitly separate diagnostic lineage with every
+contract difference visible; it may support causal ownership but cannot enter
+the original Difficulty Profile, Standing, or same-instrument Release
+Comparison. _Avoid_: matched primary comparison, silent panel drift.
+
+An **Owning-Layer Finding** is a reviewer-accepted causal conclusion supported
+by either two orthogonal Counterfactual Contrasts whose frozen predictions hold
+or a deterministic minimal reproduction. One contrast plus replication marks a
+hypothesis tested, not owned; an owning layer need not be the sole cause.
+_Avoid_: likely owner, analyst agreement, repair target.
+
+**Partial Attribution** is the state in which at least one factor has an
+accepted Owning-Layer Finding while other material causal branches remain
+unresolved. A scoped Causal Repair may address the accepted factor without
+claiming sole cause or closing the Incident; conflicting evidence remains
+explicit rather than being averaged. _Avoid_: resolved root cause, partial fix
+as incident closure.
+
+A **Causal Repair** changes an accepted owning layer and may resolve the linked
+Owning-Layer Finding after its predicted effect is validated. A **Resilience
+Mitigation** changes another layer to reduce recurrence or impact; it preserves
+the causal record and cannot close or relabel the originating Finding. Both
+retain their own predictions, trade-offs, and validation evidence.
+_Avoid_: convenient fix as cause, mitigation as repair, closed by workaround.
 
 A **Challenge Case** is a validated scenario or mutation derived from one
 Failure Class with an oracle, feasibility proof, non-manifesting control, and
