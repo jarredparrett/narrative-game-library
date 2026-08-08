@@ -35,6 +35,9 @@ __all__ = [
     "GenerationStatus",
     "derive_generation_status",
     "write_generation_status",
+    "HardeningGenerationPort",
+    "propose_hardening_child",
+    "register_answer_safe_hardening_requirements",
 ]
 
 
@@ -57,4 +60,12 @@ def __getattr__(name: str):
         from . import status
 
         return getattr(status, name)
+    if name in {
+        "HardeningGenerationPort",
+        "propose_hardening_child",
+        "register_answer_safe_hardening_requirements",
+    }:
+        from . import hardening
+
+        return getattr(hardening, name)
     raise AttributeError(name)
