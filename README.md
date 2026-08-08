@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.27.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.28.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -116,6 +116,14 @@ Attribution Analysts mutually unexposed, freezes every view, output, attempt,
 and eligibility result, and exports the diagnostic claim as an offline-verifiable
 Claim Capsule. An incomplete assignment fails the lineage closed while retaining
 everything already attempted.
+
+Version 0.28 governs matched difficulty measurement. Release-independent
+Evaluation Panels bind to Releases with explicit compatibility and assignment
+inventories; seven-dimensional Difficulty Profiles preserve denominators, IQRs,
+and supported uncertainty; and target-dominance decisions require paired
+uncertainty rather than point estimates. Frozen Standing samples remain separate
+from adaptive diagnostics, whose complete evidence packages, protected budgets,
+sealed cohorts, deterministic priorities, and reservation receipts are auditable.
 
 ## Multi-agent RL episodes with Harbor
 
