@@ -23,6 +23,7 @@ from narrative_game.experiment.difficulty import (
     AnalysisTransportError,
     EvidenceAccessSession,
     run_analysis_assignment,
+    run_analysis_lineage,
 )
 from narrative_game.workspace import Workspace
 
@@ -351,3 +352,155 @@ def test_openai_analysis_driver_uses_exact_model_settings_and_records_admitted_e
     assert call["store"] is False
     assert not {"temperature", "top_p", "seed"} & set(call)
     assert len(session.ledger_value()["exposures"]) == len(view.grants)
+
+
+def _valid_output(schema: str):
+    receipt = "analysis-receipt:pending"
+    values = {
+        "discovery-sweep.1": _valid_sweep(receipt),
+        "incident-assembly.1": {
+            "status": "complete",
+            "included_signal_refs": [],
+            "excluded_signal_refs": [],
+            "grouping_obligation": "No frozen Signals required grouping.",
+            "graph_connection": [],
+            "disagreement": [],
+            "targeted_sweep_request": None,
+            "analysis_receipt_ref": receipt,
+        },
+        "semantic-interpretation.1": {
+            "status": "complete",
+            "incident_ref": "incident:none",
+            "domain_statement": "No Incident was assembled.",
+            "actors": [],
+            "phases": [],
+            "public_obligations": [],
+            "observed_transitions": [],
+            "missing_or_uncertain_transitions": [],
+            "consequence": "No semantic conclusion.",
+            "span_refs": [],
+            "analysis_receipt_ref": receipt,
+        },
+        "causal-hypothesis-set.1": {
+            "status": "complete",
+            "incident_ref": "incident:none",
+            "factors": [],
+            "interactions": [],
+            "alternatives": [],
+            "overall_uncertainty": "insufficient incident evidence",
+            "analysis_receipt_ref": receipt,
+        },
+        "atlas-revision-proposal.1": {
+            "status": "complete",
+            "parent_atlas_ref": ATLAS_REF,
+            "class_changes": [],
+            "evidence_refs": [],
+            "detector_or_rubric": None,
+            "positive_fixtures": [],
+            "non_manifesting_controls": [],
+            "migration": None,
+            "unresolved_evidence": ["No Incident was assembled."],
+            "analysis_receipt_ref": receipt,
+        },
+        "challenge-case-proposal.1": {
+            "status": "complete",
+            "failure_class_ref": "failure-class:fixture",
+            "generation_intent_ref": "generation-intent:fixture",
+            "mutation": "fixture-only",
+            "protected_invariants": [],
+            "initial_state": {},
+            "legal_actions": [],
+            "terminal_requirements": [],
+            "oracle": {},
+            "expected_manifestation": {},
+            "non_manifesting_control": {},
+            "target_profile": {},
+            "admission_plan": {},
+            "analysis_receipt_ref": receipt,
+        },
+        "independent-review.1": {
+            "status": "complete",
+            "proposal_ref": "proposal:fixture",
+            "gate_results": {"receipts": True},
+            "disagreements": [],
+            "missing_evidence": [],
+            "decision": "accept",
+            "reasons": ["Fixture lineage is mechanically complete."],
+            "analysis_receipt_ref": receipt,
+        },
+    }
+    return values[schema]
+
+
+class LineageDriver:
+    def __init__(self, output, resolved_model, response_id):
+        self.output = output
+        self.resolved_model = resolved_model
+        self.response_id = response_id
+
+    def invoke(self, request: bytes, *, tools) -> AnalysisModelResponse:
+        if tools.view.grants:
+            tools.get(tools.view.grants[0].object_ref)
+        return AnalysisModelResponse(
+            canonical_json(self.output),
+            self.resolved_model,
+            self.response_id,
+            {"input_tokens": 20, "output_tokens": 10, "total_tokens": 30},
+        )
+
+
+def test_complete_twelve_assignment_lineage_exports_a_portable_diagnostic_capsule(tmp_path):
+    """difficulty.d2.lineage: one complete run freezes receipts, eligibility, and claim closure."""
+    episode = {"schema_version": "episode-evidence.1", "episode_id": "episode:fixture"}
+    episode_ref = digest_json(episode)
+    definition = analysis_instrument_v1(
+        normative_contract_ref=CONTRACT_REF,
+        published_atlas_ref=ATLAS_REF,
+    )
+    application = apply_instrument(definition, episode_package_ref=episode_ref)
+    categories = {
+        category
+        for contract in VIEW_CONTRACTS.values()
+        for category in contract["allow"]
+    }
+    objects = {episode_ref: episode}
+    grants = {}
+    for category in sorted(categories):
+        value = {"schema_version": "lineage-material.1", "category": category, "spans": []}
+        ref = digest_json(value)
+        objects[ref] = value
+        grants[category] = EvidenceGrant(category, ref)
+
+    specs = {item.assignment: item for item in ASSIGNMENTS}
+    applied = {item.assignment: item for item in application.assignments}
+
+    def factory(assignment, view):
+        spec = specs[assignment.assignment]
+        return LineageDriver(
+            _valid_output(spec.output_schema),
+            applied[assignment.assignment].resolved_model,
+            f"response-{assignment.assignment}",
+        )
+
+    workspace = Workspace.create(tmp_path / "lineage", workspace_id="lineage")
+    result = run_analysis_lineage(
+        workspace,
+        definition=definition,
+        application=application,
+        available_grants=grants,
+        evidence_objects=objects,
+        driver_factory=factory,
+        episode_actor_principals=("episode:host", "episode:seat:a"),
+        capsule_path=tmp_path / "diagnostic.ngc",
+    )
+    assert result.status == "complete"
+    assert result.eligibility.eligible
+    assert len(result.assignment_results) == 12
+    attribution_a_receipt = result.assignment_results["attribution-a"].attempt_receipt_refs[-1]
+    attribution_b_receipt = workspace.store.read_json(
+        result.assignment_results["attribution-b"].attempt_receipt_refs[-1]
+    )["value"]
+    assert attribution_a_receipt not in attribution_b_receipt["upstream_receipt_refs"]
+    assert result.claim_capsule is not None
+    assert Workspace.verify_claim_capsule(result.claim_capsule)["ok"]
+    assert workspace.verify_claim_manifest(result.claim_manifest_ref) == ()

@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.26.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.27.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -109,6 +109,13 @@ eligibility. Every transport or schema attempt receives a durable receipt;
 semantic and best-of retries are forbidden. An optional OpenAI Responses driver
 pins the exact Sol/Terra model settings. This is analysis infrastructure, not a
 claim that the required two-Episode live falsifier has passed.
+
+Version 0.27 composes that core into one complete Analysis Lineage. The
+coordinator runs all twelve assignments in dependency order, keeps the two
+Attribution Analysts mutually unexposed, freezes every view, output, attempt,
+and eligibility result, and exports the diagnostic claim as an offline-verifiable
+Claim Capsule. An incomplete assignment fails the lineage closed while retaining
+everything already attempted.
 
 ## Multi-agent RL episodes with Harbor
 

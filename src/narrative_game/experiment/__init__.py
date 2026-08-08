@@ -24,11 +24,13 @@ from .migration import (
 )
 from .difficulty import (
     AnalysisAttemptResult,
+    AnalysisLineageResult,
     AnalysisModelDriver,
     AnalysisModelResponse,
     AnalysisTransportError,
     EvidenceAccessSession,
     run_analysis_assignment,
+    run_analysis_lineage,
 )
 
 __all__ = [
@@ -38,6 +40,7 @@ __all__ = [
     "EfficiencyController",
     "AUTHORIZATION_BOUNDARIES",
     "AnalysisAttemptResult",
+    "AnalysisLineageResult",
     "AnalysisModelDriver",
     "AnalysisModelResponse",
     "AnalysisTransportError",
@@ -57,4 +60,5 @@ __all__ = [
     "seal_external_evidence",
     "seal_verismill_experiment",
     "run_analysis_assignment",
+    "run_analysis_lineage",
 ]
