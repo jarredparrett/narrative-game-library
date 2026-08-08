@@ -25,7 +25,7 @@ class EligibilityFinding:
 class EligibilityResult:
     definition_ref: str
     application_ref: str
-    lineage_ref: str
+    analysis_lineage_ref: str
     eligible: bool
     findings: tuple[EligibilityFinding, ...]
     schema_version: str = "analysis-eligibility-result.1"
@@ -39,7 +39,7 @@ class EligibilityResult:
             "schema_version": self.schema_version,
             "definition_ref": self.definition_ref,
             "application_ref": self.application_ref,
-            "lineage_ref": self.lineage_ref,
+            "analysis_lineage_ref": self.analysis_lineage_ref,
             "eligible": self.eligible,
             "findings": [item.to_mapping() for item in self.findings],
         }

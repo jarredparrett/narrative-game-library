@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from typing import Any, Mapping, Protocol
+from pathlib import Path
+from typing import Any, Callable, Mapping, Protocol
 
 from narrative_game.contracts.canonical import canonical_json, digest_bytes, digest_json
 from narrative_game.difficulty.instrument import (
@@ -13,7 +14,14 @@ from narrative_game.difficulty.instrument import (
     AnalysisInstrumentApplication,
     AnalysisInstrumentDefinition,
     AssignmentApplication,
+    EvidenceGrant,
+    ASSIGNMENTS,
+    build_analysis_view,
     compose_prompt,
+)
+from narrative_game.difficulty.transitions import (
+    EligibilityResult,
+    evaluate_analysis_eligibility,
 )
 from narrative_game.workspace import Workspace
 
@@ -111,6 +119,22 @@ class AnalysisAttemptResult:
     structured_output_ref: str | None
     attempt_receipt_refs: tuple[str, ...]
     exposure_ledger_ref: str
+
+
+@dataclass(frozen=True)
+class AnalysisLineageResult:
+    application_ref: str
+    status: str
+    assignment_results: Mapping[str, AnalysisAttemptResult]
+    eligibility: EligibilityResult
+    lineage_object_ref: str
+    claim_manifest_ref: str
+    claim_capsule: str | None
+
+
+AnalysisDriverFactory = Callable[
+    [AssignmentApplication, AnalysisEvidenceView], AnalysisModelDriver
+]
 
 
 def _application_assignment(
@@ -247,6 +271,12 @@ def run_analysis_assignment(
     """Run one assignment with bounded mechanical retries and full attempt lineage."""
     applied = _application_assignment(application, view.assignment)
     spec = next(item for item in definition.assignments if item.assignment == view.assignment)
+    if workspace.store.put_json(definition.to_mapping()) != definition.definition_ref:
+        raise ValueError("Analysis Instrument Definition identity is unstable")
+    if workspace.store.put_json(application.to_mapping()) != application.application_ref:
+        raise ValueError("Analysis Instrument Application identity is unstable")
+    if workspace.store.put_json(view.to_mapping()) != view.view_ref:
+        raise ValueError("Analysis Evidence View identity is unstable")
     prompt = compose_prompt(definition, view, upstream_receipt_refs=upstream_receipt_refs)
     prompt_ref = workspace.put_evidence_object(
         object_kind="prompt_contract",
@@ -434,4 +464,271 @@ def run_analysis_assignment(
     )
     return AnalysisAttemptResult(
         applied.assignment, "incomplete", None, tuple(receipts), exposure_ledger_ref
+    )
+
+
+def _aggregate_material(
+    workspace: Workspace,
+    *,
+    category: str,
+    object_refs: tuple[str, ...],
+) -> tuple[EvidenceGrant, Mapping[str, Any]]:
+    ref = workspace.put_evidence_object(
+        object_kind="analysis_material_bundle",
+        object_schema="analysis-material-bundle.1",
+        value={"category": category, "object_refs": list(object_refs)},
+        producer="analysis-lineage-coordinator.1",
+        verifier="analysis-material-bundle-verifier.1",
+    )
+    return EvidenceGrant(category, ref), workspace.store.read_json(ref)
+
+
+def run_analysis_lineage(
+    workspace: Workspace,
+    *,
+    definition: AnalysisInstrumentDefinition,
+    application: AnalysisInstrumentApplication,
+    available_grants: Mapping[str, EvidenceGrant],
+    evidence_objects: Mapping[str, Mapping[str, Any]],
+    driver_factory: AnalysisDriverFactory,
+    episode_actor_principals: tuple[str, ...],
+    capsule_path: str | Path | None = None,
+) -> AnalysisLineageResult:
+    """Run all twelve assignments in dependency order and freeze one diagnostic claim."""
+    grants = dict(available_grants)
+    objects = {key: json.loads(canonical_json(value)) for key, value in evidence_objects.items()}
+    for ref, value in objects.items():
+        if workspace.store.put_json(value) != ref:
+            raise ValueError(f"evidence material ref does not match bytes: {ref}")
+    results: dict[str, AnalysisAttemptResult] = {}
+    discovery_outputs: list[str] = []
+    attribution_outputs: list[str] = []
+
+    for assignment_definition in ASSIGNMENTS:
+        name = assignment_definition.assignment
+        if name == "incident-assembler":
+            grant, value = _aggregate_material(
+                workspace,
+                category="frozen_discovery_outputs",
+                object_refs=tuple(discovery_outputs),
+            )
+            grants[grant.category] = grant
+            objects[grant.object_ref] = value
+            coverage, coverage_value = _aggregate_material(
+                workspace,
+                category="sweep_coverage",
+                object_refs=tuple(discovery_outputs),
+            )
+            grants[coverage.category] = coverage
+            objects[coverage.object_ref] = coverage_value
+        if name == "attribution-a" and "frozen_semantic_interpretation" not in grants:
+            raise ValueError("Attribution requires a frozen Semantic Interpretation")
+        if name == "atlas-curator":
+            both, both_value = _aggregate_material(
+                workspace,
+                category="both_frozen_attributions",
+                object_refs=tuple(attribution_outputs),
+            )
+            grants[both.category] = both
+            objects[both.object_ref] = both_value
+            disagreement, disagreement_value = _aggregate_material(
+                workspace,
+                category="attribution_disagreement",
+                object_refs=tuple(attribution_outputs),
+            )
+            grants[disagreement.category] = disagreement
+            objects[disagreement.object_ref] = disagreement_value
+        if name == "independent-reviewer":
+            all_receipts = tuple(
+                ref
+                for result in results.values()
+                for ref in result.attempt_receipt_refs
+            )
+            receipt_grant, receipt_value = _aggregate_material(
+                workspace,
+                category="all_analysis_receipts",
+                object_refs=all_receipts,
+            )
+            grants[receipt_grant.category] = receipt_grant
+            objects[receipt_grant.object_ref] = receipt_value
+
+        view = build_analysis_view(
+            definition,
+            application,
+            assignment=name,
+            available=grants,
+        )
+        applied = _application_assignment(application, name)
+        driver = driver_factory(applied, view)
+        sweeps = tuple(item.assignment for item in ASSIGNMENTS if item.assignment.startswith("sweep-"))
+        dependencies = {
+            "incident-assembler": sweeps,
+            "semantic-interpreter": ("incident-assembler",),
+            "attribution-a": ("semantic-interpreter",),
+            "attribution-b": ("semantic-interpreter",),
+            "atlas-curator": ("attribution-a", "attribution-b"),
+            "challenge-designer": ("atlas-curator",),
+            "independent-reviewer": tuple(results),
+        }.get(name, ())
+        upstream = tuple(
+            results[dependency].attempt_receipt_refs[-1]
+            for dependency in dependencies
+            if dependency in results and results[dependency].attempt_receipt_refs
+        )
+        result = run_analysis_assignment(
+            workspace,
+            definition=definition,
+            application=application,
+            view=view,
+            driver=driver,
+            evidence_objects=objects,
+            upstream_receipt_refs=upstream,
+        )
+        results[name] = result
+        if result.status != "complete" or result.structured_output_ref is None:
+            break
+        objects[result.structured_output_ref] = workspace.store.read_json(
+            result.structured_output_ref
+        )
+        output_grant = EvidenceGrant(
+            {
+                "incident-assembler": "frozen_incident",
+                "semantic-interpreter": "frozen_semantic_interpretation",
+                "atlas-curator": "reviewed_incident_packages",
+                "challenge-designer": "frozen_proposal",
+            }.get(name, "analysis_output"),
+            result.structured_output_ref,
+        )
+        if name.startswith("sweep-"):
+            discovery_outputs.append(result.structured_output_ref)
+        elif name in {"attribution-a", "attribution-b"}:
+            attribution_outputs.append(result.structured_output_ref)
+        elif output_grant.category != "analysis_output":
+            grants[output_grant.category] = output_grant
+
+    lineage = {
+        "schema_version": "analysis-lineage.1",
+        "episode_actor_principals": list(episode_actor_principals),
+        "assignments": {},
+        "attribution_cross_exposure": False,
+        "no_finding_claim": False,
+        "corroboration_claim": False,
+    }
+    for applied in application.assignments:
+        result = results.get(applied.assignment)
+        receipt_values = (
+            [workspace.store.read_json(ref)["value"] for ref in result.attempt_receipt_refs]
+            if result is not None
+            else []
+        )
+        lineage["assignments"][applied.assignment] = {
+            "principal": applied.principal,
+            "view_ref": (
+                receipt_values[-1]["evidence_view_ref"] if receipt_values else None
+            ),
+            "denied_exposures": [],
+            "receipt_complete": bool(result and result.status == "complete"),
+            "status": result.status if result else "incomplete",
+            "attempts": [
+                {"kind": item["attempt_kind"], "receipt_ref": ref}
+                for item, ref in zip(
+                    receipt_values,
+                    result.attempt_receipt_refs if result else (),
+                    strict=True,
+                )
+            ],
+            "mutated_proposal": False,
+        }
+    eligibility = evaluate_analysis_eligibility(definition, application, lineage)
+    if workspace.store.put_json(lineage) != eligibility.analysis_lineage_ref:
+        raise ValueError("Analysis Lineage identity is unstable")
+    eligibility_ref = workspace.put_evidence_object(
+        object_kind="analysis_eligibility_result",
+        object_schema=eligibility.schema_version,
+        value=eligibility.to_mapping(),
+        producer="analysis-lineage-coordinator.1",
+        verifier="analysis-eligibility-verifier.1",
+    )
+    attempt_refs = tuple(
+        ref for result in results.values() for ref in result.attempt_receipt_refs
+    )
+    output_refs = tuple(
+        result.structured_output_ref
+        for result in results.values()
+        if result.structured_output_ref is not None
+    )
+    lineage_object_ref = workspace.put_evidence_object(
+        object_kind="analysis_lineage",
+        object_schema="analysis-lineage.1",
+        value={
+            "definition_ref": definition.definition_ref,
+            "application_ref": application.application_ref,
+            "episode_package_ref": application.episode_package_ref,
+            "eligibility_result_ref": eligibility_ref,
+            "attempt_receipt_refs": list(attempt_refs),
+            "structured_output_refs": list(output_refs),
+            "lineage": lineage,
+        },
+        producer="analysis-lineage-coordinator.1",
+        verifier="analysis-lineage-verifier.1",
+    )
+    workspace.analysis.append(
+        "analysis_lineage_frozen",
+        actor="analysis:coordinator",
+        payload={
+            "application_ref": application.application_ref,
+            "lineage_ref": lineage_object_ref,
+            "eligibility_result_ref": eligibility_ref,
+            "eligible": eligibility.eligible,
+        },
+        object_refs=(lineage_object_ref, eligibility_ref),
+        idempotency_key=f"analysis-lineage:{application.application_ref}",
+    )
+    schema_ref = workspace.put_evidence_object(
+        object_kind="schema_bundle",
+        object_schema="schema-bundle.1",
+        value={
+            "schemas": [
+                "analysis-instrument.1",
+                "analysis-instrument-application.1",
+                "analysis-evidence-view.1",
+                "analysis-receipt.1",
+                "analysis-lineage.1",
+                "analysis-eligibility-result.1",
+            ]
+        },
+        producer="analysis-lineage-coordinator.1",
+        verifier="schema-bundle-verifier.1",
+    )
+    verifier_ref = workspace.put_evidence_object(
+        object_kind="verifier_bundle",
+        object_schema="verifier-bundle.1",
+        value={
+            "entry_point": "narrative_game.workspace:verify_claim_capsule_bytes",
+            "eligibility_verifier": "narrative_game.difficulty:evaluate_analysis_eligibility",
+        },
+        producer="analysis-lineage-coordinator.1",
+        verifier="verifier-bundle-verifier.1",
+    )
+    checkpoint_ref = workspace.create_checkpoint()
+    manifest_ref = workspace.create_claim_manifest(
+        claim_id=f"diagnostic:{application.application_ref}",
+        checkpoint_ref=checkpoint_ref,
+        root_refs=(lineage_object_ref,),
+        schema_refs=(schema_ref,),
+        verifier_refs=(verifier_ref,),
+        actor="analysis:coordinator",
+        idempotency_key=f"analysis-claim:{application.application_ref}",
+    )
+    capsule = None
+    if capsule_path is not None:
+        capsule = workspace.export_claim_capsule(manifest_ref, capsule_path)["capsule"]
+    return AnalysisLineageResult(
+        application.application_ref,
+        "complete" if len(results) == len(ASSIGNMENTS) and eligibility.eligible else "incomplete",
+        results,
+        eligibility,
+        lineage_object_ref,
+        manifest_ref,
+        capsule,
     )
