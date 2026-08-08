@@ -299,10 +299,50 @@ A **Failure Class** is a reusable, versioned definition with explicit
 inclusions, exclusions, observable signatures, counterexamples, and a rerunnable
 detector or frozen rubric. _Avoid_: tag, free-form category.
 
+A **Class Evidence Stage** records whether a Failure Class is `proposed`,
+`experimental`, or `promoted`. Proposal needs one independently corroborated
+Incident; experimentation needs two distinct Analysis Lineages or a deterministic
+minimal reproduction; promotion needs three Lineages spanning two evaluation
+axes or a deterministic reproduction, plus positive and non-manifesting
+fixtures, rerunnable measurement, independent review, and sealed non-regression.
+Causal ownership remains separate. _Avoid_: occurrence count, popularity,
+curator confidence.
+
+**Class Evolution** is append-only. Compatible clarification versions one
+stable class identity; material splits and merges create new identities linked
+from every superseded source. Deprecation discourages new classification, while
+retirement removes a class from future Instruments. Historical observations,
+detectors, fixtures, challenges, and measurements retain their exact original
+class versions; migrations add annotations rather than rewriting them.
+_Avoid_: rename in place, deleted class, historical relabeling.
+
+**Class Retirement** is an independently reviewed Atlas change supported by
+demonstrated invalidity, systematic false positives, explicit scope removal, or
+supersession with migration. Absence of recent observations is not evidence for
+retirement. A class normally remains deprecated for one Atlas version first;
+immediate retirement requires evidence that continued use invalidates
+measurement. _Avoid_: unused cleanup, silent removal, detector deletion.
+
 A **Failure Atlas** is the versioned graph of Failure Classes and their
 supporting, refuting, and unresolved evidence. An Atlas revision changes future
 instruments; it never rewrites historical Difficulty Profiles or Standing.
 _Avoid_: error list, self-updating rubric.
+
+The **Atlas Workbench** is the append-only research surface for proposed and
+experimental classes, failed promotions, evidence, disagreement, detector
+drafts, and review receipts. The **Published Failure Atlas** contains only
+independently accepted class versions and lifecycle links. Analysis Instruments
+pin a Published Atlas version; Workbench evolution does not change experiment
+identity, while publication does. _Avoid_: experimental class as active rubric,
+mutable published atlas.
+
+An **Atlas Revision Proposal** is an immutable Atlas Curator output that names
+its parent Atlas, exact class and evidence changes, migrations, detector and
+fixture effects, and complete Analysis Lineage. An Independent Reviewer may
+accept or reject an eligible Proposal but cannot edit it or waive a gate; only
+a deterministic **Atlas Transition** materializes an accepted Proposal as a new
+Atlas version. Human evidence may supplement but is not mandatory.
+_Avoid_: live taxonomy edit, reviewer patch, autonomous promotion.
 
 A **Counterfactual Episode** is a new Episode that changes exactly one declared
 experimental factor under an otherwise identical Evaluation Panel to test a
