@@ -152,6 +152,7 @@ from .operator import (
     render_operator_html,
     verify_release_claim_capsule_bytes,
 )
+from .falsifiers import SEMANTIC_FALSIFIERS, build_semantic_falsifier_episode
 
 __all__ = [
     "DIFFICULTY_CONTRACT_CATALOG",
@@ -280,4 +281,6 @@ __all__ = [
     "reference_operator_projection",
     "render_operator_html",
     "verify_release_claim_capsule_bytes",
+    "SEMANTIC_FALSIFIERS",
+    "build_semantic_falsifier_episode",
 ]

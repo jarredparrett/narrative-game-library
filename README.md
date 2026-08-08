@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.31.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.32.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -156,6 +156,33 @@ opaque allowlisted handles; and the static reference renderer contains no
 transition commands. A Release Claim Capsule wraps one Claim Capsule with the
 exact operator projection, schema bundle, component lock, and a standard-library
 offline verifier so an unfamiliar operator can relocate and recheck the result.
+
+Version 0.32 closes the first provider-backed difficulty checkpoint. An
+authenticated Codex CLI adapter runs the frozen Sol/Terra Analysis Instrument
+without placing provider keys in the Workspace. Two replay-valid Episodes that
+score 1.0 despite a missing rescue transition or failed evidence handoff now
+produce complete provider receipts, cited semantic findings, isolated causal
+attributions, cost reports, and offline-verifiable diagnostic Claim Capsules.
+The live run also exposed and fixed opaque downstream bundles and duplicated
+Episode material. The first D5 route stops honestly at `quarantined` because no
+two independent Counterfactual Contrasts have yet established causal ownership;
+that non-accepting terminal has its own verified Claim Capsule and does not claim
+an Atlas promotion, generated child, or Standing. See
+[`docs/live-difficulty-qualification.md`](docs/live-difficulty-qualification.md).
+
+Run the same persisted qualification with an authenticated local Codex CLI:
+
+```bash
+uv run narrative-game-difficulty-live \
+  --game fixtures/micro-game/game.json \
+  --output "${XDG_DATA_HOME:-$HOME/.local/share}/narrative-game-library/difficulty-live" \
+  --fixture both
+```
+
+The output path is user state, not repository content. Each fixture contains a
+Workspace, Episode archive, diagnostic Claim Capsule, hardening-terminal Claim
+Capsule, summary with every provider attempt and token count, and a suite
+manifest. A pre-existing output directory is rejected rather than overwritten.
 
 Build and inspect the deterministic worked monitor without a service or network:
 
