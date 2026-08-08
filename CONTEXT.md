@@ -278,6 +278,115 @@ median, interquartile range, and stratified 95% bootstrap intervals only with at
 least eight independent assignments. Smaller samples are `insufficient`.
 _Avoid_: turn-level sample size, omitted denominator, false precision.
 
+A **Standing Sampling Plan** precommits the estimand, assignment matrix, strata,
+seeds, quotas, maximum sample size, invalid-replacement rule, and stopping rule
+whose Episodes may enter one Difficulty Profile or Standing claim. Outcomes
+cannot change membership or stop timing. _Avoid_: convenient sample, early stop
+after pass, adaptive standing denominator.
+
+A **Diagnostic Sampling Queue** is the adaptive, append-only ordering of
+additional Episodes, Discovery Sweeps, Counterfactual Contrasts, replications,
+and challenge runs selected to reduce uncertainty or improve the next
+experiment. Its evidence remains diagnostic and cannot enter the current
+Standing estimate. It may motivate a newly frozen Standing Sampling Plan in a
+new series. _Avoid_: active sample pooled into standing, retroactive holdout.
+
+A **Scheduling Priority Vector** orders eligible diagnostic work
+lexicographically by required validity and coverage debt, proximity to a frozen
+target or transition boundary, expected causal discrimination, uncertainty
+reduction, promoted-failure regression risk, structural and Failure-Class
+novelty, then expected cost and latency. A lower tier cannot compensate for a
+higher-tier deficit; cost ranks alternatives only after required coverage and
+decision relevance are preserved. _Avoid_: opaque utility score, cheapest first,
+coverage traded for throughput.
+
+An **Evidence Cascade** maps one explicit claim and its minimum sufficient
+evidence to the cheapest eligible instrument: static validation, deterministic
+replay or mutation, focused solver or Discovery Sweep, Counterfactual Contrast,
+full fixed-panel Episode, then independent review or sealed check. Escalation
+occurs only when the cheaper layer is ineligible or inconclusive; evidence from
+a lower layer cannot decide a claim outside its authority. _Avoid_: full Episode
+by default, structural proxy for semantic play, escalation without claim.
+
+A **Scheduling Analysis** is an agentic proposal over one bounded evidence
+snapshot. It estimates structural and Failure-Class novelty, causal
+discrimination, regression risk, and likely information value, preserving
+alternatives, uncertainty, evidence references, and its Model Receipt. A
+deterministic **Scheduling Transition** alone applies the frozen eligibility,
+suite-blindness, Priority Vector, and budget rules to select the next action.
+Every eligible alternative and rejection reason remains inspectable.
+_Avoid_: agent-edited queue, hidden ranking rationale, scheduler as analyst.
+
+A **Budget Envelope** reserves cost, calls, tokens, wall time, and concurrency
+for one evidence purpose: Standing assignments, invalid replacements,
+diagnostic exploration, counterfactual discrimination, promoted-class
+regression, sealed checks, or independently authorized contingency. Adaptive
+reallocation is allowed only among diagnostic envelopes under a frozen rule;
+Standing and sealed reserves cannot fund exploration. Exhaustion yields
+`insufficient` or `unresolved`, never a favorable default. _Avoid_: shared burn
+pool, borrowed holdout budget, success by exhaustion.
+
+A **Sealed Scheduling Handle** is the only projection of a Sealed Cohort visible
+to scheduling: opaque cohort identity, declared cost, eligibility state, and
+predeclared promotion gate. Once launched, the complete Cohort yields one
+aggregate decision receipt or remains incomplete. The scheduler cannot inspect
+or reorder cases, react to interim outcomes, stop on a favorable partial result,
+or expose case-level findings. _Avoid_: adaptive sealed sampling, partial
+holdout pass, case-aware scheduler.
+
+A **Coverage Cell** is one declared combination of independent evaluation axes:
+Failure Class, proof path and evidence topology, Seat or policy occupancy,
+communication condition, host and culprit policy, Release, seed, model family,
+Game Profile, and target band. Structural Novelty means adding or repairing an
+underrepresented Cell under a frozen Coverage Contract. Surface paraphrase does
+not establish novelty, and repeated observations remain replications rather
+than new coverage. _Avoid_: embedding distance as diversity, renamed fixture,
+correlated volume as breadth.
+
+A **Diagnostic Stop State** is frozen with the claim before adaptive work starts:
+`resolved` by its required evidence threshold, `refuted`, `invalidated` by an
+evidence-quality failure, `saturated` because no eligible action adds causal
+discrimination or Coverage, or `unresolved` because its Budget Envelope expired.
+The current lead of a preferred hypothesis is not a stop condition.
+_Avoid_: stopped means solved, favorable early stop, silent abandonment.
+
+An **Evidence Work Package** is the atomic schedulable evidence obligation for
+one action. An Episode Package includes canonical execution, replay verification,
+the complete frozen Discovery Sweep roster, corroboration, receipts, and costs;
+a Counterfactual Package includes its complete matched matrix and independent
+interpretation. Eligibility and budget reservation use the whole Package, and
+an incomplete Package cannot support its claim. _Avoid_: partial cheap run,
+selected sweep, unmatched contrast.
+
+A **Replacement Chain** is the precommitted sequence of retry and substitute
+assignments for one Standing Coverage Cell. A transient retry repeats the exact
+assignment under a frozen policy; any substitute identity and order are fixed
+before outcomes. Every invalid attempt remains in the Difficulty Profile, and
+exhausting the Chain leaves the Cell incomplete. _Avoid_: favorable replacement,
+erased invalid run, scheduler-selected seed.
+
+A **Cost Model** is the versioned forecast of model calls, tokens, provider
+spend, wall-clock latency, concurrency occupancy, retry burden, and complete
+Evidence Work Package cost. Estimates use receipts matched by exact model,
+runtime, and Package type and preserve uncertainty ranges; actual cost is always
+recorded. New receipts may calibrate only a future Cost Model version.
+_Avoid_: live price tuning, point-cost certainty, partial-package estimate.
+
+**Assignment Immutability** means scheduling may choose when an assignment runs
+but never who occupies it. An unavailable model, provider, host policy, Seat
+assignment, tool version, or sampling lock may use only a predeclared
+operationally equivalent route; otherwise the assignment pauses or remains
+incomplete. Substitution creates a different Evaluation Panel and experiment
+series. _Avoid_: cheaper fallback model, convenient policy swap, hidden panel
+drift.
+
+A **Scheduling Receipt** binds one Scheduling Transition to its evidence
+snapshot, Scheduling and Cost Model versions, all eligible alternatives and
+Priority Vectors, the Scheduling Analysis and Model Receipt, selected, deferred,
+and rejected actions with reasons, protected and remaining Budget Envelopes,
+forecast and actual costs, resulting stop state, and next eligible actions.
+_Avoid_: current queue only, unexplained deferral, cost without decision lineage.
+
 A **Difficulty Target Contract** is the profile-specific, versioned declaration
 of required Panel coverage, minimum independent assignments, eligibility gates,
 dimension and condition bands, brittleness tolerances, classification rules,
