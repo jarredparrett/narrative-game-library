@@ -359,7 +359,7 @@ public-release standing claim.
 | `harbor-rl.provider-policy` | Harbor LiteLLM adapter | `test_harbor_model_policy_records_safe_rationale_usage_and_exact_tokens` | one real provider boundary emits a structured action, safe rationale, usage, and exact token receipt without persisting private reasoning | implemented |
 | `harbor-rl.agent-run` | concrete Harbor arena agent | `test_concrete_harbor_agent_runs_a_complete_isolated_trial_offline` | async isolated policies drive a frozen Release to verified termination and emit artifacts, usage, and native ATIF | implemented |
 | `harbor-rl.policy-variable` | arena boundary | `test_policy_behavior_can_change_without_changing_release_or_reward_contract` | changed policy behavior changes trace while Release and reward locks remain exact | implemented |
-| `harbor-rl.falsifying-matrix` | `simulation.experiment` | `test_twenty_episode_plan_rotates_four_roles_across_two_model_families` | deterministic 20-episode matrix covers every Seat with both model families; accepted Sybil v5 Release exports as a Harbor 0.20-valid task; one live five-context Sol reward-v1 episode passed every check at historical score `0.7625` | implemented; full reward-v2 evaluation pending |
+| `harbor-rl.falsifying-matrix` | `simulation.experiment` | `test_twenty_episode_plan_rotates_four_roles_across_two_model_families` | deterministic 20-episode matrix covers every Seat with both model families; accepted Sybil v5 Release exports as a Harbor 0.20-valid task; live five-context Sol episodes have passed both the historical reward-v1 contract and the current reward-v3 outcome-and-integrity contract | implemented; full fixed-panel reward-v3 difficulty evaluation tracked separately |
 
 ## Version 0.22 - Prime hosted multi-agent execution
 
