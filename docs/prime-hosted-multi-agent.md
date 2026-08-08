@@ -117,6 +117,17 @@ Different host and player models are normal configuration. Role-local policy
 and context IDs remain distinct in the canonical archive even when the underlying
 model checkpoint is the same.
 
+## Evidence-lineage contract
+
+Use `narrative-arena-tools-v2` with `narrative-multi-agent-reward-v3` for new
+runs. A player must inspect a disclosed resource before calling
+`share_evidence`; another player may cite that record only after the share is
+in the public trajectory. `submit_resolution` accepts a candidate-theory ID,
+an explanation, and acquired resource IDs. The environment—not the policy—maps
+those records to a hidden proof path and rejects incomplete or unearned paths.
+This keeps the answer-key graph out of observations and makes a successful
+reward evidence of discovery rather than label matching.
+
 ## What is and is not reproducible
 
 The same Release, seed, models, sampling configuration, and returned actions

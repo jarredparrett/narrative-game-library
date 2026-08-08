@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.22.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.23.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -75,6 +75,16 @@ binary outcome-and-integrity reward. One host interaction and one separately
 opened interaction per player Seat provide variable-cast role isolation even
 when all Seats share one trainable player policy.
 
+Version 0.23 closes the answer-leakage path found in the first Sybil's Cave
+Prime episode. Model-operated hosts now receive a facilitator projection rather
+than trusted truth; player observations expose competing theories but never the
+proof graph. Records become citable only through an exact inspection or a public
+share by their inspecting role, and the environment privately derives a complete
+proof path before accepting a resolution. Prime action framing also preserves the
+first valid JSON action when a provider appends non-action prose. A real five-agent
+Sol episode passed the corrected v3 outcome-and-integrity contract with no model
+receiving the answer key.
+
 ## Multi-agent RL episodes with Harbor
 
 The environment lives in `narrative_game.simulation` and runs without Harbor:
@@ -107,11 +117,17 @@ turn. `MultiAgentArenaRunner` accepts provider-specific policy adapters and
 returns a portable `EpisodeArchive`. Verify and score it with
 `verify_episode(...)` and `evaluate_episode(...)`.
 
-New episodes use `narrative-multi-agent-reward-v2`: the official reward is
+New episodes use `narrative-arena-tools-v2` and
+`narrative-multi-agent-reward-v3`: the official reward is
 binary and shared. It is `1.0` only when both integrity and outcome pass;
 otherwise it is `0.0`. Participation, communication, turn use, intervention
 dependence, objective progress, cost, and token attribution remain persisted as
 diagnostics and never dilute a successful outcome.
+
+An outcome is proof-bearing only when its cited records were previously opened
+by the submitting role or publicly shared by a role that opened them. The arena
+derives the matching proof path privately and rejects unsupported submissions;
+agents never receive the proof-path graph or its answer-key evidence sets.
 
 For Harbor, use `HarborTaskExporter` to package one exact Release as a task and
 `write_trial_artifacts(...)` to write the Episode Archive, Session history,
@@ -123,8 +139,9 @@ shared library retains game authority, scheduling, replay, and reward semantics.
 Responses API sessions chain by provider response ID, and later turns send only
 new dialogue, newly visible evidence, current phase state, and the role's newest
 tool result. Seat observations name requestable resource IDs without exposing
-their contents; the resolution phase names candidate hypothesis and proof-path
-IDs without exposing the answer key.
+their contents. The resolution phase names competing candidate theories, while
+proof paths remain hidden and the terminal submission cites acquired resource
+IDs.
 It also writes Harbor's
 native `agent/trajectory.json`: the root ATIF-v1.7 trace preserves global AEC
 order, while embedded subagent trajectories preserve exact per-role policy and

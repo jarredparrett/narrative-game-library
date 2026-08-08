@@ -8,6 +8,7 @@ import json
 from typing import Any, Mapping
 
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from narrative_game.contracts.canonical import canonical_json
 
@@ -28,6 +29,10 @@ TOOL_ARGUMENT_CONTRACTS: dict[str, dict[str, str]] = {
     },
     "end_session": {"reason": "string"},
     "inspect_evidence": {"resource_id": "exact role-visible resource id"},
+    "share_evidence": {
+        "resource_id": "exact resource id previously inspected by this role",
+        "finding": "concise bounded finding supported by that resource",
+    },
     "say": {"text": "string"},
     "message": {"seat_id": "exact other seat id", "text": "string"},
     "request_evidence": {"resource_id": "exact resource id"},
@@ -37,8 +42,8 @@ TOOL_ARGUMENT_CONTRACTS: dict[str, dict[str, str]] = {
         "stance": "accepts | rejects",
     },
     "submit_resolution": {
-        "hypothesis_id": "exact role-visible hypothesis id",
-        "proof_path_id": "exact role-visible proof path id",
+        "hypothesis_id": "exact candidate-theory id",
+        "evidence_resource_ids": "array of exact acquired or publicly shared resource ids",
         "explanation": "concise evidence-grounded explanation",
     },
     "update_character_state": {
@@ -54,8 +59,14 @@ TOOL_ARGUMENT_CONTRACTS: dict[str, dict[str, str]] = {
 
 def _extract_resource_text(raw: bytes) -> str:
     if raw.startswith(b"%PDF"):
-        reader = PdfReader(BytesIO(raw))
-        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+        try:
+            reader = PdfReader(BytesIO(raw))
+            return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+        except PdfReadError:
+            # Some test and third-party resources advertise PDF media while
+            # carrying a textual diagnostic stub. Preserve the exact content
+            # for the policy rather than failing the whole episode.
+            pass
     return raw.decode("utf-8", errors="replace")
 
 
@@ -115,7 +126,7 @@ def model_observation(
                 "visible_events",
                 "character_state",
                 "resolution_prompt",
-                "resolution_options",
+                "candidate_theories",
             )
             if key in snapshot
         }
@@ -131,15 +142,18 @@ def policy_guidance(role: str, observation: Mapping[str, Any]) -> list[str]:
         return [
             "The host acts once per complete seat cycle; treat remaining_steps as a hard budget.",
             "Open a created session immediately.",
-            "Advance phases promptly so a seat reaches resolution with a turn left.",
-            "Disclose an exact authorized resource when requested and budget permits.",
+            "Prioritize a pending evidence request that is authorized in the current phase; the trusted reveal graph tells you when it is legal.",
+            "Advance after current-phase requests are handled, leaving several full seat cycles in the resolution phase.",
+            "Do not end the session merely because an early resolution attempt was rejected.",
             f"There are {remaining} total arena actions left.",
         ]
     return [
         "inspect_evidence accepts only an ID currently listed in game.resources.",
         "request_evidence accepts only an exact ID from requestable_resources.",
-        "At resolution, prioritize submit_resolution with exact visible option IDs.",
+        "Prioritize inspecting an uninspected visible record, then share its bounded finding so other roles can cite it.",
+        "Use epistemic_state to avoid repeating inspections and to distinguish acquired records from mere filenames.",
+        "At resolution, submit a candidate theory only with enough acquired records to establish a complete proof path.",
+        "A rejected resolution means the cited acquired records are incomplete; continue investigating.",
         "Use say for bounded facts and update_character_state for genuine progress.",
         f"There are {remaining} total arena actions left.",
     ]
-

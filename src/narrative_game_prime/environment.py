@@ -42,6 +42,57 @@ Use only a tool listed in legal_tools. Return no Markdown and no extra keys.
 Never claim facts absent from authorized_observation. The environment, not you, decides whether an action succeeds."""
 
 
+def _role_system_prompt(game: Mapping[str, Any], role: str) -> str:
+    """Bind stable identity and conduct without copying phase-gated knowledge."""
+    lines = [_OUTPUT_CONTRACT, f"Your immutable role is {role}."]
+    if role == "host":
+        lines.extend(
+            (
+                "You are the facilitator, not a player character.",
+                "Coordinate the legal reveal schedule, protect each Seat's knowledge boundary, "
+                "and require an evidence-backed resolution.",
+            )
+        )
+        return "\n".join(lines)
+
+    seat_id = role.split(":", 1)[1]
+    characters = game.get("narrative", {}).get("characters", [])
+    character = next(
+        (item for item in characters if str(item.get("seat_id")) == seat_id),
+        None,
+    )
+    if character is None:
+        raise ValueError(f"Prime role {role} has no character identity")
+    character_name = str(character["name"])
+    character_id = str(character["id"])
+    lines.extend(
+        (
+            f"You are {character_name} (character {character_id}). Stay in character.",
+            "Treat game.character and game.dossier in authorized_observation as your private "
+            "character brief; never claim another Seat's private knowledge.",
+            "Pursue the objectives and disclosure timing in the current authorized_observation "
+            "without inventing facts or obstructing an urgent rescue.",
+            "Phase-specific knowledge, evidence, objectives, and legal actions come only from "
+            "the current authorized_observation.",
+        )
+    )
+    return "\n".join(lines)
+
+
+def _parse_decision_object(raw: str) -> dict[str, Any]:
+    """Recover exactly the first JSON object without accepting prose as action data."""
+    start = raw.find("{")
+    if start < 0:
+        raise ValueError("response contains no JSON object")
+    try:
+        parsed, _ = json.JSONDecoder().raw_decode(raw[start:])
+    except json.JSONDecodeError as exc:
+        raise ValueError("response contains no valid JSON object") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("response JSON must be an object")
+    return parsed
+
+
 class NarrativeGameTaskData(vf.TaskData):
     """One frozen Release and deterministic seed shipped to the Prime worker."""
 
@@ -181,8 +232,8 @@ class _PrimeInteractionPolicy:
         if segment.terminated:
             raise RuntimeError(f"Prime actor {self.actor_id} terminated before answering")
         try:
-            parsed = json.loads(segment.last_reply)
-        except json.JSONDecodeError as exc:
+            parsed = _parse_decision_object(segment.last_reply)
+        except ValueError as exc:
             raise ValueError(f"Prime actor {self.actor_id} returned invalid JSON") from exc
         if not isinstance(parsed, dict) or set(parsed) != {
             "reasoning_summary",
@@ -275,7 +326,7 @@ class NarrativeGameEnv(vf.Env[NarrativeGameEnvConfig]):
                 role_task = NarrativeRoleTask(
                     NarrativeRoleTaskData(
                         prompt=None,
-                        system_prompt=_OUTPUT_CONTRACT + f"\nYour immutable role is {role}.",
+                        system_prompt=_role_system_prompt(game, role),
                         actor_id=actor_id,
                         role=role,
                         episode_id=episode.episode_id,

@@ -43,6 +43,7 @@ def _seat_arena_snapshot(
     release: GameRelease,
     history: SessionHistory,
     auth: AuthorizationContext,
+    tool_schema_version: str = "narrative-arena-tools-v2",
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
     """Project a replayable seat view plus safe action identifiers."""
     snapshot = seat_snapshot(release, history, auth)
@@ -65,27 +66,84 @@ def _seat_arena_snapshot(
     ]
     resolution = trusted_game["narrative"]["resolution"]
     if snapshot["phase_id"] == resolution["phase_id"]:
-        snapshot["resolution_options"] = {
-            "hypotheses": [
-                {
-                    "id": str(item["id"]),
-                    "label": str(item["label"]),
-                    "proposition_ids": [str(value) for value in item["proposition_ids"]],
-                }
+        if tool_schema_version == "narrative-arena-tools-v1":
+            snapshot["resolution_options"] = {
+                "hypotheses": [
+                    {
+                        "id": str(item["id"]),
+                        "label": str(item["label"]),
+                        "proposition_ids": [
+                            str(value) for value in item["proposition_ids"]
+                        ],
+                    }
+                    for item in trusted_game["narrative"]["hypotheses"]
+                ],
+                "proof_paths": [
+                    {
+                        "id": str(item["id"]),
+                        "evidence_ids": [str(value) for value in item["evidence_ids"]],
+                    }
+                    for item in trusted_game["narrative"]["proof_paths"]
+                ],
+            }
+        else:
+            # Competing theories are player-facing game content. Proof paths
+            # and answer-key evidence sets are never agent-facing in v2.
+            snapshot["candidate_theories"] = [
+                {"id": str(item["id"]), "label": str(item["label"])}
                 for item in trusted_game["narrative"]["hypotheses"]
-            ],
-            "proof_paths": [
-                {
-                    "id": str(item["id"]),
-                    "evidence_ids": [str(value) for value in item["evidence_ids"]],
-                }
-                for item in trusted_game["narrative"]["proof_paths"]
-            ],
-        }
+            ]
     return snapshot, requestable_resources
 
 
-ARENA_VERSION = "1.0.0"
+def _host_arena_snapshot(
+    release: GameRelease,
+    history: SessionHistory,
+    auth: AuthorizationContext,
+    tool_schema_version: str = "narrative-arena-tools-v2",
+) -> dict[str, Any]:
+    """Project facilitator controls without giving a model the answer graph."""
+    snapshot = host_snapshot(release, history, auth)
+    if tool_schema_version == "narrative-arena-tools-v1":
+        return snapshot
+    state = snapshot["state"]
+    snapshot["state"] = {
+        key: state.get(key)
+        for key in (
+            "status",
+            "phase_id",
+            "sequence",
+            "evidence_requests",
+            "disclosures",
+            "interventions",
+            "resolution",
+        )
+    }
+    trusted = snapshot["game"]["game"]
+    narrative = trusted["narrative"]
+    snapshot["game"]["game"] = {
+        "kernel": {
+            "seats": trusted["kernel"]["seats"],
+            "resources": trusted["kernel"]["resources"],
+        },
+        "narrative": {
+            "phases": narrative["phases"],
+            "evidence": [
+                {"id": item["id"], "resource_id": item["resource_id"]}
+                for item in narrative["evidence"]
+            ],
+            "reveals": narrative["reveals"],
+            "interventions": narrative["interventions"],
+            "resolution": {
+                "phase_id": narrative["resolution"]["phase_id"],
+                "prompt": narrative["resolution"]["prompt"],
+            },
+        },
+    }
+    return snapshot
+
+
+ARENA_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -282,7 +340,12 @@ class MultiAgentEpisode:
     def _dialogue_for(self, actor_id: str) -> list[dict[str, Any]]:
         dialogue = []
         for event in self._events:
-            if event.event_type not in {"said", "private-message", "host-broadcast"}:
+            if event.event_type not in {
+                "said",
+                "private-message",
+                "host-broadcast",
+                "evidence-shared",
+            }:
                 continue
             if "public" not in event.visibility and actor_id not in event.visibility:
                 continue
@@ -313,25 +376,99 @@ class MultiAgentEpisode:
                 tools.append("advance_phase")
             return sorted(tools)
         tools = ["inspect_evidence", "say"]
+        if (
+            self.config.tool_schema_version == "narrative-arena-tools-v2"
+            and self._inspected_resources(actor_id)
+        ):
+            tools.append("share_evidence")
         if self.config.allow_private_messages:
             tools.append("message")
         tools.extend(item.replace("-", "_") for item in snapshot["allowed_actions"])
         return sorted(set(tools))
+
+    def _inspected_resources(self, actor_id: str) -> set[str]:
+        """Return resources this exact role successfully opened before now."""
+        return {
+            str(event.payload["call"]["arguments"]["resource_id"])
+            for event in self._events
+            if event.actor_id == actor_id
+            and event.payload.get("call", {}).get("tool", "").replace("-", "_")
+            == "inspect_evidence"
+            and event.payload.get("result", {}).get("accepted") is True
+        }
+
+    def _available_resolution_evidence(self, actor_id: str) -> set[str]:
+        """Return records this role may honestly cite in a terminal answer."""
+        available = self._inspected_resources(actor_id)
+        available.update(
+            str(event.payload["result"]["content"]["resource_id"])
+            for event in self._events
+            if event.event_type == "evidence-shared" and "public" in event.visibility
+        )
+        return available
+
+    def _licensed_proof_path(
+        self,
+        *,
+        actor_id: str,
+        hypothesis_id: str,
+        evidence_resource_ids: list[str],
+    ) -> str | None:
+        """Resolve an earned path without disclosing the answer-key graph."""
+        narrative = json.loads(self.release.file("trusted/game.json").data)["narrative"]
+        evidence = {
+            str(item["id"]): str(item["resource_id"])
+            for item in narrative["evidence"]
+        }
+        cited = set(evidence_resource_ids)
+        if not cited or not cited <= self._available_resolution_evidence(actor_id):
+            return None
+        matching = []
+        eligible = []
+        for path in narrative["proof_paths"]:
+            required = {evidence[str(item)] for item in path["evidence_ids"]}
+            if required <= cited:
+                eligible.append(str(path["id"]))
+                if str(path["hypothesis_id"]) == hypothesis_id:
+                    matching.append(str(path["id"]))
+        choices = matching or eligible
+        return min(choices) if choices else None
 
     def observe(self, credential: ArenaCredential) -> dict[str, Any]:
         """Return the caller's authorized projection and no other role's data."""
         auth = self._credential(credential)
         requestable_resources: list[dict[str, str]] = []
         if credential.actor_id == self._host_actor_id:
-            snapshot = host_snapshot(self.release, self.history, auth)
+            snapshot = _host_arena_snapshot(
+                self.release,
+                self.history,
+                auth,
+                self.config.tool_schema_version,
+            )
             role = "host"
         else:
             snapshot, requestable_resources = _seat_arena_snapshot(
-                self.release, self.history, auth
+                self.release,
+                self.history,
+                auth,
+                self.config.tool_schema_version,
             )
             seat_id = self._seat_id(credential.actor_id)
             role = f"seat:{seat_id}"
         own_steps = self._trajectory_steps[credential.actor_id]
+        epistemic_state = (
+            None
+            if role == "host"
+            else {
+                "inspected_resource_ids": sorted(
+                    self._inspected_resources(credential.actor_id)
+                ),
+                "publicly_shared_resource_ids": sorted(
+                    self._available_resolution_evidence(credential.actor_id)
+                    - self._inspected_resources(credential.actor_id)
+                ),
+            }
+        )
         return {
             "schema_version": "1.0",
             "episode_id": self.episode_id,
@@ -342,6 +479,7 @@ class MultiAgentEpisode:
             "remaining_steps": max(0, self.config.max_steps - self._steps),
             "legal_tools": self._legal_tools(credential.actor_id, snapshot),
             "requestable_resources": requestable_resources,
+            "epistemic_state": epistemic_state,
             "game": snapshot,
             "dialogue": self._dialogue_for(credential.actor_id),
             "own_prior_actions": [
@@ -468,6 +606,19 @@ class MultiAgentEpisode:
                 result = ToolResult(call.call_id, True, "accepted", {"text": text})
                 event_type = "said"
                 visibility = ("public",)
+            elif tool == "share_evidence":
+                resource_id = str(arguments["resource_id"])
+                finding = str(arguments["finding"]).strip()
+                if resource_id not in self._inspected_resources(actor_id) or not finding:
+                    raise ValueError("unearned or empty evidence share")
+                result = ToolResult(
+                    call.call_id,
+                    True,
+                    "accepted",
+                    {"resource_id": resource_id, "finding": finding},
+                )
+                event_type = "evidence-shared"
+                visibility = ("public",)
             elif tool == "message":
                 if not self.config.allow_private_messages:
                     raise AuthorizationDenied("not authorized")
@@ -493,6 +644,39 @@ class MultiAgentEpisode:
                 action = tool.replace("_", "-")
                 payload = dict(arguments)
                 payload.pop("explanation", None)
+                if (
+                    tool == "submit_resolution"
+                    and self.config.tool_schema_version == "narrative-arena-tools-v2"
+                ):
+                    hypothesis_id = str(arguments["hypothesis_id"])
+                    resources = sorted(
+                        {str(item) for item in arguments["evidence_resource_ids"]}
+                    )
+                    proof_path_id = self._licensed_proof_path(
+                        actor_id=actor_id,
+                        hypothesis_id=hypothesis_id,
+                        evidence_resource_ids=resources,
+                    )
+                    if proof_path_id is None:
+                        return (
+                            ToolResult(
+                                call.call_id,
+                                False,
+                                "resolution rejected",
+                                {
+                                    "error": "insufficient_acquired_evidence",
+                                    "evidence_resource_ids": resources,
+                                },
+                            ),
+                            [],
+                            ("trusted",),
+                            "tool-call",
+                        )
+                    payload = {
+                        "hypothesis_id": hypothesis_id,
+                        "proof_path_id": proof_path_id,
+                        "evidence_resource_ids": resources,
+                    }
                 result, runtime_events = self._runtime_command(
                     actor_id=actor_id, call=call, action=action, payload=payload
                 )

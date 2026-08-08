@@ -96,12 +96,23 @@ class EpisodeConfig:
     max_steps: int = 80
     allow_private_messages: bool = True
     scheduler_version: str = "aec-seeded-v1"
-    tool_schema_version: str = "narrative-arena-tools-v1"
-    reward_version: str = "narrative-multi-agent-reward-v2"
+    tool_schema_version: str = "narrative-arena-tools-v2"
+    reward_version: str = "narrative-multi-agent-reward-v3"
 
     def __post_init__(self) -> None:
         if self.max_steps < 1:
             raise ValueError("Episode max_steps must be positive")
+        if self.tool_schema_version not in {
+            "narrative-arena-tools-v1",
+            "narrative-arena-tools-v2",
+        }:
+            raise ValueError("unsupported arena tool schema version")
+        if self.reward_version not in {
+            "narrative-multi-agent-reward-v1",
+            "narrative-multi-agent-reward-v2",
+            "narrative-multi-agent-reward-v3",
+        }:
+            raise ValueError("unsupported arena reward version")
 
     def to_mapping(self) -> dict[str, Any]:
         return {

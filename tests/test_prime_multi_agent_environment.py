@@ -17,10 +17,23 @@ from narrative_game_prime.environment import (
     NarrativeGameTaskset,
     NarrativeGameTasksetConfig,
     REWARD_NAME,
+    _parse_decision_object,
 )
 
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "micro-game" / "game.json"
+
+
+def test_prime_policy_recovers_one_action_object_from_trailing_model_chatter():
+    """prime-rl.action-framing: trailing prose cannot crash or alter the chosen action."""
+    value = _parse_decision_object(
+        '{"reasoning_summary":"open","tool":"open_session","arguments":{}} trailing text'
+    )
+    assert value == {
+        "reasoning_summary": "open",
+        "tool": "open_session",
+        "arguments": {},
+    }
 
 
 class _FakeTrace:
@@ -74,36 +87,68 @@ class _FakeAgent:
 
 
 def _decision_policy():
-    resolution_speakers = 0
+    calls = {"host": 0, "seat:avery": 0, "seat:blake": 0}
 
     def decide(observation):
-        nonlocal resolution_speakers
-        legal = observation["legal_tools"]
-        if "open_session" in legal:
+        role = observation["role"]
+        calls[role] += 1
+        turn = calls[role]
+        if role == "host" and turn == 1:
             return {"reasoning_summary": "Open play.", "tool": "open_session", "arguments": {}}
-        if "advance_phase" in legal:
+        if role == "host" and turn == 2:
             return {
                 "reasoning_summary": "Opening exchange is complete.",
                 "tool": "advance_phase",
                 "arguments": {"phase_id": "resolution"},
             }
-        options = observation["game"].get("resolution_options")
-        if options is not None and "submit_resolution" in legal and resolution_speakers:
+        if role == "host" and turn == 3:
             return {
-                "reasoning_summary": "The visible records support one licensed path.",
+                "reasoning_summary": "Disclose the requested receipt.",
+                "tool": "disclose_resource",
+                "arguments": {
+                    "resource_id": "cash-receipt",
+                    "audience_seat_ids": ["avery"],
+                    "evidence_grade": "runtime-enforced",
+                },
+            }
+        if role == "host":
+            return {
+                "reasoning_summary": "Disclose the requested camera record.",
+                "tool": "disclose_resource",
+                "arguments": {
+                    "resource_id": "camera-log",
+                    "audience_seat_ids": ["blake"],
+                    "evidence_grade": "runtime-enforced",
+                },
+            }
+        if role == "seat:avery" and turn == 1:
+            return {"reasoning_summary": "Read the key register.", "tool": "inspect_evidence", "arguments": {"resource_id": "key-register"}}
+        if role == "seat:avery" and turn == 2:
+            return {"reasoning_summary": "Request the payment record.", "tool": "request_evidence", "arguments": {"resource_id": "cash-receipt"}}
+        if role == "seat:avery" and turn == 3:
+            return {"reasoning_summary": "Read the disclosed receipt.", "tool": "inspect_evidence", "arguments": {"resource_id": "cash-receipt"}}
+        if role == "seat:avery":
+            return {
+                "reasoning_summary": "The two acquired records establish the theory.",
                 "tool": "submit_resolution",
                 "arguments": {
                     "hypothesis_id": "inside-job",
-                    "proof_path_id": "key-and-payment",
-                    "explanation": "The key and payment records independently agree.",
+                    "evidence_resource_ids": ["key-register", "cash-receipt"],
+                    "explanation": "The key register and payment receipt independently agree.",
                 },
             }
-        if options is not None:
-            resolution_speakers += 1
-            text = "The two records corroborate."
-        else:
-            text = "Compare the role-visible records."
-        return {"reasoning_summary": "Share bounded evidence.", "tool": "say", "arguments": {"text": text}}
+        if turn == 1:
+            return {"reasoning_summary": "Read the interview.", "tool": "inspect_evidence", "arguments": {"resource_id": "closing-interview"}}
+        if turn == 2:
+            return {"reasoning_summary": "Request the camera record.", "tool": "request_evidence", "arguments": {"resource_id": "camera-log"}}
+        return {
+            "reasoning_summary": "Share the inspected interview with the team.",
+            "tool": "share_evidence",
+            "arguments": {
+                "resource_id": "closing-interview",
+                "finding": "The clerk admitted returning after a call.",
+            },
+        }
 
     return decide
 
@@ -123,8 +168,8 @@ def test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outco
                 "max_steps": 12,
                 "allow_private_messages": True,
                 "scheduler_version": "aec-seeded-v1",
-                "tool_schema_version": "narrative-arena-tools-v1",
-                "reward_version": "narrative-multi-agent-reward-v2",
+                "tool_schema_version": "narrative-arena-tools-v2",
+                "reward_version": "narrative-multi-agent-reward-v3",
             },
         )
     )
@@ -161,6 +206,22 @@ def test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outco
         "seat:blake",
     }
     assert len({trace.info["narrative_actor_id"] for trace in traces}) == 3
+    interactions_by_role = {
+        interaction.task.data.role: interaction
+        for interaction in [*agents.host.interactions, *agents.player.interactions]
+    }
+    avery_prompt = interactions_by_role["seat:avery"].task.data.system_prompt
+    blake_prompt = interactions_by_role["seat:blake"].task.data.system_prompt
+    host_prompt = interactions_by_role["host"].task.data.system_prompt
+    assert "You are Avery Shaw (character avery-shaw). Stay in character." in avery_prompt
+    assert "Blake Rowan" not in avery_prompt
+    assert "You are Blake Rowan (character blake-rowan). Stay in character." in blake_prompt
+    assert "Avery Shaw" not in blake_prompt
+    assert "You are the facilitator, not a player character." in host_prompt
+    for prompt in (avery_prompt, blake_prompt, host_prompt):
+        assert "truth_model" not in prompt
+        assert "correct_hypothesis_id" not in prompt
+        assert "inside-job" not in prompt
     host_trace = agents.host.traces[0]
     archive = EpisodeArchive.from_bytes(
         __import__("base64").b64decode(host_trace.info["narrative_episode_archive_base64"])

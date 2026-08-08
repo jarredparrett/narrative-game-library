@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from collections import Counter
+import json
 from typing import Any
 
 from narrative_game.compiler import GameRelease
@@ -11,14 +12,13 @@ from narrative_game.contracts.canonical import digest_json
 from narrative_game.runtime import (
     AuthorizationContext,
     SessionHistory,
-    host_snapshot,
     replay,
     retrieve_resource,
 )
 from narrative_game.runtime.runtime import verify_history
 
 from .model import EpisodeArchive, GateResult, RewardReport
-from .environment import _seat_arena_snapshot
+from .environment import _host_arena_snapshot, _seat_arena_snapshot
 
 
 def _history_at(history: SessionHistory, sequence: int) -> SessionHistory:
@@ -61,7 +61,12 @@ def _visible_dialogue(
     for event in archive.events:
         if event.sequence >= before_sequence:
             break
-        if event.event_type not in {"said", "private-message", "host-broadcast"}:
+        if event.event_type not in {
+            "said",
+            "private-message",
+            "host-broadcast",
+            "evidence-shared",
+        }:
             continue
         if "public" not in event.visibility and actor_id not in event.visibility:
             continue
@@ -74,6 +79,31 @@ def _visible_dialogue(
             }
         )
     return dialogue
+
+
+def _epistemic_state(
+    archive: EpisodeArchive, actor_id: str, before_sequence: int
+) -> dict[str, list[str]]:
+    inspected: set[str] = set()
+    shared: set[str] = set()
+    for event in archive.events:
+        if event.sequence >= before_sequence:
+            break
+        call = event.payload.get("call", {})
+        result = event.payload.get("result", {})
+        tool = str(call.get("tool", "")).replace("-", "_")
+        if (
+            event.actor_id == actor_id
+            and tool == "inspect_evidence"
+            and result.get("accepted") is True
+        ):
+            inspected.add(str(call["arguments"]["resource_id"]))
+        if event.event_type == "evidence-shared" and result.get("accepted") is True:
+            shared.add(str(result["content"]["resource_id"]))
+    return {
+        "inspected_resource_ids": sorted(inspected),
+        "publicly_shared_resource_ids": sorted(shared - inspected),
+    }
 
 
 def _trace_findings(release: GameRelease, archive: EpisodeArchive) -> list[str]:
@@ -115,7 +145,7 @@ def _trace_findings(release: GameRelease, archive: EpisodeArchive) -> list[str]:
         item.event_hash: item.to_mapping() for item in archive.session_history.events
     }
     for event in archive.events:
-        if event.event_type in {"said", "host-broadcast"} and event.visibility != ("public",):
+        if event.event_type in {"said", "host-broadcast", "evidence-shared"} and event.visibility != ("public",):
             findings.append(f"public dialogue has invalid visibility at {event.sequence}")
         if event.event_type == "private-message":
             if len(event.visibility) != 2 or event.actor_id not in event.visibility:
@@ -158,11 +188,13 @@ def _trace_findings(release: GameRelease, archive: EpisodeArchive) -> list[str]:
                 auth = _auth_for(archive, trajectory.actor_id)
                 expected_game: dict[str, Any]
                 if trajectory.role == "host":
-                    expected_game = host_snapshot(release, prefix, auth)
+                    expected_game = _host_arena_snapshot(
+                        release, prefix, auth, archive.config.tool_schema_version
+                    )
                     expected_resources: list[dict[str, str]] = []
                 else:
                     expected_game, expected_resources = _seat_arena_snapshot(
-                        release, prefix, auth
+                        release, prefix, auth, archive.config.tool_schema_version
                     )
                 if step.observation.get("game") != expected_game:
                     findings.append(f"unauthorized or stale observation: {step.call.call_id}")
@@ -170,6 +202,13 @@ def _trace_findings(release: GameRelease, archive: EpisodeArchive) -> list[str]:
                     findings.append(
                         f"requestable resource projection differs: {step.call.call_id}"
                     )
+                expected_epistemic = (
+                    None
+                    if trajectory.role == "host"
+                    else _epistemic_state(archive, trajectory.actor_id, step.arena_sequence)
+                )
+                if step.observation.get("epistemic_state") != expected_epistemic:
+                    findings.append(f"epistemic projection differs: {step.call.call_id}")
                 if step.observation.get("dialogue") != _visible_dialogue(
                     archive, trajectory.actor_id, step.arena_sequence
                 ):
@@ -200,6 +239,63 @@ def _trace_findings(release: GameRelease, archive: EpisodeArchive) -> list[str]:
                 if step.policy_receipt.receipt_id in seen_receipts:
                     findings.append(f"token receipt reused: {step.policy_receipt.receipt_id}")
                 seen_receipts.add(step.policy_receipt.receipt_id)
+    narrative = json.loads(release.file("trusted/game.json").data)["narrative"]
+    resource_by_evidence = {
+        str(item["id"]): str(item["resource_id"])
+        for item in narrative["evidence"]
+    }
+    path_requirements = {
+        str(item["id"]): (
+            str(item["hypothesis_id"]),
+            {resource_by_evidence[str(value)] for value in item["evidence_ids"]},
+        )
+        for item in narrative["proof_paths"]
+    }
+    inspected: dict[str, set[str]] = {}
+    publicly_shared: set[str] = set()
+    for event in archive.events if archive.config.tool_schema_version == "narrative-arena-tools-v2" else ():
+        call = event.payload.get("call", {})
+        result = event.payload.get("result", {})
+        tool = str(call.get("tool", "")).replace("-", "_")
+        accepted = result.get("accepted") is True
+        if tool == "inspect_evidence" and accepted:
+            resource_id = str(call.get("arguments", {}).get("resource_id", ""))
+            inspected.setdefault(event.actor_id, set()).add(resource_id)
+        elif event.event_type == "evidence-shared":
+            content = result.get("content", {})
+            resource_id = str(content.get("resource_id", ""))
+            if (
+                tool != "share_evidence"
+                or not accepted
+                or resource_id not in inspected.get(event.actor_id, set())
+                or not str(content.get("finding", "")).strip()
+            ):
+                findings.append(f"unearned evidence share at {event.sequence}")
+            else:
+                publicly_shared.add(resource_id)
+        elif tool == "submit_resolution" and accepted:
+            arguments = call.get("arguments", {})
+            hypothesis_id = str(arguments.get("hypothesis_id", ""))
+            cited = {str(item) for item in arguments.get("evidence_resource_ids", [])}
+            available = inspected.get(event.actor_id, set()) | publicly_shared
+            if not cited or not cited <= available:
+                findings.append(f"resolution cites unacquired evidence at {event.sequence}")
+                continue
+            submissions = [
+                item
+                for item in event.payload.get("runtime_events", [])
+                if item.get("event_type") == "resolution-submitted"
+            ]
+            if len(submissions) != 1:
+                findings.append(f"resolution lacks one runtime submission at {event.sequence}")
+                continue
+            proof_path_id = str(submissions[0].get("payload", {}).get("proof_path_id", ""))
+            requirement = path_requirements.get(proof_path_id)
+            if (
+                requirement is None
+                or not requirement[1] <= cited
+            ):
+                findings.append(f"resolution lacks an earned proof path at {event.sequence}")
     expected_actors = {
         f"seat:{item.seat_id}:{item.policy.policy_id}" for item in archive.lineup.seats
     } | {f"host:{archive.lineup.host.policy_id}"}
@@ -218,6 +314,7 @@ def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardRep
     if archive.config.reward_version not in {
         "narrative-multi-agent-reward-v1",
         "narrative-multi-agent-reward-v2",
+        "narrative-multi-agent-reward-v3",
     }:
         raise ValueError(f"unsupported reward version: {archive.config.reward_version}")
     findings = verify_episode(release, archive)
@@ -285,7 +382,7 @@ def evaluate_episode(release: GameRelease, archive: EpisodeArchive) -> RewardRep
     public_speakers = {
         event.actor_id
         for event in archive.events
-        if event.event_type in {"said", "host-broadcast"}
+        if event.event_type in {"said", "host-broadcast", "evidence-shared"}
     }
     exchange = min(1.0, len(public_speakers) / max(1, len(seat_trajectories)))
     interventions = len(state.get("interventions", [])) if state is not None else 0
