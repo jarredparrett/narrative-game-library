@@ -317,6 +317,28 @@ used to interpret preserved Episodes. Changing it creates a new analysis series
 without changing or rerunning the Evaluation Panel. _Avoid_: panel rubric,
 self-judging agents.
 
+An **Instrument Definition** freezes the requested model roster, reasoning and
+sampling settings, Prompt Contracts, Evidence View contracts, tool contract,
+structured output schemas, retry policy, principal-conflict graph, Published
+Atlas, and eligibility fixtures for one Analysis Instrument version. An
+**Instrument Application** additionally binds the provider-resolved model
+identities and actual principal occupancies; resolution drift creates a distinct
+Application rather than silently changing the Definition. _Avoid_: runtime
+config, latest model, nominally same instrument.
+
+A **Prompt Contract** is the exact versioned composition of the global analysis
+boundary, one authority instruction, its Evidence View and tool contracts, and
+its structured output schema. The composed bytes are content-addressed in every
+Analysis Receipt. _Avoid_: prompt template name, hidden system instruction,
+runtime prompt patch.
+
+An **Analysis Attempt** is one receipt-bearing model invocation under an
+unchanged Prompt Contract and Evidence View. Transport retries repeat identical
+input; one schema repair may receive only validation diagnostics and the prior
+raw output. Semantic retries and best-of selection are new analyses, never
+retries. _Avoid_: retry until agreement, discarded malformed output, quiet
+best-of-N.
+
 An **Analysis Authority** is one named responsibility in that Instrument:
 Incident Discoverer, Semantic Interpreter, Attribution Analyst, Atlas Curator,
 Challenge Designer, or Independent Reviewer. Authorities may communicate when
