@@ -395,11 +395,11 @@ until its implementation, named test, and attributable evidence land together.
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
 |---|---|---|---|---|---|---|
-| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.evidence-objects` | `workspace` | typed difficulty object closure | `test_difficulty_evidence_objects_are_content_addressed_and_cross_process_identical` | canonical bytes and identical object refs | planned |
-| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.checkpoint` | `workspace` | five-Journal Workspace | `test_checkpoint_pins_verified_heads_without_cross_journal_partial_state` | verified heads and rejected mixed checkpoint | planned |
-| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.claim-manifest` | `workspace` | reportable diagnostic claim | `test_claim_manifest_requires_complete_transitive_objects_schemas_and_verifiers` | exact closure and missing-object rejection | planned |
-| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.portability` | `workspace` | relocated Archive and Claim Capsule | `test_difficulty_archive_and_capsule_verify_offline_after_relocation` | deterministic bytes, import receipt, and offline verification | planned |
-| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.migration` | `workspace` | Workspace `0.1` | `test_workspace_migration_is_append_only_receipted_and_preserves_old_identity` | old/new refs, migrator identity, warnings, and no in-place edits | planned |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.evidence-objects` | `workspace` | typed difficulty object closure | `test_difficulty_evidence_objects_are_content_addressed_and_cross_process_identical` | canonical bytes and identical object refs | implemented |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.checkpoint` | `workspace` | all-domain Journal Workspace | `test_checkpoint_pins_verified_heads_without_cross_journal_partial_state` | verified heads and rejected mixed checkpoint | implemented |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.claim-manifest` | `workspace` | reportable diagnostic claim | `test_claim_manifest_requires_complete_transitive_objects_schemas_and_verifiers` | exact closure and missing-object rejection | implemented |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.portability` | `workspace` | relocated Archive and Claim Capsule | `test_difficulty_archive_and_capsule_verify_offline_after_relocation` | deterministic bytes, import receipt, and offline verification | implemented |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.migration` | `workspace` | Workspace `0.1` | `test_workspace_migration_is_append_only_receipted_and_preserves_old_identity` | old/new refs, migrator identity, warnings, and no in-place edits | implemented |
 
 ### D2 — frozen Instrument and one-Episode analysis
 

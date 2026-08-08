@@ -258,6 +258,7 @@ def test_index_rebuild_and_archive_import_are_path_independent(tmp_path):
     imported = Workspace.import_archive(tmp_path / "one.ngw", tmp_path / "elsewhere" / "game")
     assert imported.root != workspace.root
     assert imported.manifest == rebuilt.manifest
+    assert len(list((imported.root / "imports").glob("*.json"))) == 1
     assert imported.verify()["ok"]
 
 

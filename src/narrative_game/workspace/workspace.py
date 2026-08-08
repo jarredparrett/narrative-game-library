@@ -12,33 +12,61 @@ from narrative_game.contracts.canonical import canonical_json, digest_bytes
 from .io import atomic_write, file_mutex
 from .journal import ConcurrencyConflict, Journal
 from .store import ObjectStore, refs_in
+from .evidence import (
+    JOURNAL_IDS,
+    ClaimManifest,
+    WorkspaceCheckpoint,
+    deterministic_zip,
+    journal_prefix,
+    transitive_object_closure,
+    typed_evidence_object,
+    verify_claim_capsule_bytes,
+)
 
 
 class Workspace:
     """One operator-owned game lineage persisted outside source control."""
 
-    schema_version = "0.1"
+    schema_version = "0.2"
 
     def __init__(self, root: str | Path):
         self.root = Path(root)
         self.manifest_path = self.root / "workspace.json"
-        self.store = ObjectStore(self.root / "objects")
         self.lineage = Journal(
             self.root / "journals" / "lineage.jsonl", journal_id="experiment-lineage"
         )
+        lineage_events = self.lineage.read()
+        if not lineage_events:
+            raise FileNotFoundError(f"not a narrative game Workspace: {self.root}")
+        workspace_events = [
+            event for event in lineage_events if event["event_type"] == "workspace_created"
+        ]
+        if len(workspace_events) != 1:
+            raise ValueError("lineage must contain exactly one workspace_created event")
+        represented_schema = str(workspace_events[0]["payload"].get("schema_version", "0.1"))
+        object_root = (
+            self.root / "objects"
+            if represented_schema == "0.1"
+            else self.root / "objects" / "sha256"
+        )
+        self.store = ObjectStore(object_root)
         self.operational = Journal(
             self.root / "journals" / "operational.jsonl", journal_id="operational-audit"
         )
         self.climb = Journal(
             self.root / "journals" / "climb.jsonl", journal_id="agentic-climb"
         )
+        self.analysis = Journal(
+            self.root / "journals" / "analysis.jsonl", journal_id="difficulty-analysis"
+        )
         self.qualification = Journal(
             self.root / "journals" / "qualification.jsonl",
             journal_id="game-qualification",
         )
+        self.access = Journal(
+            self.root / "journals" / "access.jsonl", journal_id="evidence-access"
+        )
         self.transaction_lock = self.root / "workspace.lock"
-        if not self.lineage.read():
-            raise FileNotFoundError(f"not a narrative game Workspace: {self.root}")
         derived = self._derive_manifest()
         if self.manifest_path.exists():
             try:
@@ -81,6 +109,17 @@ class Workspace:
     def candidates(self) -> list[str]:
         return list(self.manifest["candidates"])
 
+    @property
+    def journals(self) -> dict[str, Journal]:
+        return {
+            "lineage": self.lineage,
+            "operational": self.operational,
+            "climb": self.climb,
+            "analysis": self.analysis,
+            "qualification": self.qualification,
+            "access": self.access,
+        }
+
     def _derive_manifest(self) -> dict[str, Any]:
         events = self.lineage.read()
         workspace_events = [event for event in events if event["event_type"] == "workspace_created"]
@@ -104,12 +143,293 @@ class Workspace:
             "branches": dict(sorted(branches.items())),
             "candidates": candidates,
             "journal_heads": {
+                "access": self.access.head(),
+                "analysis": self.analysis.head(),
                 "climb": self.climb.head(),
                 "lineage": events[-1]["event_hash"] if events else None,
                 "operational": self.operational.head(),
                 "qualification": self.qualification.head(),
             },
         }
+
+    def put_evidence_object(
+        self,
+        *,
+        object_kind: str,
+        object_schema: str,
+        value: dict[str, Any],
+        producer: str,
+        verifier: str,
+    ) -> str:
+        """Persist one immutable typed Evidence Object without ambient inputs."""
+        return self.store.put_json(
+            typed_evidence_object(
+                object_kind=object_kind,
+                object_schema=object_schema,
+                value=value,
+                producer=producer,
+                verifier=verifier,
+            )
+        )
+
+    def create_checkpoint(self) -> str:
+        """Pin one coherent verified head across every independent Journal."""
+        with file_mutex(self.transaction_lock):
+            heads = {}
+            for name, journal in self.journals.items():
+                ok, failures = journal.verify()
+                if not ok:
+                    raise ValueError(f"cannot checkpoint invalid {name} Journal: {failures}")
+                events = journal.read()
+                heads[name] = {
+                    "journal_id": journal.journal_id,
+                    "sequence": len(events),
+                    "head": events[-1]["event_hash"] if events else None,
+                }
+            if any(
+                self.journals[name].head() != value["head"]
+                for name, value in heads.items()
+            ):
+                raise ConcurrencyConflict("a Journal advanced while creating the Checkpoint")
+            checkpoint = WorkspaceCheckpoint(self.manifest["workspace_id"], heads)
+            ref = self.store.put_json(checkpoint.to_mapping())
+            if ref != checkpoint.checkpoint_ref:
+                raise ValueError("Checkpoint content identity mismatch")
+            path = self.root / "checkpoints" / f"{ref[7:]}.json"
+            if path.exists() and path.read_bytes() != canonical_json(checkpoint.to_mapping()):
+                raise ValueError("Checkpoint file conflicts with immutable identity")
+            atomic_write(path, canonical_json(checkpoint.to_mapping()))
+            return ref
+
+    def verify_checkpoint(self, checkpoint_ref: str) -> tuple[str, ...]:
+        findings = []
+        if not self.store.verify(checkpoint_ref):
+            return (f"missing or corrupt Checkpoint: {checkpoint_ref}",)
+        try:
+            checkpoint = WorkspaceCheckpoint.from_mapping(
+                self.store.read_json(checkpoint_ref)
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            return (f"Checkpoint unreadable: {exc}",)
+        if checkpoint.checkpoint_ref != checkpoint_ref:
+            findings.append("Checkpoint identity mismatch")
+        if checkpoint.workspace_id != self.manifest["workspace_id"]:
+            findings.append("Checkpoint names another Workspace")
+        for name, expected in checkpoint.journal_heads.items():
+            events = self.journals[name].read()
+            if int(expected["sequence"]) > len(events):
+                findings.append(f"{name} Checkpoint sequence exceeds Journal")
+                continue
+            sequence = int(expected["sequence"])
+            observed = events[sequence - 1]["event_hash"] if sequence else None
+            if observed != expected["head"]:
+                findings.append(f"{name} Checkpoint head is not the named Journal prefix")
+        path = self.root / "checkpoints" / f"{checkpoint_ref[7:]}.json"
+        if path.exists() and digest_bytes(path.read_bytes()) != checkpoint_ref:
+            findings.append("Checkpoint projection bytes differ from object identity")
+        return tuple(findings)
+
+    def create_claim_manifest(
+        self,
+        *,
+        claim_id: str,
+        checkpoint_ref: str,
+        root_refs: tuple[str, ...],
+        schema_refs: tuple[str, ...],
+        verifier_refs: tuple[str, ...],
+        actor: str,
+        idempotency_key: str,
+    ) -> str:
+        """Bind one reportable claim to its complete immutable evidence closure."""
+        if not claim_id.strip() or not root_refs or not schema_refs or not verifier_refs:
+            raise ValueError("claim identity, roots, schemas, and verifiers are required")
+        with file_mutex(self.transaction_lock):
+            checkpoint_findings = self.verify_checkpoint(checkpoint_ref)
+            if checkpoint_findings:
+                raise ValueError(f"invalid Claim Checkpoint: {checkpoint_findings}")
+            for ref, expected_kind in (
+                *((ref, "schema_bundle") for ref in schema_refs),
+                *((ref, "verifier_bundle") for ref in verifier_refs),
+            ):
+                value = self.store.read_json(ref)
+                if value.get("kind") != "evidence_object" or value.get("object_kind") != expected_kind:
+                    raise ValueError(f"Claim Manifest requires a typed {expected_kind}: {ref}")
+            base = tuple(
+                sorted({checkpoint_ref, *root_refs, *schema_refs, *verifier_refs})
+            )
+            closure = transitive_object_closure(self.store, base)
+            manifest = ClaimManifest(
+                claim_id,
+                checkpoint_ref,
+                tuple(sorted(set(root_refs))),
+                tuple(sorted(set(schema_refs))),
+                tuple(sorted(set(verifier_refs))),
+                closure,
+            )
+            manifest_ref = self.store.put_json(manifest.to_mapping())
+            event = self.qualification.append(
+                "claim_manifest_created",
+                actor=actor,
+                payload={
+                    "claim_id": claim_id,
+                    "claim_manifest_ref": manifest_ref,
+                    "checkpoint_ref": checkpoint_ref,
+                },
+                object_refs=(manifest_ref, *closure),
+                idempotency_key=idempotency_key,
+            )
+            self._persist_projection()
+            return str(event["payload"]["claim_manifest_ref"])
+
+    def verify_claim_manifest(self, manifest_ref: str) -> tuple[str, ...]:
+        findings = []
+        if not self.store.verify(manifest_ref):
+            return (f"missing or corrupt Claim Manifest: {manifest_ref}",)
+        try:
+            manifest = ClaimManifest.from_mapping(self.store.read_json(manifest_ref))
+        except (KeyError, TypeError, ValueError) as exc:
+            return (f"Claim Manifest unreadable: {exc}",)
+        if manifest.manifest_ref != manifest_ref:
+            findings.append("Claim Manifest identity mismatch")
+        findings.extend(self.verify_checkpoint(manifest.checkpoint_ref))
+        base = tuple(
+            sorted(
+                {
+                    manifest.checkpoint_ref,
+                    *manifest.root_refs,
+                    *manifest.schema_refs,
+                    *manifest.verifier_refs,
+                }
+            )
+        )
+        try:
+            closure = transitive_object_closure(self.store, base)
+        except ValueError as exc:
+            findings.append(str(exc))
+        else:
+            if closure != manifest.object_refs:
+                findings.append("Claim Manifest closure is incomplete or contains extras")
+        return tuple(findings)
+
+    def export_claim_capsule(
+        self,
+        manifest_ref: str,
+        destination: str | Path,
+    ) -> dict[str, Any]:
+        """Export one Claim Manifest closure with exact Journal prefix proofs."""
+        findings = self.verify_claim_manifest(manifest_ref)
+        if findings:
+            raise ValueError(f"cannot export invalid Claim Manifest: {findings}")
+        manifest = ClaimManifest.from_mapping(self.store.read_json(manifest_ref))
+        checkpoint = WorkspaceCheckpoint.from_mapping(
+            self.store.read_json(manifest.checkpoint_ref)
+        )
+        object_refs = tuple(sorted({manifest_ref, *manifest.object_refs}))
+        descriptor = {
+            "schema_version": "claim-capsule.1",
+            "claim_manifest_ref": manifest_ref,
+            "checkpoint_ref": manifest.checkpoint_ref,
+            "object_refs": list(object_refs),
+            "journal_heads": {
+                name: dict(value)
+                for name, value in sorted(checkpoint.journal_heads.items())
+            },
+        }
+        members = {"capsule.json": canonical_json(descriptor)}
+        for ref in object_refs:
+            members[f"objects/sha256/{ref[7:9]}/{ref[9:]}"] = self.store.read_bytes(ref)
+        for name, expected in checkpoint.journal_heads.items():
+            events = journal_prefix(self.journals[name].read(), expected["head"])
+            members[f"journals/{name}.jsonl"] = b"".join(
+                canonical_json(event) + b"\n" for event in events
+            )
+        data = deterministic_zip(members)
+        destination = Path(destination)
+        atomic_write(destination, data)
+        return {
+            "capsule": str(destination),
+            "sha256": digest_bytes(data),
+            "bytes": len(data),
+            "claim_manifest_ref": manifest_ref,
+        }
+
+    @staticmethod
+    def verify_claim_capsule(path: str | Path) -> dict[str, Any]:
+        try:
+            value = Path(path).read_bytes()
+        except OSError as exc:
+            return {"ok": False, "failures": [f"capsule unreadable: {exc}"]}
+        return verify_claim_capsule_bytes(value)
+
+    def migrate_legacy_evidence(
+        self,
+        *,
+        actor: str,
+        idempotency_key: str,
+    ) -> str:
+        """Append a receipt from Workspace 0.1 without rewriting its evidence."""
+        workspace_event = next(
+            event for event in self.lineage.read() if event["event_type"] == "workspace_created"
+        )
+        if workspace_event["payload"].get("schema_version") != "0.1":
+            raise ValueError("Workspace is not a legacy 0.1 source")
+        existing = self.operational.event_for_key(idempotency_key)
+        if existing is not None:
+            return str(existing["payload"]["migration_receipt_ref"])
+        old_heads = {
+            name: journal.head()
+            for name, journal in self.journals.items()
+            if name not in {"analysis", "access"}
+        }
+        old_refs = tuple(self.store.references())
+        source_ref = self.put_evidence_object(
+            object_kind="workspace_schema_snapshot",
+            object_schema="workspace.0.1",
+            value={
+                "workspace_id": self.manifest["workspace_id"],
+                "journal_heads": old_heads,
+                "object_refs": list(old_refs),
+            },
+            producer="workspace-migrator.0.2",
+            verifier="workspace-snapshot-verifier.1",
+        )
+        migrated_ref = self.put_evidence_object(
+            object_kind="workspace_schema_snapshot",
+            object_schema="workspace.0.2",
+            value={
+                "workspace_id": self.manifest["workspace_id"],
+                "source_object_ref": source_ref,
+                "journal_ids": dict(sorted(JOURNAL_IDS.items())),
+            },
+            producer="workspace-migrator.0.2",
+            verifier="workspace-snapshot-verifier.1",
+        )
+        receipt_ref = self.put_evidence_object(
+            object_kind="migration_receipt",
+            object_schema="workspace-migration.1",
+            value={
+                "source_object_ref": source_ref,
+                "migrated_object_ref": migrated_ref,
+                "migrator": "workspace-migrator.0.2",
+                "warnings": [],
+                "information_loss": [],
+            },
+            producer="workspace-migrator.0.2",
+            verifier="workspace-migration-verifier.1",
+        )
+        event = self.operational.append(
+            "workspace_schema_migrated",
+            actor=actor,
+            payload={
+                "from_schema": "0.1",
+                "to_schema": "0.2",
+                "migration_receipt_ref": receipt_ref,
+            },
+            object_refs=(source_ref, migrated_ref, receipt_ref, *old_refs),
+            idempotency_key=idempotency_key,
+        )
+        self._persist_projection()
+        return str(event["payload"]["migration_receipt_ref"])
 
     def _write_manifest(self, manifest: dict[str, Any]) -> None:
         atomic_write(self.manifest_path, canonical_json(manifest))
@@ -406,18 +726,15 @@ class Workspace:
 
     def verify(self) -> dict[str, Any]:
         failures = []
-        lineage_ok, lineage_failures = self.lineage.verify()
-        operational_ok, operational_failures = self.operational.verify()
-        climb_ok, climb_failures = self.climb.verify()
-        qualification_ok, qualification_failures = self.qualification.verify()
-        failures.extend(f"lineage: {item}" for item in lineage_failures)
-        failures.extend(f"operational: {item}" for item in operational_failures)
-        failures.extend(f"climb: {item}" for item in climb_failures)
-        failures.extend(f"qualification: {item}" for item in qualification_failures)
+        journal_status = {}
+        for name, journal in self.journals.items():
+            ok, journal_failures = journal.verify()
+            journal_status[name] = (ok, len(journal.read()) if ok else 0)
+            failures.extend(f"{name}: {item}" for item in journal_failures)
         objects_ok, corrupt = self.store.verify_all()
         failures.extend(f"corrupt object: {ref}" for ref in corrupt)
         referenced = set()
-        for journal in (self.lineage, self.operational, self.climb, self.qualification):
+        for journal in self.journals.values():
             for event in journal.read():
                 referenced.update(event.get("object_refs", []))
         pending = list(referenced)
@@ -434,6 +751,33 @@ class Workspace:
                 pending.extend(refs_in(self.store.read_json(ref)))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 pass
+        checkpoint_root = self.root / "checkpoints"
+        checkpoint_paths = (
+            sorted(checkpoint_root.glob("*.json")) if checkpoint_root.exists() else ()
+        )
+        for path in checkpoint_paths:
+            ref = "sha256:" + path.stem
+            if not self.store.verify(ref) or self.store.read_bytes(ref) != path.read_bytes():
+                failures.append(f"Checkpoint projection has no matching object: {path.name}")
+                continue
+            failures.extend(self.verify_checkpoint(ref))
+        import_root = self.root / "imports"
+        import_paths = sorted(import_root.glob("*.json")) if import_root.exists() else ()
+        for path in import_paths:
+            ref = "sha256:" + path.stem
+            if not self.store.verify(ref) or self.store.read_bytes(ref) != path.read_bytes():
+                failures.append(f"Import Receipt has no matching object: {path.name}")
+                continue
+            value = self.store.read_json(ref)
+            if (
+                value.get("kind") != "evidence_object"
+                or value.get("object_kind") != "import_receipt"
+            ):
+                failures.append(f"Import Receipt has the wrong type: {path.name}")
+        for event in self.qualification.read():
+            if event["event_type"] == "claim_manifest_created":
+                manifest_ref = event["payload"].get("claim_manifest_ref", "")
+                failures.extend(self.verify_claim_manifest(manifest_ref))
         derived = self._derive_manifest()
         try:
             recorded = json.loads(self.manifest_path.read_bytes())
@@ -446,12 +790,10 @@ class Workspace:
             "ok": not failures,
             "failures": failures,
             "objects_verified": len(checked),
-            "lineage_events": len(self.lineage.read()) if lineage_ok else 0,
-            "operational_events": len(self.operational.read()) if operational_ok else 0,
-            "climb_events": len(self.climb.read()) if climb_ok else 0,
-            "qualification_events": (
-                len(self.qualification.read()) if qualification_ok else 0
-            ),
+            **{
+                f"{name}_events": count if ok else 0
+                for name, (ok, count) in sorted(journal_status.items())
+            },
             "all_objects_intact": objects_ok,
         }
 
@@ -481,25 +823,54 @@ class Workspace:
     @classmethod
     def import_archive(cls, archive_path: str | Path, destination: str | Path) -> "Workspace":
         archive_path = Path(archive_path)
+        archive_bytes = archive_path.read_bytes()
+        archive_ref = digest_bytes(archive_bytes)
         destination = Path(destination)
         if destination.exists() and (not destination.is_dir() or any(destination.iterdir())):
             raise FileExistsError("archive destination is not empty")
-        destination.mkdir(parents=True, exist_ok=True)
-        root = destination.resolve()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            destination.rmdir()
+        quarantine = destination.with_name(
+            f"{destination.name}.import-{archive_ref[7:19]}"
+        )
+        if quarantine.exists():
+            raise FileExistsError("archive quarantine already exists")
+        quarantine.mkdir()
+        root = quarantine.resolve()
         with zipfile.ZipFile(archive_path, "r") as archive:
             for info in archive.infolist():
                 relative = PurePosixPath(info.filename)
                 if relative.is_absolute() or ".." in relative.parts:
                     raise ValueError(f"unsafe archive member: {info.filename}")
-                target = destination.joinpath(*relative.parts)
+                target = quarantine.joinpath(*relative.parts)
                 if not target.resolve().is_relative_to(root):
                     raise ValueError(f"unsafe archive member: {info.filename}")
                 if info.is_dir():
                     target.mkdir(parents=True, exist_ok=True)
                 else:
                     atomic_write(target, archive.read(info))
-        workspace = cls.open(destination)
+        workspace = cls.open(quarantine)
         verification = workspace.verify()
         if not verification["ok"]:
             raise ValueError(f"imported Workspace failed verification: {verification['failures']}")
-        return workspace
+        source_heads = dict(workspace.manifest["journal_heads"])
+        receipt_ref = workspace.put_evidence_object(
+            object_kind="import_receipt",
+            object_schema="workspace-import.1",
+            value={
+                "archive_ref": archive_ref,
+                "source_workspace_id": workspace.manifest["workspace_id"],
+                "source_journal_heads": source_heads,
+                "operation": "verified-workspace-import",
+            },
+            producer="workspace-importer.0.2",
+            verifier="workspace-archive-verifier.1",
+        )
+        receipt_path = workspace.root / "imports" / f"{receipt_ref[7:]}.json"
+        atomic_write(receipt_path, workspace.store.read_bytes(receipt_ref))
+        final = workspace.verify()
+        if not final["ok"]:
+            raise ValueError(f"import receipt failed verification: {final['failures']}")
+        quarantine.replace(destination)
+        return cls.open(destination)
