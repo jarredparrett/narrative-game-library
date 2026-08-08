@@ -376,3 +376,76 @@ public-release standing claim.
 | `arena.facilitator-blindness` | simulation host projection | `test_model_host_receives_facilitator_controls_without_answer_graph` | the model host retains phases, reveal eligibility, and interventions while truth, hypotheses, correctness markers, and proof paths remain absent | implemented |
 | `prime-rl.action-framing` | Prime policy adapter | `test_prime_policy_recovers_one_action_object_from_trailing_model_chatter` | the first valid JSON object alone determines the action; trailing provider prose cannot mutate it or crash the episode | implemented |
 | `prime-rl.embodied-role-prompt` | Prime policy adapter | `test_prime_runs_one_isolated_interaction_per_role_and_scores_canonical_outcome` | every Seat receives its own stable character identity and conduct boundary in the system prompt while phase knowledge remains in the authorized observation; other characters and answer-key identifiers stay absent | implemented |
+
+## Agentic difficulty implementation — planned
+
+These rows are the ordered handoff from [issue #48](https://github.com/jarredparrett/narrative-game-library/issues/48)
+and [the implementation plan](agentic-difficulty-implementation-plan.md). They
+are requirements, not claims of current capability. A row remains `planned`
+until its implementation, named test, and attributable evidence land together.
+
+### D0 — contract lock and falsifying fixtures
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Handoff #48](https://github.com/jarredparrett/narrative-game-library/issues/48) | `difficulty.d0.contract-lock` | `difficulty.contracts` | normative contract catalog | `test_difficulty_contract_catalog_rejects_unknown_or_changed_normative_versions` | exact content refs for every pinned contract and schema | planned |
+| [Episode evidence #40](https://github.com/jarredparrett/narrative-game-library/issues/40) | `difficulty.d0.semantic-fixtures` | `simulation` + `difficulty.derivations` | missing-rescue and failed-handoff Episodes | `test_first_semantic_fixtures_replay_with_answer_safe_span_addressable_evidence` | replay receipts, Verification Status, and exact view manifests | planned |
+
+### D1 — evidence spine and portable claims
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.evidence-objects` | `workspace` | typed difficulty object closure | `test_difficulty_evidence_objects_are_content_addressed_and_cross_process_identical` | canonical bytes and identical object refs | planned |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.checkpoint` | `workspace` | five-Journal Workspace | `test_checkpoint_pins_verified_heads_without_cross_journal_partial_state` | verified heads and rejected mixed checkpoint | planned |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.claim-manifest` | `workspace` | reportable diagnostic claim | `test_claim_manifest_requires_complete_transitive_objects_schemas_and_verifiers` | exact closure and missing-object rejection | planned |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.portability` | `workspace` | relocated Archive and Claim Capsule | `test_difficulty_archive_and_capsule_verify_offline_after_relocation` | deterministic bytes, import receipt, and offline verification | planned |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d1.migration` | `workspace` | Workspace `0.1` | `test_workspace_migration_is_append_only_receipted_and_preserves_old_identity` | old/new refs, migrator identity, warnings, and no in-place edits | planned |
+
+### D2 — frozen Instrument and one-Episode analysis
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Instrument #49](https://github.com/jarredparrett/narrative-game-library/issues/49) | `difficulty.d2.instrument-identity` | `difficulty.contracts` | Instrument v1 | `test_instrument_identity_commits_models_prompts_views_tools_schemas_retries_conflicts_and_atlas` | exact Definition/Application refs and drift identities | planned |
+| [Authorities #39](https://github.com/jarredparrett/narrative-game-library/issues/39) | `difficulty.d2.evidence-views` | `difficulty.derivations` | all twelve assignments | `test_each_analysis_authority_receives_only_its_content_addressed_evidence_view` | allow/deny audit and Exposure Ledger | planned |
+| [Instrument #49](https://github.com/jarredparrett/narrative-game-library/issues/49) | `difficulty.d2.eligibility` | `difficulty.transitions` | nine Instrument eligibility cases | `test_instrument_v1_accepts_reference_lineage_and_rejects_all_nine_boundary_failures` | one eligible and nine attributable results | planned |
+| [Instrument #49](https://github.com/jarredparrett/narrative-game-library/issues/49) | `difficulty.d2.attempts` | `experiment.difficulty` | transport, schema, semantic, and best-of attempts | `test_analysis_attempts_preserve_failures_and_forbid_semantic_or_best_of_retry` | complete attempt receipts and fail-closed exhaustion | planned |
+| [Discovery #42](https://github.com/jarredparrett/narrative-game-library/issues/42) | `difficulty.d2.real-agent-falsifier` | `experiment.difficulty` | two D0 Episodes | `test_live_instrument_demo_emits_complete_portable_receipts_and_preserves_disagreement` | provider receipts, cited spans, costs, and diagnostic Claim Capsule | planned live evidence |
+
+### D3 — matched measurement and governed scheduling
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Panel identity #38](https://github.com/jarredparrett/narrative-game-library/issues/38) | `difficulty.d3.panel-application` | `difficulty.contracts` + `difficulty.transitions` | matched and drifted Releases | `test_panel_application_preserves_panel_identity_and_reports_every_compatibility_grade` | exact locks, match grade, missing and incompatible assignments | planned |
+| [Profiles #47](https://github.com/jarredparrett/narrative-game-library/issues/47) | `difficulty.d3.profile-uncertainty` | `difficulty.derivations` | stratified outcome matrix | `test_profile_keeps_seven_distributions_denominators_and_required_uncertainty_methods` | Wilson and eligible bootstrap receipts; insufficient below threshold | planned |
+| [Scheduling #55](https://github.com/jarredparrett/narrative-game-library/issues/55) | `difficulty.d3.sampling-separation` | `difficulty.transitions` | standing plan plus adaptive queue | `test_diagnostic_outcomes_cannot_change_current_standing_membership_or_stop_time` | separate immutable membership and scheduling receipts | planned |
+| [Scheduling #55](https://github.com/jarredparrett/narrative-game-library/issues/55) | `difficulty.d3.scheduling` | `experiment.difficulty` + `difficulty.transitions` | competing Evidence Work Packages | `test_scheduler_applies_evidence_cascade_priority_vector_and_stop_states_deterministically` | all alternatives, rejection reasons, selected package, and stop state | planned |
+| [Scheduling #55](https://github.com/jarredparrett/narrative-game-library/issues/55) | `difficulty.d3.budget-sealed` | `difficulty.transitions` | protected budgets and sealed handle | `test_standing_and_sealed_budgets_are_protected_and_sealed_cases_remain_opaque` | reservation ledger and allowlisted aggregate receipt | planned |
+
+### D4 — discovery, causal evidence, and Atlas lifecycle
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Discovery #42](https://github.com/jarredparrett/narrative-game-library/issues/42) | `difficulty.d4.discovery` | `experiment.difficulty` + `difficulty.transitions` | complete, partial, and conflicting sweeps | `test_five_truth_blind_sweeps_require_coverage_and_independent_corroboration` | Sweep Coverage, cursors, exclusions, and unresolved signals | planned |
+| [Attribution #44](https://github.com/jarredparrett/narrative-game-library/issues/44) | `difficulty.d4.attribution` | `experiment.difficulty` + `difficulty.derivations` | failed-handoff Incident | `test_isolated_attributions_preserve_alternatives_and_require_causal_corroboration` | two hypothesis sets, counterevidence, contrasts, and ownership status | planned |
+| [Atlas #45](https://github.com/jarredparrett/narrative-game-library/issues/45) | `difficulty.d4.atlas-promotion` | `difficulty.transitions` | eligible and incomplete class proposals | `test_atlas_promotion_requires_fixtures_rerunnable_measurement_and_independent_review` | Workbench history, review, transition, and immutable Published Atlas | planned |
+| [Challenge governance #43](https://github.com/jarredparrett/narrative-game-library/issues/43) | `difficulty.d4.suite-binding` | `difficulty.transitions` | development, challenge, and sealed cases | `test_suite_bindings_are_immutable_one_way_and_sealed_cohorts_are_single_use` | binding receipts and rejected promotion/reuse | planned |
+
+### D5 — failure-driven hardening
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Hardening #50](https://github.com/jarredparrett/narrative-game-library/issues/50) | `difficulty.d5.routing` | `difficulty.transitions` | agent failure, defect, and unresolved evidence | `test_failure_routing_selects_harden_repair_or_quarantine_without_favorable_default` | exact owning-layer and confounder evidence | planned |
+| [Hardening #50](https://github.com/jarredparrett/narrative-game-library/issues/50) | `difficulty.d5.state-machine` | `difficulty.transitions` | reference plus rejection matrix | `test_hardening_state_machine_accepts_reference_path_and_rejects_every_named_boundary_case` | thirteen transition receipts and attributable terminal routes | planned |
+| [Hardening #50](https://github.com/jarredparrett/narrative-game-library/issues/50) | `difficulty.d5.builder-boundary` | `generation` + `difficulty.contracts` | handoff requirement | `test_builder_receives_answer_safe_requirement_and_existing_generator_produces_one_child` | bounded input, independent receipts, immutable child, and no hidden answer | planned |
+| [Hardening #50](https://github.com/jarredparrett/narrative-game-library/issues/50) | `difficulty.d5.preflight` | `generation` + `adapters.verismill` | coherent, leaky, unsolved, and failed-artifact children | `test_challenge_preflight_requires_two_solvers_oracle_leakage_review_and_all_artifact_attestations` | exact gate receipts and quarantine reasons | planned |
+| [Profiles #47](https://github.com/jarredparrett/narrative-game-library/issues/47) | `difficulty.d5.matched-comparison` | `difficulty.derivations` + `difficulty.transitions` | baseline, child, and non-manifesting control | `test_target_dominance_requires_matched_uncertainty_movement_control_discrimination_and_no_regression` | Release Comparison with all intervals and hard gates | planned |
+| [Hardening #50](https://github.com/jarredparrett/narrative-game-library/issues/50) | `difficulty.d5.full-loop` | repository | real failed-handoff hardening demonstration | `test_real_agent_hardening_demo_closes_lineage_without_fixture_scores` | complete measured Claim Capsule or explicit non-accepting terminal result | planned live evidence |
+
+### D6 — operator surface and release qualification
+
+| Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
+|---|---|---|---|---|---|---|
+| [Monitor #59](https://github.com/jarredparrett/narrative-game-library/issues/59) | `difficulty.d6.monitor-states` | `experience` + `difficulty.derivations` | current, incomplete, stale, and corrupt Checkpoints | `test_operator_monitor_fails_closed_across_all_freshness_and_completeness_states` | correct conclusions, debt, history, or suppression | planned |
+| [Monitor #59](https://github.com/jarredparrett/narrative-game-library/issues/59) | `difficulty.d6.monitor-authority` | `experience` | complete operator projection | `test_operator_monitor_is_read_only_traceable_accessible_and_sealed_safe` | no mutation commands, exact claim links, keyboard/a11y audit, opaque sealed fields | planned |
+| [Monitor #59](https://github.com/jarredparrett/narrative-game-library/issues/59) | `difficulty.d6.projection-rebuild` | `experience` + `workspace` | deleted projection | `test_operator_projection_rebuild_is_offline_cross_process_and_claim_preserving` | byte-identical regenerated projection from the same Checkpoint | planned |
+| [Persistence #46](https://github.com/jarredparrett/narrative-game-library/issues/46) | `difficulty.d6.release-capsule` | `workspace` + repository | relocated full-loop Claim Capsule | `test_release_capsule_contains_exact_verifier_and_rechecks_every_reportable_claim_offline` | verifier bundle, component lock, complete closure, and reproducibility status | planned |
