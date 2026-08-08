@@ -593,7 +593,7 @@ target. _Avoid_: guessed threshold, candidate-relative target, live tuning.
 **Target Dominance** is the non-scalar Selection rule between matched Release
 Profiles. A child must preserve integrity and completeness, move no gating
 dimension or required slice conclusively farther from band, and move at least
-one declared repair target closer under paired uncertainty. Only trade-offs
+one declared movement target closer under paired uncertainty. Only trade-offs
 frozen in the Target Contract are permitted; otherwise neither Release
 dominates and the Selection remains indeterminate.
 _Avoid_: weighted winner, post-hoc trade-off, narrative selection.
@@ -732,6 +732,25 @@ Mitigation** changes another layer to reduce recurrence or impact; it preserves
 the causal record and cannot close or relabel the originating Finding. Both
 retain their own predictions, trade-offs, and validation evidence.
 _Avoid_: convenient fix as cause, mitigation as repair, closed by workaround.
+
+A **Hardening Route** is the evidence-backed choice to harden, repair, or
+quarantine a Failure Incident. Only a promoted agent-capability or Coordination
+Failure without a material game, runtime, provider, evaluator, or artifact
+defect may harden a task; defects route to repair and unresolved ownership to
+quarantine. _Avoid_: make it fail more, amplify the bug, curator choice.
+
+A **Task Hardening Requirement** is an answer-safe constraint derived from one
+promoted Failure Class that freezes a capability demand, allowed mutation
+surface, expected manifestation, matched control, target bands, and protected
+invariants. It raises a declared demand without introducing contradiction,
+ambiguity, impossibility, unauthorized dependence, or answer leakage.
+_Avoid_: harder prompt, defect injection, adversarial rewrite.
+
+A **Hardening Demonstration** is the complete lineage proving that a child
+Challenge Case passed Admission and moved the declared difficulty dimension
+under matched Panel and Instrument applications while every non-compensable
+gate and sealed-governance obligation held. _Avoid_: score delta, more failed
+Episodes, impressive example.
 
 A **Challenge Case** is a validated scenario or mutation derived from one
 Failure Class with an oracle, feasibility proof, non-manifesting control, and
