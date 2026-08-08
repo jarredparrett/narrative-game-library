@@ -1,0 +1,420 @@
+<!doctype html>
+<!--
+  PROTOTYPE — THROW AWAY.
+  Three variants of an agentic incident-analysis artifact, switchable via
+  ?variant=A|B|C on one standalone route. The ?case=rescue|handoff parameter
+  applies every variant to the same two compact evidence fixtures.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident Analysis Prototype</title>
+  <style>
+    :root {
+      --ink: #17201f;
+      --muted: #65706d;
+      --paper: #f6f2e9;
+      --white: #fffdf8;
+      --line: #d8d2c4;
+      --red: #b33a2f;
+      --amber: #b57010;
+      --green: #1f6c58;
+      --blue: #275f8d;
+      --violet: #6550a1;
+      --shadow: 0 18px 45px rgba(26, 33, 31, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    .prototype-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 10px 24px;
+      color: #eaf4f1;
+      background: #162622;
+      border-bottom: 1px solid #33433f;
+      font-size: 12px;
+      letter-spacing: .04em;
+    }
+    .prototype-banner strong { color: #ffc566; letter-spacing: .12em; }
+    .case-tabs { display: flex; gap: 6px; }
+    .case-tabs button {
+      border: 1px solid #51635e;
+      border-radius: 999px;
+      color: #dfeae7;
+      background: transparent;
+      padding: 6px 10px;
+    }
+    .case-tabs button.active { color: #17201f; background: #e7f2ee; border-color: #e7f2ee; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #78d6b9; display: inline-block; margin-right: 7px; }
+    .variant { min-height: calc(100vh - 45px); padding-bottom: 110px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 11px; font-weight: 800; color: var(--muted); }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px; border-radius: 999px;
+      padding: 5px 9px; font-size: 11px; font-weight: 750; letter-spacing: .02em;
+      border: 1px solid currentColor;
+    }
+    .pill.red { color: var(--red); background: #fff1ee; }
+    .pill.amber { color: #915b0a; background: #fff5df; }
+    .pill.green { color: var(--green); background: #eaf6f1; }
+    .pill.blue { color: var(--blue); background: #edf5fb; }
+    .pill.violet { color: var(--violet); background: #f3efff; }
+    .trace-ref {
+      border: 0; border-bottom: 1px dotted currentColor; padding: 0; color: var(--blue);
+      background: transparent; font-family: "SFMono-Regular", Consolas, monospace; font-size: 11px;
+    }
+    .prototype-switcher {
+      position: fixed; z-index: 20; left: 50%; bottom: 22px; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 4px; padding: 6px;
+      color: white; background: rgba(19, 27, 25, .96); border: 1px solid #4d5b57;
+      border-radius: 999px; box-shadow: 0 14px 45px rgba(0,0,0,.28); backdrop-filter: blur(10px);
+    }
+    .prototype-switcher button {
+      width: 36px; height: 36px; border: 0; border-radius: 50%; color: white; background: #2d3b37;
+      font-size: 18px;
+    }
+    .prototype-switcher button:hover { background: #53645f; }
+    .variant-name { min-width: 225px; text-align: center; padding: 0 12px; font-size: 12px; }
+    .variant-name strong { display: block; font-size: 13px; }
+    .prototype-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    /* Variant A — a calm, printable incident brief. */
+    .brief-shell { max-width: 1160px; margin: 0 auto; padding: 42px 28px; }
+    .brief-head { display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: start; padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+    .brief-head h1 { margin: 8px 0 12px; font: 700 42px/1.02 Georgia, serif; max-width: 760px; }
+    .brief-deck { max-width: 760px; font: 18px/1.5 Georgia, serif; color: #44504d; }
+    .brief-id { text-align: right; font-size: 11px; line-height: 1.8; }
+    .brief-verdict { display: grid; grid-template-columns: 1.25fr .75fr; gap: 26px; margin: 28px 0; }
+    .brief-callout { padding: 24px; color: white; background: #243d37; border-radius: 4px; }
+    .brief-callout h2 { margin: 7px 0; font: 700 27px/1.15 Georgia, serif; }
+    .brief-callout p { margin: 10px 0 0; color: #d7e6e2; line-height: 1.55; }
+    .brief-score { border: 1px solid var(--line); background: var(--white); padding: 22px; }
+    .brief-score .pair { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #e9e3d8; }
+    .brief-score .pair:last-child { border: 0; }
+    .brief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+    .brief-section { background: rgba(255,253,248,.72); border-top: 4px solid var(--ink); padding: 20px 22px; }
+    .brief-section h3 { margin: 0 0 16px; font: 700 21px Georgia, serif; }
+    .evidence-item { display: grid; grid-template-columns: 60px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .evidence-item:first-of-type { border-top: 0; }
+    .evidence-item p { margin: 3px 0; line-height: 1.45; }
+    .semantic { border-left: 3px solid var(--violet); padding-left: 12px; }
+    .probe { margin-top: 26px; display: grid; grid-template-columns: 190px 1fr; border: 1px solid #caa55e; background: #fff7e6; }
+    .probe .label { padding: 22px; color: #fff; background: #9d6817; font-weight: 800; }
+    .probe .content { padding: 20px 24px; line-height: 1.55; }
+
+    /* Variant B — an investigative trace workbench. */
+    .trace-shell { display: grid; grid-template-columns: 250px minmax(420px, 1fr) 340px; height: calc(100vh - 45px); background: #111817; color: #dbe5e2; }
+    .trace-sidebar { padding: 24px 18px; border-right: 1px solid #33413e; background: #18211f; overflow: auto; }
+    .trace-sidebar h1 { font-size: 18px; margin: 8px 0 20px; }
+    .trace-sidebar .metric { margin: 9px 0; padding: 12px; border: 1px solid #344540; background: #1e2b28; }
+    .trace-sidebar .metric strong { display: block; margin-top: 4px; color: white; font-size: 18px; }
+    .trace-sidebar .nav-label { margin: 24px 0 8px; color: #8ea29c; font-size: 10px; text-transform: uppercase; letter-spacing: .14em; }
+    .trace-sidebar .nav-item { padding: 9px 10px; border-left: 2px solid transparent; color: #b9c7c3; font-size: 12px; }
+    .trace-sidebar .nav-item.active { border-color: #74d4b4; color: white; background: #24332f; }
+    .trace-main { overflow: auto; padding: 28px 30px 130px; }
+    .trace-main header { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 24px; }
+    .trace-main h2 { margin: 6px 0 0; font-size: 25px; }
+    .trace-axis { position: relative; padding-left: 35px; }
+    .trace-axis::before { content: ""; position: absolute; left: 11px; top: 5px; bottom: 5px; width: 1px; background: #4d625c; }
+    .trace-event { position: relative; margin: 0 0 13px; padding: 15px 17px; border: 1px solid #35443f; background: #19231f; border-radius: 7px; }
+    .trace-event::before { content: ""; position: absolute; left: -30px; top: 19px; width: 11px; height: 11px; border-radius: 50%; background: #6a7f79; box-shadow: 0 0 0 4px #111817; }
+    .trace-event.semantic-event::before { background: #a68bfa; }
+    .trace-event.host-event::before { background: #e7ad4d; }
+    .trace-event.alert-event::before { background: #ed786c; }
+    .trace-event.selected { outline: 2px solid #77d8b8; }
+    .trace-event button { display: block; width: 100%; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; }
+    .trace-event .row { display: flex; justify-content: space-between; gap: 15px; color: #91a39e; font-size: 11px; }
+    .trace-event p { margin: 7px 0 0; line-height: 1.45; color: #e5eeeb; }
+    .trace-inspector { padding: 24px; border-left: 1px solid #33413e; background: #f0eee8; color: var(--ink); overflow: auto; }
+    .trace-inspector h3 { margin: 8px 0 16px; font-size: 20px; }
+    .inspector-box { margin: 14px 0; padding: 14px; border: 1px solid #d0c9bc; background: #fffdf7; }
+    .inspector-box label { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .11em; }
+    .inspector-box p { margin: 6px 0 0; font-size: 13px; line-height: 1.5; }
+    .layer-key { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+
+    /* Variant C — a causal debate and experiment-planning bench. */
+    .bench-shell { min-height: calc(100vh - 45px); padding: 30px 34px 125px; background: #edf0f4; }
+    .bench-head { display: flex; justify-content: space-between; align-items: start; gap: 28px; padding: 23px 26px; color: white; background: #24314a; border-radius: 12px 12px 0 0; }
+    .bench-head h1 { margin: 7px 0 4px; font-size: 27px; }
+    .bench-head p { margin: 5px 0 0; color: #c8d2e3; max-width: 760px; }
+    .bench-facts { display: flex; gap: 1px; background: #c9d0db; border: 1px solid #c9d0db; }
+    .bench-fact { flex: 1; padding: 14px 18px; background: white; }
+    .bench-fact span { display: block; color: #697383; font-size: 10px; text-transform: uppercase; letter-spacing: .11em; }
+    .bench-fact strong { display: block; margin-top: 4px; font-size: 14px; }
+    .analyst-lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+    .analyst { background: white; border: 1px solid #d1d7e0; border-radius: 10px; overflow: hidden; }
+    .analyst header { display: flex; justify-content: space-between; align-items: center; padding: 15px 18px; border-bottom: 1px solid #dfe3ea; background: #f8f9fb; }
+    .analyst header strong { font-size: 14px; }
+    .analyst-body { padding: 18px; }
+    .analyst h3 { margin: 0 0 8px; font-size: 20px; color: #253651; }
+    .analyst p { color: #4c586a; line-height: 1.5; }
+    .cause-list { margin: 16px 0 0; padding: 0; list-style: none; }
+    .cause-list li { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid #e4e7ec; font-size: 13px; }
+    .conflict-board { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; }
+    .conflicts, .experiment-plan { padding: 20px; background: white; border: 1px solid #d1d7e0; border-radius: 10px; }
+    .conflicts h2, .experiment-plan h2 { margin: 4px 0 14px; font-size: 18px; }
+    .conflict-row { display: grid; grid-template-columns: 150px 1fr; gap: 18px; padding: 12px 0; border-top: 1px solid #e2e6ec; font-size: 13px; line-height: 1.45; }
+    .conflict-row:first-of-type { border-top: 0; }
+    .experiment-plan { border-top: 5px solid #d17a31; }
+    .experiment-plan ol { padding-left: 20px; color: #465163; line-height: 1.6; }
+    .decision-bar { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: 18px; padding: 14px 18px; border: 1px solid #d9bd8f; background: #fff6e5; border-radius: 8px; }
+
+    @media (max-width: 900px) {
+      .brief-verdict, .brief-grid, .analyst-lanes, .conflict-board { grid-template-columns: 1fr; }
+      .trace-shell { grid-template-columns: 1fr; height: auto; }
+      .trace-sidebar, .trace-inspector { border: 0; }
+      .brief-head { grid-template-columns: 1fr; }
+      .brief-id { text-align: left; }
+      .prototype-banner { align-items: flex-start; flex-direction: column; }
+      .bench-facts { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="prototype-banner">
+    <div><strong>PROTOTYPE</strong> &nbsp; Agentic incident analysis · compact illustrative fixtures</div>
+    <div class="case-tabs" aria-label="Prototype case"></div>
+    <div><span class="status-dot"></span>Read-only · no transition authority</div>
+  </div>
+  <main id="app"></main>
+  <nav class="prototype-switcher" aria-label="Prototype variants">
+    <button id="prev" aria-label="Previous variant">←</button>
+    <div class="variant-name"><span>View variant</span><strong id="variant-label"></strong></div>
+    <button id="next" aria-label="Next variant">→</button>
+  </nav>
+
+  <script>
+    const cases = {
+      rescue: {
+        short: "Missing rescue transition",
+        title: "A correct explanation passed without the rescue occurring",
+        id: "incident:rescue-transition-4104",
+        episode: "episode:…4104",
+        release: "release:sybils-cave-v5",
+        outcome: "Reported pass",
+        integrity: "Trace intact",
+        verification: "Mixed · terminal state span verified; rescue predicate absent",
+        classification: "Evaluator or game-contract failure",
+        oneLine: "Reward reached 1.0 even though the trace never recorded operation of the emergency release or Quill entering a safe state.",
+        facts: [
+          ["F-01", "The Episode entered the rescue Phase.", "event 41 · verified"],
+          ["F-02", "The pump-recess emergency card became visible to the team.", "event 46 · verified"],
+          ["F-03", "A Seat described the emergency-release procedure.", "event 53 · utterance verified"],
+          ["F-04", "No accepted action mutated emergency_release_operated or quill_safe.", "events 41–58 · verified absence"],
+          ["F-05", "The resolution was accepted and reward-v3 returned outcome=1.", "events 57–58 · derived"],
+        ],
+        annotations: [
+          ["A-01", "completion report", "The procedural description presents the rescue as understood, not completed.", "Supported"],
+          ["A-02", "claim", "The accepted terminal result overstates what the state transitions establish.", "Strong"],
+        ],
+        events: [
+          {seq:41, actor:"host", kind:"fact", label:"Phase transition accepted", text:"The Session enters rescue. The emergency outcome is now reachable but unsatisfied."},
+          {seq:46, actor:"host", kind:"host", label:"Emergency card disclosed", text:"The pump-recess card describes the release mechanism and is visible to all Seats."},
+          {seq:53, actor:"seat:reporter", kind:"semantic", label:"Procedure narrated", text:"“Pull the emergency release and lead Quill through the service passage.” The utterance is recorded; no corresponding action follows."},
+          {seq:57, actor:"seat:historian", kind:"alert", label:"Resolution submitted", text:"The team submits the correct culprit and evidence theory, including a statement that the rescue must still be performed."},
+          {seq:58, actor:"environment", kind:"alert", label:"Outcome accepted", text:"Reward-v3 reports outcome=1 although the terminal state contains no completed emergency-release transition."},
+        ],
+        analystA: {
+          name:"Attribution pass A",
+          headline:"The terminal contract omitted a mandatory world transition",
+          summary:"The game accepted a proof-bearing theory while treating the rescue as narrative decoration. The task contract, not the player explanation, failed to require state mutation.",
+          causes:[["game / terminal requirement","Strong"],["evaluator / false positive","Supported"],["policy / omission","Tentative"]]
+        },
+        analystB: {
+          name:"Attribution pass B",
+          headline:"The evaluator rewarded the wrong completion object",
+          summary:"The Release may describe the rescue requirement, but reward-v3 appears to inspect the resolution proof rather than the rescue predicate. Contract and evaluator ownership remain unresolved.",
+          causes:[["evaluator / outcome gate","Strong"],["game / missing affordance","Supported"],["coordination / no actor owned rescue","Tentative"]]
+        },
+        disagreements:[
+          ["Owning layer", "Game terminal contract versus evaluator outcome gate remains unresolved."],
+          ["Agent contribution", "One pass treats omission as incidental; the other retains coordination as an alternative."],
+          ["Standing effect", "The reported pass is unsafe for difficulty standing until the missing transition is gated."],
+        ],
+        probe:"Add one explicit rescue-state requirement without changing the panel. Re-run the archived fixture against the revised verifier, then execute the same seed. A narrated procedure must fail; an accepted release action followed by quill_safe=true must pass.",
+        disposition:"Repair before measuring difficulty",
+      },
+      handoff: {
+        short: "Passing failed handoff",
+        title: "The team passed only after the host supplied the missing synthesis",
+        id: "incident:coordination-handoff-illustrative",
+        episode: "episode:…handoff",
+        release: "release:illustrative-investigation",
+        outcome: "Passed",
+        integrity: "Passed",
+        verification: "All cited factual spans verified",
+        classification: "Ambiguous coordination incident",
+        oneLine: "Seat B inspected proof-critical evidence, did not share it after a corroboration request, and an active host later supplied the synthesis that enabled a correct resolution.",
+        facts: [
+          ["F-01", "Seat B inspected the maintenance record.", "event 18 · verified"],
+          ["F-02", "Seat C sent a public corroboration request.", "event 23 · utterance verified"],
+          ["F-03", "The record was not public before the host intervention.", "events 18–43 · verified absence"],
+          ["F-04", "The active host disclosed the contradiction.", "event 44 · verified"],
+          ["F-05", "The team then submitted a correct licensed resolution.", "event 51 · verified"],
+        ],
+        annotations: [
+          ["A-01", "corroboration request", "Seat C asks the group to verify the alibi against the maintenance record.", "Strong"],
+          ["A-02", "delegation", "The request implicitly assigns Seat B to surface the inspected record.", "Supported"],
+          ["A-03", "unfulfilled handoff", "No qualifying response or share occurs before the host intervenes.", "Supported"],
+        ],
+        events: [
+          {seq:18, actor:"seat:B", kind:"fact", label:"Maintenance record inspected", text:"Seat B alone receives the record contradicting the public alibi."},
+          {seq:23, actor:"seat:C", kind:"semantic", label:"Corroboration requested", text:"“Can someone verify the alibi against the maintenance log?” Interpreted as a corroboration request with Strong confidence."},
+          {seq:31, actor:"seat:B", kind:"fact", label:"Different lead pursued", text:"Seat B takes another accepted investigation action. The maintenance record remains private."},
+          {seq:44, actor:"host", kind:"host", label:"Host supplies synthesis", text:"The active host exposes the contradiction that no Seat had made public."},
+          {seq:51, actor:"team", kind:"fact", label:"Correct resolution accepted", text:"The team cites licensed public evidence and reaches the correct outcome."},
+        ],
+        analystA: {
+          name:"Attribution pass A",
+          headline:"A coordination failure was masked by host recovery",
+          summary:"The factual knowledge silo and the supported unfulfilled-handoff annotation explain why the contradiction did not reach the team. Host synthesis substituted for Seat coordination.",
+          causes:[["coordination / missed handoff","Supported"],["host / recovery dependence","Supported"],["dossier / unclear responsibility","Tentative"]]
+        },
+        analystB: {
+          name:"Attribution pass B",
+          headline:"The role design may not make disclosure ownership legible",
+          summary:"Seat B’s local action was plausible. The trace does not yet distinguish policy forgetfulness from an unclear dossier, weak share affordance, or intervention timing.",
+          causes:[["game / role affordance","Supported"],["policy / follow-through","Supported"],["coordination / collective omission","Tentative"]]
+        },
+        disagreements:[
+          ["Primary cause", "Coordination mechanism versus role-design affordance."],
+          ["Host role", "Masking dependency is established; premature timing as a cause is only Tentative."],
+          ["Standing effect", "None yet. One passing Episode cannot establish a reusable failure or game repair."],
+        ],
+        probe:"Repeat with a minimal host and rotate the Seat B policy across roles. If the failure follows the policy, suspect instrument capability; if it stays with Seat B, inspect dossier and affordance; if all rotations miss it, test a game-owned responsibility change.",
+        disposition:"Run discriminating counterfactual",
+      }
+    };
+
+    const variants = {
+      A: {name:"Incident brief", render: renderBrief},
+      B: {name:"Trace lens", render: renderTrace},
+      C: {name:"Causal bench", render: renderBench},
+    };
+    const params = new URLSearchParams(location.search);
+    let variantKey = variants[params.get("variant")] ? params.get("variant") : "A";
+    let caseKey = cases[params.get("case")] ? params.get("case") : "rescue";
+    let selectedEvent = null;
+
+    function esc(value) {
+      return String(value).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c]);
+    }
+    function setQuery(next) {
+      Object.entries(next).forEach(([key, value]) => params.set(key, value));
+      history.replaceState(null, "", `${location.pathname}?${params.toString()}`);
+    }
+    function changeCase(next) { caseKey = next; selectedEvent = null; setQuery({case: next}); render(); }
+    function changeVariant(delta) {
+      const keys = Object.keys(variants);
+      const index = keys.indexOf(variantKey);
+      variantKey = keys[(index + delta + keys.length) % keys.length];
+      setQuery({variant: variantKey}); render();
+    }
+    function caseTabs() {
+      document.querySelector(".case-tabs").innerHTML = Object.entries(cases).map(([key, value]) =>
+        `<button class="${key === caseKey ? "active" : ""}" onclick="changeCase('${key}')">${esc(value.short)}</button>`
+      ).join("");
+    }
+    function evidenceRows(items, semantic=false) {
+      return items.map(item => `<div class="evidence-item ${semantic ? "semantic" : ""}">
+        <div><span class="pill ${semantic ? "violet" : "blue"}">${esc(item[0])}</span></div>
+        <div><p>${esc(item[1])}</p><button class="trace-ref">${esc(item[2])}</button></div>
+      </div>`).join("");
+    }
+    function annotationRows(items) {
+      return items.map(item => `<div class="evidence-item semantic">
+        <div><span class="pill violet">${esc(item[0])}</span></div>
+        <div><p><strong>${esc(item[1])}</strong> · ${esc(item[2])}</p><span class="pill ${item[3] === "Strong" ? "green" : item[3] === "Supported" ? "blue" : "amber"}">${esc(item[3])}</span></div>
+      </div>`).join("");
+    }
+    function renderBrief(c) {
+      return `<section class="variant brief-shell">
+        <header class="brief-head">
+          <div><div class="eyebrow">Incident analysis · evidence first</div><h1>${esc(c.title)}</h1><div class="brief-deck">${esc(c.oneLine)}</div></div>
+          <div class="brief-id mono"><strong>${esc(c.id)}</strong><br>${esc(c.episode)}<br>${esc(c.release)}<br><span class="pill amber">Prototype fixture</span></div>
+        </header>
+        <div class="brief-verdict">
+          <div class="brief-callout"><div class="eyebrow" style="color:#a9c8bf">Current disposition</div><h2>${esc(c.disposition)}</h2><p>${esc(c.classification)}. The artifact separates what the trace establishes from what analysts infer, then names the next test instead of declaring one root cause.</p></div>
+          <div class="brief-score">
+            <div class="pair"><span>Outcome</span><strong>${esc(c.outcome)}</strong></div>
+            <div class="pair"><span>Integrity</span><strong>${esc(c.integrity)}</strong></div>
+            <div class="pair"><span>Verification</span><strong style="max-width:180px;text-align:right">${esc(c.verification)}</strong></div>
+          </div>
+        </div>
+        <div class="brief-grid">
+          <section class="brief-section"><div class="eyebrow">Factual backbone</div><h3>What the Episode establishes</h3>${evidenceRows(c.facts)}</section>
+          <section class="brief-section"><div class="eyebrow">Semantic overlay</div><h3>What bounded interpretation adds</h3>${annotationRows(c.annotations)}</section>
+        </div>
+        <div class="probe"><div class="label">NEXT DISCRIMINATING PROBE</div><div class="content">${esc(c.probe)}</div></div>
+        <p class="prototype-note">This view optimizes for an operator who needs the incident’s disposition, evidence boundary, and next action on one printable page.</p>
+      </section>`;
+    }
+    function eventClass(event) {
+      return event.kind === "semantic" ? "semantic-event" : event.kind === "host" ? "host-event" : event.kind === "alert" ? "alert-event" : "";
+    }
+    function selectEvent(seq) { selectedEvent = seq; render(); }
+    function renderTrace(c) {
+      const selected = c.events.find(e => e.seq === selectedEvent) || c.events[0];
+      const events = c.events.map(event => `<div class="trace-event ${eventClass(event)} ${selected.seq === event.seq ? "selected" : ""}">
+        <button onclick="selectEvent(${event.seq})"><div class="row"><span>EVENT ${event.seq} · ${esc(event.actor)}</span><span>${event.kind === "semantic" ? "SEMANTIC" : "FACTUAL"}</span></div><p><strong>${esc(event.label)}</strong><br>${esc(event.text)}</p></button>
+      </div>`).join("");
+      return `<section class="variant trace-shell">
+        <aside class="trace-sidebar"><div class="eyebrow" style="color:#839891">Trace workbench</div><h1>${esc(c.short)}</h1>
+          <div class="metric">Outcome<strong>${esc(c.outcome)}</strong></div><div class="metric">Integrity<strong>${esc(c.integrity)}</strong></div>
+          <div class="nav-label">Evidence views</div><div class="nav-item active">Chronological trace</div><div class="nav-item">Knowledge flow · 5 nodes</div><div class="nav-item">Claim support · 3 edges</div><div class="nav-item">Work graph · 4 actions</div><div class="nav-item">Progress · 2 milestones</div><div class="nav-item">Host intervention · 1 edge</div>
+          <div class="nav-label">Package</div><div class="nav-item mono">${esc(c.episode)}</div><div class="nav-item">Verification: claim-scoped</div>
+        </aside>
+        <div class="trace-main"><header><div><div class="eyebrow" style="color:#8ba39c">Factual backbone + overlays</div><h2>${esc(c.title)}</h2></div><span class="pill green">Immutable source</span></header>
+          <div class="layer-key"><span class="pill blue">Recorded / replayed</span><span class="pill violet">Semantic annotation</span><span class="pill amber">Host action</span><span class="pill red">Outcome tension</span></div>
+          <div class="trace-axis">${events}</div>
+        </div>
+        <aside class="trace-inspector"><div class="eyebrow">Span inspector</div><h3>${esc(selected.label)}</h3>
+          <span class="pill ${selected.kind === "semantic" ? "violet" : "blue"}">${selected.kind === "semantic" ? "Semantic overlay" : "Canonical evidence"}</span>
+          <div class="inspector-box"><label>Stable address</label><p class="mono">${esc(c.episode)} / event:${selected.seq}<br>hash:sha256:…${String(selected.seq).padStart(4,"0")}</p></div>
+          <div class="inspector-box"><label>Recorded content</label><p>${esc(selected.text)}</p></div>
+          <div class="inspector-box"><label>Verification status</label><p>${esc(c.verification)}</p></div>
+          <div class="inspector-box"><label>Authority rule</label><p>${selected.kind === "semantic" ? "Interpretation is confidence-bearing and cannot overwrite the cited event." : "The event establishes occurrence, actor, order, and visibility—not the truth of any spoken proposition."}</p></div>
+          <p class="prototype-note">This view optimizes for investigators who need to move from an Incident claim to the exact supporting trace span.</p>
+        </aside>
+      </section>`;
+    }
+    function analystCard(value, key) {
+      return `<article class="analyst"><header><strong>${esc(value.name)}</strong><span class="pill green">Frozen · isolated</span></header><div class="analyst-body"><div class="eyebrow">Independent causal proposal</div><h3>${esc(value.headline)}</h3><p>${esc(value.summary)}</p><ul class="cause-list">${value.causes.map(cause => `<li><span>${esc(cause[0])}</span><span class="pill ${cause[1] === "Strong" ? "green" : cause[1] === "Supported" ? "blue" : "amber"}">${esc(cause[1])}</span></li>`).join("")}</ul><p class="prototype-note mono">receipt:analysis-${key}-${caseKey} · other pass hidden until freeze</p></div></article>`;
+    }
+    function renderBench(c) {
+      return `<section class="variant bench-shell">
+        <header class="bench-head"><div><div class="eyebrow" style="color:#9fb0c9">Causal attribution bench</div><h1>${esc(c.title)}</h1><p>${esc(c.oneLine)}</p></div><div><span class="pill amber">No accepted root cause</span></div></header>
+        <div class="bench-facts"><div class="bench-fact"><span>Episode</span><strong class="mono">${esc(c.episode)}</strong></div><div class="bench-fact"><span>Outcome</span><strong>${esc(c.outcome)}</strong></div><div class="bench-fact"><span>Integrity</span><strong>${esc(c.integrity)}</strong></div><div class="bench-fact"><span>Disposition</span><strong>${esc(c.disposition)}</strong></div></div>
+        <div class="analyst-lanes">${analystCard(c.analystA,"A")}${analystCard(c.analystB,"B")}</div>
+        <div class="conflict-board"><section class="conflicts"><div class="eyebrow">Preserved disagreement</div><h2>What review must not average away</h2>${c.disagreements.map(row => `<div class="conflict-row"><strong>${esc(row[0])}</strong><span>${esc(row[1])}</span></div>`).join("")}</section>
+          <section class="experiment-plan"><div class="eyebrow">Causal test</div><h2>Next discriminating probe</h2><p>${esc(c.probe)}</p><ol><li>Freeze the single changed factor.</li><li>Apply the same Evaluation Panel.</li><li>Preserve both outcomes and alternatives.</li></ol></section></div>
+        <div class="decision-bar"><div><strong>No self-certification</strong><br><span class="prototype-note">The reviewer may accept the evidence package; only later policy can promote a Failure Class or Task Hardening Requirement.</span></div><span class="pill violet">Awaiting counterfactual</span></div>
+        <p class="prototype-note">This view optimizes for reviewers deciding whether disagreement warrants a counterfactual Episode, not for browsing the raw trace.</p>
+      </section>`;
+    }
+    function render() {
+      caseTabs();
+      document.getElementById("app").innerHTML = variants[variantKey].render(cases[caseKey]);
+      document.getElementById("variant-label").textContent = `${variantKey} — ${variants[variantKey].name}`;
+    }
+    document.getElementById("prev").addEventListener("click", () => changeVariant(-1));
+    document.getElementById("next").addEventListener("click", () => changeVariant(1));
+    document.addEventListener("keydown", event => {
+      if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable) return;
+      if (event.key === "ArrowLeft") changeVariant(-1);
+      if (event.key === "ArrowRight") changeVariant(1);
+    });
+    render();
+  </script>
+</body>
+</html>
