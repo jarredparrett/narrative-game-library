@@ -139,6 +139,60 @@ measurement and Playtest Runs for the same Candidate and Instrument. It is
 diagnostic evidence; it does not average humans and models into one voice.
 _Avoid_: combined score, ensemble verdict.
 
+## Simulation-evaluation language
+
+An **Evaluation Panel** is the exact version-locked set of model policies,
+prompts, tools, sampling settings, host policies, behavioral conditions, and
+episode seeds used to measure game Releases. _Avoid_: agent team, benchmark.
+
+A **Difficulty Experiment** applies one Evaluation Panel and one classification
+rubric to one or more immutable Releases. Changing the Panel or rubric starts a
+new experiment series rather than extending an existing comparison.
+_Avoid_: training run, simulation batch.
+
+A **Difficulty Profile** is the trace-derived distribution of outcomes,
+integrity, progress, dependence, coordination, effort, and bottlenecks for one
+Release under one Evaluation Panel. It is diagnostic evidence, not reward or
+Standing. _Avoid_: difficulty score, leaderboard result.
+
+A **Failure Signal** is one trace-addressable observation of an unmet
+constraint, milestone, or expected state transition. It states what happened
+without claiming why. _Avoid_: root cause, model critique.
+
+A **Failure Incident** groups related Failure Signals from one verified Episode
+around one failed or suspicious outcome. An invalid or incomplete Episode may
+produce an infrastructure Incident but cannot establish game difficulty.
+_Avoid_: failed run, bug report.
+
+A **Failure Attribution** is an evidence-backed causal hypothesis that relates
+an Incident to contributing actors, interactions, or owning layers while
+preserving confidence and alternative explanations. It may be multi-label and
+unresolved; it is not an assignment of blame. _Avoid_: root cause, guilty agent.
+
+A **Coordination Failure** is a system-level Incident caused by the relationship
+between otherwise locally plausible agent actions, information states, or
+handoffs. It cannot be reduced to an invalid action by one Actor.
+_Avoid_: weak agent, inactivity.
+
+A **Failure Class** is a reusable, versioned definition with explicit
+inclusions, exclusions, observable signatures, counterexamples, and a rerunnable
+detector or frozen rubric. _Avoid_: tag, free-form category.
+
+A **Failure Atlas** is the versioned graph of Failure Classes and their
+supporting, refuting, and unresolved evidence. An Atlas revision changes future
+instruments; it never rewrites historical Difficulty Profiles or Standing.
+_Avoid_: error list, self-updating rubric.
+
+A **Counterfactual Episode** is a new Episode that changes exactly one declared
+experimental factor under an otherwise identical Evaluation Panel to test a
+causal dependency. It is not a replay of the original trajectory.
+_Avoid_: retry, trace edit, ablation replay.
+
+A **Challenge Case** is a validated scenario or mutation derived from one
+Failure Class with an oracle, feasibility proof, non-manifesting control, and
+declared development or sealed-holdout status. _Avoid_: generated test prompt,
+adversarial example.
+
 
 ## Character-play language
 
