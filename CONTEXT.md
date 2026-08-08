@@ -445,8 +445,114 @@ _Avoid_: convenient fix as cause, mitigation as repair, closed by workaround.
 
 A **Challenge Case** is a validated scenario or mutation derived from one
 Failure Class with an oracle, feasibility proof, non-manifesting control, and
-declared development or sealed-holdout status. _Avoid_: generated test prompt,
-adversarial example.
+declared Suite Binding. _Avoid_: generated test prompt, adversarial example.
+
+A **Suite Binding** immutably assigns a Challenge Case to one evaluation use.
+The **Development Suite** is visible and supports debugging and regression; the
+**Generated Challenge Suite** holds validated generated cases for difficulty
+and diversity exploration; the **Sealed Standing Suite** contains independently
+instantiated, withheld cases used only for Standing. A case exposed outside its
+sealed execution boundary is permanently retired to development use, with its
+history preserved. No development or generated-challenge case may later enter
+the Sealed Standing Suite. _Avoid_: suite promotion, recycled holdout,
+standing-by-volume.
+
+A **Sealed Suite Curator** is a principal distinct from framework builders,
+Challenge Designers, measured Actors, and Standing reviewers. It instantiates
+cases from a frozen generation specification using hidden seeds or source
+materials, freezes membership and oracles, and exposes only the projections
+required for execution. _Avoid_: builder-selected holdout, secret test edited in
+place.
+
+A **Sealed Cohort** is a single-use subset of one versioned Sealed Standing
+Suite assigned to exactly one framework-promotion attempt. The attempt receives
+only the predeclared aggregate decision receipt. After that decision the Cohort
+is consumed and can never judge another revision; if its contents are released,
+they become development evidence. A failed Revision must face a fresh Cohort,
+not tune against the prior result. _Avoid_: reusable hidden test, repeated
+holdout probing, failure details as next-round gradient.
+
+A **Challenge Admission** is the immutable evidence bundle required before a
+case enters the Generated Challenge Suite. It binds the generation receipt and
+must pass canonical compilation and coherence, authorization and reachability,
+independent agentic solvability, oracle uniqueness or explicitly bounded
+acceptable answers, leakage and shortcut review, a matched non-manifesting
+control, and target-difficulty and novelty measurement. Deterministic validators
+decide structural facts; isolated analysis agents decide semantic feasibility
+under a frozen Admission Instrument. Human evidence may supplement but is not
+mandatory. Semantic Admission requires two independent solver Lineages that
+reach an authorized valid solution and one isolated adversarial review for
+leakage, shortcuts, ambiguity, and impossible assumptions. Any unresolved hard
+feasibility or leakage Finding quarantines the case as research evidence; it
+cannot enter an evaluation suite. _Avoid_: generated means valid, one successful
+rollout, validator as semantic judge.
+
+A **Recursive Generation Cycle** uses evidence from measured Episodes and the
+Published Failure Atlas to propose either a new Challenge Case or a deeper
+change to the machinery that produces cases. Its search surface expressly
+includes new research, domain models, prompts, tools, algorithms, adapters, and
+generation code; recursion is not limited to parameter tuning or mutation of an
+existing template. A Cycle may begin from a promoted Failure Class, a measured
+coverage gap or performance plateau, or a research-backed generation
+hypothesis. The latter two remain exploratory until their evidence earns any
+required Failure Class and Atlas promotion; they cannot create evaluation
+authority merely by generating a case. _Avoid_: fixed-template mutation loop,
+automatic self-edit, novelty as authority.
+
+A **Generation Intent** is the content-addressed objective frozen before one
+Recursive Generation Cycle. It names the triggering evidence or research
+hypothesis, desired capability, target Difficulty Profile, protected integrity
+constraints, comparison rule, and stopping rule. It deliberately leaves the
+method open: agents may research, redesign, add tools, or replace generation
+code. _Avoid_: prescribed patch, mutable objective, post-hoc rationale.
+
+A **Generation Campaign** is a resumable sequence of Recursive Generation
+Cycles under one Generation Intent. The Intent freezes limits for attempts,
+model and tool cost, wall time, and Sealed Cohort consumption. The Campaign
+stops when its Framework Target Contract is satisfied, no admissible novel
+candidate remains, repeated quarantines demand a newly scoped framework
+revision, or a budget is exhausted. Its complete evidence persists for a later
+Campaign; exhaustion never implies success or failure. _Avoid_: unbounded
+self-editing loop, discarded plateau, budget-as-verdict.
+
+A **Research Receipt** preserves every external source that materially informs
+a Recursive Generation Cycle: stable source identity and retrieval date,
+source-specific claims, the hypothesis derived from them, applicability limits
+and contrary evidence, resulting domain-model, prompt, tool, algorithm, adapter,
+or code changes, and the Model and tool receipts needed to replay the analysis
+path. Research is optional, but research-derived changes without this receipt
+are ineligible for framework promotion. _Avoid_: bibliography without claims,
+research hidden in agent context, citation as validation.
+
+A **Generative Framework Revision** is an immutable, reviewable proposal to
+change that machinery. It cites the Failure Classes or coverage gaps motivating
+the change, records research provenance when used, declares the expected effect
+and affected generation surface, and is evaluated as a new framework version
+against frozen development, challenge, and sealed-standing suites. The agents
+that research, design, or implement the Revision may not occupy its Independent
+Reviewer authority. The Revision cannot inspect or alter the sealed cases,
+suite membership, oracle, or Instrument that judges it; only an accepted,
+content-addressed transition makes it the generator for future cycles.
+_Avoid_: current-run code patch, generator and judge changing together,
+research-derived authority without measurement.
+
+A **Framework Target Contract** freezes how one Generative Framework Revision
+will be compared with its parent. Integrity gates require no regression in
+feasibility, solvability, authorization, leakage resistance, artifact realism,
+or narrative quality. Improvement must address named Failure Classes or profile
+gaps and demonstrate better accepted-case yield or generation efficiency,
+broader structural diversity, and target Difficulty Profile movement that
+remains inside its solvability band. A fresh Sealed Cohort must pass. No weighted
+aggregate can compensate for a failed integrity gate. _Avoid_: harder is better,
+headline score, post-hoc success criterion.
+
+A **Framework Transition** is the deterministic operation that installs one
+independently accepted, content-addressed Generative Framework Revision as a new
+framework version for future Campaigns. Parent versions, rejected revisions,
+Research Receipts, cases, Suite Bindings, and evaluation evidence remain
+replayable. Rollback selects an earlier version without rewriting history.
+_Avoid_: generator overwritten in place, deleted failed experiment, mutable
+default.
 
 
 ## Character-play language
