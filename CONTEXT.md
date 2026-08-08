@@ -178,6 +178,30 @@ agent analyzes, validates, classifies, or reviews its own contribution; a
 principal may be reused on an unrelated Lineage. _Avoid_: globally unique
 agent, authority identifier alone.
 
+An **Episode Evidence Package** is the content-addressed source for every
+Evidence View of one Episode. Its **Canonical Episode Evidence** preserves what
+was recorded—including actions, observations, results, messages, visibility,
+state transitions, receipts, and errors—without asserting that spoken content
+is true. A message proves what was said; only corroborating evidence can prove
+the proposition it expresses. _Avoid_: transcript as truth, cleaned trace.
+
+A **Verification Status** states which Episode or evidence spans can be
+reconstructed and trusted for a particular claim. Invalid or incomplete spans
+remain evidence with explicit limitations rather than invalidating unrelated
+recorded history. _Avoid_: valid Episode as an all-or-nothing property.
+
+A **Derived Episode Fact** is a reproducible result computed from Canonical
+Episode Evidence and a frozen Release by a named, versioned derivation. A
+**Semantic Annotation** is an append-only agent or human interpretation over
+exact cited spans, using a frozen vocabulary, confidence band, alternatives,
+and provenance. Factual graph edges remain distinct from semantic overlays.
+_Avoid_: inferred fact, mutable label, free-form score.
+
+**Auxiliary Commentary** is a safe reasoning summary or self-explanation kept
+outside default Evidence Views. It may suggest exploratory hypotheses but
+cannot support standing, causal Attribution, or task hardening and never
+contains required private chain-of-thought. _Avoid_: rationale as evidence.
+
 A **Release Comparison** is the auditable relationship between baseline and
 candidate Panel Applications under one Evaluation Panel and one Analysis
 Instrument. It names whether model identity is exactly or operationally matched
@@ -199,10 +223,10 @@ A **Failure Signal** is one trace-addressable observation of an unmet
 constraint, milestone, or expected state transition. It states what happened
 without claiming why. _Avoid_: root cause, model critique.
 
-A **Failure Incident** groups related Failure Signals from one verified Episode
-around one failed or suspicious outcome. An invalid or incomplete Episode may
-produce an infrastructure Incident but cannot establish game difficulty.
-_Avoid_: failed run, bug report.
+A **Failure Incident** groups related Failure Signals from one Episode around
+one failed or suspicious outcome. Each claim names the Verification Status of
+its supporting spans; unverified evidence constrains that claim without erasing
+unrelated usable history. _Avoid_: failed run, bug report.
 
 A **Failure Attribution** is an evidence-backed causal hypothesis that relates
 an Incident to contributing actors, interactions, or owning layers while
