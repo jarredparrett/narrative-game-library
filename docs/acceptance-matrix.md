@@ -388,8 +388,8 @@ until its implementation, named test, and attributable evidence land together.
 
 | Source | Requirement | Owner | Fixture | Capability test | Evidence | Status |
 |---|---|---|---|---|---|---|
-| [Handoff #48](https://github.com/jarredparrett/narrative-game-library/issues/48) | `difficulty.d0.contract-lock` | `difficulty.contracts` | normative contract catalog | `test_difficulty_contract_catalog_rejects_unknown_or_changed_normative_versions` | exact content refs for every pinned contract and schema | planned |
-| [Episode evidence #40](https://github.com/jarredparrett/narrative-game-library/issues/40) | `difficulty.d0.semantic-fixtures` | `simulation` + `difficulty.derivations` | missing-rescue and failed-handoff Episodes | `test_first_semantic_fixtures_replay_with_answer_safe_span_addressable_evidence` | replay receipts, Verification Status, and exact view manifests | planned |
+| [Handoff #48](https://github.com/jarredparrett/narrative-game-library/issues/48) | `difficulty.d0.contract-lock` | `difficulty.contracts` | normative contract catalog | `test_difficulty_contract_catalog_rejects_unknown_or_changed_normative_versions` | exact content refs for every pinned contract and schema | implemented |
+| [Episode evidence #40](https://github.com/jarredparrett/narrative-game-library/issues/40) | `difficulty.d0.semantic-fixtures` | `simulation` + `difficulty.derivations` | missing-rescue and failed-handoff Episodes | `test_first_semantic_fixtures_replay_with_answer_safe_span_addressable_evidence` | replay receipts, Verification Status, and exact view manifests | implemented |
 
 ### D1 — evidence spine and portable claims
 
