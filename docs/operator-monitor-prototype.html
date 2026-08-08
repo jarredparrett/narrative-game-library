@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="prototype" content="operator-monitor">
+  <title>Operator evidence monitor — prototype</title>
+  <style>
+    :root {
+      --graphite: #151b20;
+      --slate: #26343d;
+      --navy: #193846;
+      --fog: #d8e0e1;
+      --paper: #eef2f2;
+      --white: #fbfcfc;
+      --cyan: #65c8bf;
+      --cyan-dark: #247c76;
+      --amber: #e9ae46;
+      --coral: #dc695a;
+      --violet: #746d9b;
+      --line: #9cabad;
+      --display: "Arial Narrow", "Avenir Next Condensed", "Roboto Condensed", sans-serif;
+      --body: Optima, Candara, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--graphite); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--fog);
+      color: var(--graphite);
+      font-family: var(--body);
+      line-height: 1.45;
+    }
+    a { color: inherit; }
+    button, a { font: inherit; }
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 3px;
+    }
+    .mono { font-family: var(--mono); }
+    .eyebrow {
+      font: 700 10px/1.3 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .hash {
+      font: 10px/1.45 var(--mono);
+      overflow-wrap: anywhere;
+    }
+    .quiet { color: #53636a; }
+    .screen-reader {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .trust-banner {
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 10px clamp(16px, 3vw, 42px);
+      background: var(--cyan);
+      border-bottom: 1px solid rgba(0,0,0,.25);
+      color: #10211f;
+    }
+    .trust-banner[data-state="stale"] { background: var(--amber); }
+    .trust-banner[data-state="incomplete"] { background: #cabd74; }
+    .trust-banner[data-state="corrupt"] { background: var(--coral); color: #fff; }
+    .trust-mark {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font: 800 12px var(--mono);
+    }
+    .trust-copy strong { display: block; font-size: 13px; }
+    .trust-copy span { font-size: 11px; }
+    .authority-lock {
+      padding: 6px 9px;
+      border: 1px solid currentColor;
+      font: 700 9px var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .masthead {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+      padding: 26px clamp(16px, 3vw, 42px) 20px;
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+    }
+    .masthead h1 {
+      margin: 3px 0 0;
+      font: 700 clamp(30px, 5vw, 58px)/.9 var(--display);
+      letter-spacing: -.025em;
+      text-transform: uppercase;
+    }
+    .masthead-meta {
+      display: grid;
+      gap: 4px;
+      text-align: right;
+      font: 10px/1.5 var(--mono);
+    }
+    .state-fixtures {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px clamp(16px, 3vw, 42px);
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+    }
+    .state-fixtures a {
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      font: 700 9px var(--mono);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .state-fixtures a[aria-current="page"] {
+      background: var(--graphite);
+      color: #fff;
+      border-color: var(--graphite);
+    }
+    .state-fixtures .fixture-note {
+      margin-left: auto;
+      align-self: center;
+      font: 10px var(--mono);
+      color: #53636a;
+    }
+    .surface { min-height: calc(100vh - 180px); }
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2, .panel-head h3 {
+      margin: 0;
+      font: 700 15px/1 var(--display);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    .panel-body { padding: 14px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 6px;
+      border: 1px solid currentColor;
+      font: 700 8px var(--mono);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .tag::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .tag.current, .tag.pass { color: var(--cyan-dark); }
+    .tag.running { color: #8a5d09; }
+    .tag.blocked, .tag.invalid { color: #a33f33; }
+    .tag.opaque { color: var(--violet); }
+    .inspect-link {
+      font: 700 9px var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+    .receipt-row {
+      display: grid;
+      grid-template-columns: 82px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 0;
+      border-top: 1px solid #ced7d8;
+      font-size: 12px;
+    }
+    .receipt-row:first-child { border-top: 0; }
+    .receipt-row time { font: 10px var(--mono); color: #637277; }
+    .receipt-row strong { display: block; }
+    .receipt-row small { color: #637277; }
+    .metric-number {
+      display: block;
+      font: 700 30px/1 var(--display);
+      letter-spacing: -.02em;
+    }
+    .metric-label { font-size: 11px; color: #5b696e; }
+    .progress-track {
+      height: 8px;
+      background: #cbd4d5;
+      position: relative;
+      overflow: hidden;
+    }
+    .progress-track span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--progress, 50%);
+      background: var(--cyan-dark);
+    }
+    .budget-list { display: grid; gap: 9px; }
+    .budget-line {
+      display: grid;
+      grid-template-columns: 120px 1fr 70px;
+      gap: 10px;
+      align-items: center;
+      font-size: 11px;
+    }
+    .budget-line b { text-align: right; font: 700 10px var(--mono); }
+    .band-chart { display: grid; gap: 13px; }
+    .band-row {
+      display: grid;
+      grid-template-columns: minmax(130px, 1fr) minmax(180px, 2fr) 95px;
+      gap: 10px;
+      align-items: center;
+      font-size: 11px;
+    }
+    .band-track {
+      position: relative;
+      height: 16px;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 19%, rgba(21,27,32,.10) 19% 20%),
+        #dce2e2;
+      border: 1px solid #b5c0c2;
+    }
+    .band-target {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      left: var(--target-start);
+      width: var(--target-width);
+      background: rgba(101,200,191,.46);
+    }
+    .band-interval {
+      position: absolute;
+      top: 5px;
+      height: 4px;
+      left: var(--interval-start);
+      width: var(--interval-width);
+      background: var(--graphite);
+    }
+    .band-interval::before, .band-interval::after {
+      content: "";
+      position: absolute;
+      top: -3px;
+      width: 1px;
+      height: 10px;
+      background: var(--graphite);
+    }
+    .band-interval::before { left: 0; }
+    .band-interval::after { right: 0; }
+    .band-value { font: 10px var(--mono); text-align: right; }
+    .coverage-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .coverage-table th, .coverage-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid #c8d1d2;
+      text-align: right;
+    }
+    .coverage-table th:first-child, .coverage-table td:first-child { text-align: left; }
+    .coverage-table th {
+      font: 700 8px var(--mono);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: #526166;
+    }
+    .coverage-table .debt { color: #9d4b3f; font-weight: 700; }
+    .incident-title {
+      margin: 3px 0 8px;
+      font: 700 24px/1 var(--display);
+      text-transform: uppercase;
+    }
+    .evidence-cite {
+      border-left: 3px solid var(--amber);
+      padding: 8px 10px;
+      margin: 10px 0;
+      background: #f1eee4;
+      font-size: 11px;
+    }
+    .cause-row {
+      display: grid;
+      grid-template-columns: 1fr 80px;
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid #ccd5d6;
+      font-size: 11px;
+    }
+    .cause-row b { font: 700 10px var(--mono); text-align: right; }
+    .sealed-card {
+      padding: 12px;
+      border: 1px dashed var(--violet);
+      background: #efedf5;
+    }
+    .sealed-card strong { display: block; }
+    .sealed-card p { margin: 5px 0 0; font-size: 10px; color: #5f5878; }
+    .trust-state-note {
+      display: none;
+      padding: 12px;
+      border-left: 4px solid var(--coral);
+      background: #f5e7e4;
+      font-size: 12px;
+    }
+    body[data-projection-state="stale"] .trust-state-note.stale,
+    body[data-projection-state="incomplete"] .trust-state-note.incomplete,
+    body[data-projection-state="corrupt"] .trust-state-note.corrupt { display: block; }
+    body[data-projection-state="stale"] [data-current-only],
+    body[data-projection-state="corrupt"] [data-current-only] { opacity: .42; filter: grayscale(.8); }
+    body[data-projection-state="corrupt"] [data-current-only] { display: none !important; }
+
+    /* Variant A — Evidence Spine */
+    .variant-a {
+      display: grid;
+      grid-template-columns: 230px minmax(430px, 1fr) 300px;
+      gap: 16px;
+      padding: 18px clamp(16px, 3vw, 42px) 110px;
+    }
+    .variant-a > .trust-state-note,
+    .variant-c > .trust-state-note { grid-column: 1 / -1; }
+    .spine {
+      background: var(--graphite);
+      color: #eef4f4;
+      padding: 20px 16px;
+      min-height: 720px;
+    }
+    .spine h2 {
+      margin: 5px 0 26px;
+      font: 700 25px/.95 var(--display);
+      text-transform: uppercase;
+    }
+    .spine-step {
+      position: relative;
+      padding: 0 0 24px 29px;
+      border-left: 1px solid #54636a;
+      margin-left: 7px;
+    }
+    .spine-step:last-child { border-left-color: transparent; }
+    .spine-step::before {
+      content: "";
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 10px;
+      height: 10px;
+      border: 1px solid #9cabad;
+      border-radius: 50%;
+      background: var(--graphite);
+    }
+    .spine-step.complete::before { background: var(--cyan); border-color: var(--cyan); }
+    .spine-step.active::before {
+      background: var(--amber);
+      border-color: var(--amber);
+      box-shadow: 0 0 0 5px rgba(233,174,70,.16);
+    }
+    .spine-step strong { display: block; font-size: 11px; }
+    .spine-step span { display: block; margin-top: 3px; color: #9facb0; font: 9px/1.4 var(--mono); }
+    .spine-lock {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--coral);
+      color: #ffb6ac;
+      font: 700 9px/1.5 var(--mono);
+      text-transform: uppercase;
+    }
+    .a-center, .a-right { display: grid; align-content: start; gap: 16px; }
+    .work-package {
+      padding: 24px;
+      background: var(--navy);
+      color: #f5f8f8;
+      border-top: 5px solid var(--amber);
+    }
+    .work-package h2 {
+      margin: 7px 0 10px;
+      font: 700 clamp(28px, 4vw, 46px)/.92 var(--display);
+      text-transform: uppercase;
+    }
+    .work-package p { max-width: 680px; color: #c4d0d3; }
+    .work-progress {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-top: 20px;
+      font: 10px var(--mono);
+    }
+    .work-package .progress-track { background: #465d66; }
+    .work-package .progress-track span { background: var(--amber); }
+    .next-package {
+      display: grid;
+      grid-template-columns: 70px 1fr auto;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid #c8d1d2;
+      font-size: 11px;
+    }
+    .next-package:first-child { border-top: 0; }
+    .next-package b { font: 700 9px var(--mono); color: #59686e; }
+    .a-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); }
+    .a-metrics > div { padding: 14px; background: var(--white); }
+
+    /* Variant B — Coverage Plot */
+    .variant-b { padding: 18px clamp(16px, 3vw, 42px) 110px; }
+    .plot-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(130px, .45fr));
+      background: var(--graphite);
+      color: #fff;
+    }
+    .plot-title { padding: 24px; border-right: 1px solid #4c5b61; }
+    .plot-title h2 {
+      margin: 5px 0 8px;
+      font: 700 40px/.9 var(--display);
+      text-transform: uppercase;
+    }
+    .plot-stat { padding: 20px; border-right: 1px solid #4c5b61; }
+    .plot-stat b { display: block; font: 700 34px var(--display); }
+    .plot-stat span { color: #aebbc0; font-size: 10px; }
+    .plot-grid {
+      display: grid;
+      grid-template-columns: minmax(500px, 1.4fr) minmax(320px, .8fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .schedule-board { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+    .schedule-card { padding: 14px; background: var(--white); min-height: 132px; }
+    .schedule-card.current { border-top: 4px solid var(--amber); }
+    .schedule-card h3 { margin: 6px 0; font: 700 18px var(--display); text-transform: uppercase; }
+    .priority-vector { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; }
+    .priority-vector span { padding: 3px 5px; background: #e3e8e8; font: 8px var(--mono); }
+    .coverage-heat {
+      display: grid;
+      grid-template-columns: 130px repeat(8, 1fr);
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      font: 8px var(--mono);
+    }
+    .heat-cell { min-height: 31px; padding: 7px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; }
+    .heat-cell.label { text-align: left; background: #e6ebeb; font-weight: 700; }
+    .heat-cell.valid { background: rgba(101,200,191,.62); }
+    .heat-cell.invalid { background: rgba(220,105,90,.55); }
+    .heat-cell.missing { background: rgba(233,174,70,.54); }
+    .heat-cell.na { background: #dce2e2; color: #849194; }
+    .plot-side { display: grid; align-content: start; gap: 16px; }
+
+    /* Variant C — Incident Workbench */
+    .variant-c {
+      display: grid;
+      grid-template-columns: 250px minmax(430px, 1fr) 310px;
+      min-height: 760px;
+      padding-bottom: 90px;
+      background: var(--paper);
+    }
+    .incident-docket {
+      background: var(--slate);
+      color: #f4f7f7;
+      padding: 18px;
+    }
+    .incident-docket h2 { margin: 5px 0 18px; font: 700 27px var(--display); text-transform: uppercase; }
+    .docket-item {
+      padding: 13px 0;
+      border-top: 1px solid #52636b;
+    }
+    .docket-item.active { margin: 0 -18px; padding: 13px 18px; background: var(--white); color: var(--graphite); border-left: 5px solid var(--amber); }
+    .docket-item strong { display: block; font-size: 12px; }
+    .docket-item span { font: 9px var(--mono); opacity: .72; }
+    .bench {
+      padding: 24px clamp(18px, 3vw, 40px);
+      border-right: 1px solid var(--line);
+    }
+    .bench h2 { margin: 5px 0 12px; font: 700 clamp(32px, 4vw, 52px)/.9 var(--display); text-transform: uppercase; }
+    .bench-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .hypothesis {
+      padding: 13px;
+      background: var(--white);
+      border-top: 3px solid var(--cyan-dark);
+    }
+    .hypothesis.alt { border-color: var(--violet); }
+    .hypothesis h3 { margin: 5px 0; font: 700 18px var(--display); text-transform: uppercase; }
+    .probe-ticket { margin-top: 16px; padding: 18px; background: #e9e4d5; border-left: 5px solid var(--amber); }
+    .probe-ticket h3 { margin: 5px 0; font: 700 22px var(--display); text-transform: uppercase; }
+    .workbench-rail { padding: 18px; background: #e1e7e7; display: grid; align-content: start; gap: 16px; }
+    .lineage-list { list-style: none; padding: 0; margin: 0; }
+    .lineage-list li { position: relative; padding: 0 0 14px 22px; border-left: 1px solid var(--line); margin-left: 5px; font-size: 10px; }
+    .lineage-list li::before { content: ""; position: absolute; left: -4px; top: 2px; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan-dark); }
+    .lineage-list li:last-child { border-left-color: transparent; }
+    .lineage-list strong { display: block; font: 700 9px var(--mono); }
+
+    .prototype-switcher {
+      position: fixed;
+      z-index: 20;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 42px minmax(190px, auto) 42px;
+      align-items: center;
+      color: #fff;
+      background: var(--graphite);
+      border: 1px solid #617178;
+      box-shadow: 0 12px 40px rgba(0,0,0,.34);
+    }
+    .prototype-switcher button {
+      height: 42px;
+      color: #fff;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      font-size: 20px;
+    }
+    .prototype-switcher button:hover { background: #2d3940; }
+    .switcher-label { padding: 0 15px; text-align: center; font: 700 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+    .prototype-flag {
+      position: fixed;
+      z-index: 19;
+      right: 12px;
+      bottom: 12px;
+      padding: 5px 7px;
+      background: var(--coral);
+      color: #fff;
+      font: 700 8px var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    @media (max-width: 1050px) {
+      .variant-a, .variant-c { grid-template-columns: 200px 1fr; }
+      .a-right, .workbench-rail { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .plot-grid { grid-template-columns: 1fr; }
+      .plot-header { grid-template-columns: 1fr repeat(3, minmax(100px, .35fr)); }
+    }
+    @media (max-width: 720px) {
+      .trust-banner, .masthead { grid-template-columns: 1fr; }
+      .authority-lock { justify-self: start; }
+      .masthead-meta { text-align: left; }
+      .state-fixtures .fixture-note { width: 100%; margin-left: 0; }
+      .variant-a, .variant-c { grid-template-columns: 1fr; }
+      .spine { min-height: auto; }
+      .a-right, .workbench-rail, .bench-columns { grid-template-columns: 1fr; }
+      .a-metrics { grid-template-columns: 1fr 1fr; }
+      .plot-header { grid-template-columns: 1fr 1fr; }
+      .plot-title { grid-column: 1 / -1; }
+      .plot-grid { display: block; }
+      .plot-side { margin-top: 16px; }
+      .coverage-heat { grid-template-columns: 92px repeat(8, 36px); overflow-x: auto; }
+      .band-row { grid-template-columns: 1fr; }
+      .band-value { text-align: left; }
+      .budget-line { grid-template-columns: 100px 1fr 60px; }
+      .prototype-flag { display: none; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .spine-step.active::before { animation: beacon 2.4s ease-in-out infinite; }
+      @keyframes beacon { 0%,100% { box-shadow: 0 0 0 3px rgba(233,174,70,.10); } 50% { box-shadow: 0 0 0 8px rgba(233,174,70,.22); } }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const variants = {
+      A: "Evidence Spine",
+      B: "Coverage Plot",
+      C: "Incident Workbench"
+    };
+    const allowedStates = ["current", "stale", "incomplete", "corrupt"];
+    const params = new URLSearchParams(location.search);
+    const variant = variants[params.get("variant")] ? params.get("variant") : "A";
+    const projectionState = allowedStates.includes(params.get("state")) ? params.get("state") : "current";
+    document.body.dataset.projectionState = projectionState;
+
+    const data = {
+      workspace: {
+        id: "workspace:ashglass-campaign",
+        checkpoint: "checkpoint:0197",
+        projectionCheckpoint: "checkpoint:0197",
+        journalHeads: "12 / 12 verified",
+        projectionRef: "projection:monitor:4a8ec3",
+        rebuiltAt: "16:41:12Z",
+        verifier: "offline-verifier:1.0"
+      },
+      campaign: {
+        id: "campaign:coordination-hardening-07",
+        intent: "generation-intent:handoff-challenge-v1",
+        status: "analysis",
+        current: {
+          id: "ewp:attribution-b:004",
+          title: "Independent causal attribution B",
+          purpose: "Test whether the missed proof-critical handoff follows policy occupancy or Seat design.",
+          progress: 72,
+          units: "4 / 5 evidence spans expanded",
+          claim: "claim:owning-layer-handoff"
+        },
+        next: [
+          ["P1", "Complete attribution disagreement package", "ewp:disagreement:005"],
+          ["P2", "Run policy-rotation counterfactual", "ewp:contrast:006"],
+          ["P3", "Recompute coordination target interval", "ewp:profile:007"]
+        ]
+      },
+      coverage: [
+        {name: "Standing · baseline", required: 24, valid: 24, invalid: 0, missing: 0, status: "complete"},
+        {name: "Standing · child", required: 24, valid: 21, invalid: 1, missing: 2, status: "debt"},
+        {name: "Diagnostic contrasts", required: 8, valid: 6, invalid: 0, missing: 2, status: "debt"},
+        {name: "Admission solvers", required: 2, valid: 2, invalid: 0, missing: 0, status: "complete"}
+      ],
+      heat: [
+        ["Baseline", "valid", "valid", "valid", "valid", "valid", "valid", "valid", "valid"],
+        ["Child", "valid", "valid", "valid", "invalid", "valid", "missing", "valid", "missing"],
+        ["Policy rotate", "valid", "valid", "valid", "valid", "missing", "missing", "na", "na"],
+        ["Control", "valid", "valid", "valid", "valid", "valid", "valid", "valid", "valid"]
+      ],
+      budgets: [
+        ["Standing", 178000, 240000],
+        ["Invalid replacements", 12000, 30000],
+        ["Diagnostics", 61000, 90000],
+        ["Counterfactuals", 28000, 60000],
+        ["Regression", 9000, 45000],
+        ["Sealed reserve", 0, 70000]
+      ],
+      dimensions: [
+        {name: "Resolution reliability", value: "0.60–0.72", start: 60, width: 12, targetStart: 55, targetWidth: 20},
+        {name: "Handoff failure", value: "0.25–0.38", start: 25, width: 13, targetStart: 20, targetWidth: 25},
+        {name: "Episode validity", value: "0.99–1.00", start: 89, width: 10, targetStart: 90, targetWidth: 10},
+        {name: "Recovery dependence", value: "0.18–0.31", start: 18, width: 13, targetStart: 10, targetWidth: 25}
+      ],
+      incidents: [
+        {
+          id: "incident:uncompleted-handoff:17",
+          title: "Proof-critical handoff never completed",
+          state: "causal probe active",
+          evidence: "Seat B inspected E-17 at event 31; Seat D requested corroboration at event 39; no authorized transfer occurred before terminal event 66.",
+          causes: [["Coordination · abandoned handoff", "0.48–0.67"], ["Seat design · unclear obligation", "0.22–0.41"], ["Host policy · late recovery", "0.09–0.24"]],
+          nextProbe: "Rotate the same policy from Seat B to Seat C while holding Release, host, proof path, tools, and seed family fixed."
+        },
+        {id: "incident:tool-retry:09", title: "Rejected tool call repeated", state: "runtime repair", evidence: "", causes: [], nextProbe: ""},
+        {id: "incident:claim-relay:12", title: "Unsupported claim relay", state: "corroborating", evidence: "", causes: [], nextProbe: ""}
+      ],
+      receipts: [
+        ["16:41:12", "Scheduling receipt appended", "receipt:schedule:7db1", "selected attribution B; protected counterfactual reserve"],
+        ["16:40:48", "Sweep coverage completed", "receipt:sweep:coord:9f20", "all communication graph regions traversed"],
+        ["16:39:03", "Episode marked invalid", "receipt:episode:18aa", "provider result incomplete; replacement chain r-04"],
+        ["16:36:27", "Checkpoint advanced", "checkpoint:0197", "12 journal heads verified"]
+      ],
+      manifest: {
+        id: "claim-manifest:hardening-status:0197",
+        claim: "Campaign has one supported coordination Incident; child Standing remains indeterminate pending two assignments.",
+        refs: ["checkpoint:0197", "difficulty-profile:child:partial", "incident:uncompleted-handoff:17", "receipt:schedule:7db1"],
+        freshness: "current",
+        authority: "none — projection only"
+      },
+      sealed: {
+        handle: "sealed-handle:cohort-09",
+        state: "reserved",
+        exposure: "opaque",
+        visible: "gate, budget reservation, consumption state"
+      }
+    };
+
+    const stateCopy = {
+      current: {
+        mark: "✓", title: "Current projection — evidence verified", detail: "Checkpoint 0197 matches every authorized journal head. Conclusions may be inspected.", checkpoint: "projection 0197 = workspace 0197"
+      },
+      stale: {
+        mark: "↻", title: "Stale projection — newer evidence exists", detail: "Projection checkpoint 0197 trails authorized workspace checkpoint 0201. Treat every conclusion as historical until rebuilt.", checkpoint: "projection 0197 < workspace 0201"
+      },
+      incomplete: {
+        mark: "…", title: "Current but incomplete — Standing is indeterminate", detail: "Checkpoint matches, but two child assignments and one replacement Episode remain open.", checkpoint: "checkpoint 0197 · evidence debt 3"
+      },
+      corrupt: {
+        mark: "!", title: "Projection invalid — verification failed", detail: "Claim Manifest hash does not match its referenced closure. Do not use conclusions; canonical Workspace evidence is unchanged.", checkpoint: "manifest mismatch at edge 17"
+      }
+    };
+
+    function inspect(ref) {
+      return `<a class="inspect-link" href="#${ref.replaceAll(":", "-")}" aria-label="Inspect ${ref}">Inspect</a>`;
+    }
+
+    function trustBanner() {
+      const state = stateCopy[projectionState];
+      return `<div class="trust-banner" data-state="${projectionState}">
+        <span class="trust-mark" aria-hidden="true">${state.mark}</span>
+        <div class="trust-copy"><strong>${state.title}</strong><span>${state.detail}</span></div>
+        <span class="authority-lock">Read only · no transition authority</span>
+      </div>`;
+    }
+
+    function masthead() {
+      const links = allowedStates.map(name => {
+        const q = new URLSearchParams({variant, state: name});
+        return `<a href="?${q}" ${name === projectionState ? 'aria-current="page"' : ""}>${name}</a>`;
+      }).join("");
+      return `${trustBanner()}<header class="masthead">
+        <div><div class="eyebrow">Generation campaign / difficulty experiment</div><h1>Evidence monitor</h1></div>
+        <div class="masthead-meta"><b>${data.campaign.id}</b><span>${stateCopy[projectionState].checkpoint}</span><span>${projectionState === "current" ? data.workspace.journalHeads : projectionState === "stale" ? "verified at projection checkpoint · authorized heads advanced" : projectionState === "incomplete" ? "heads verified · evidence debt remains" : "verification failed"} · ${data.workspace.verifier}</span></div>
+      </header><nav class="state-fixtures" aria-label="Projection state fixtures">${links}<span class="fixture-note">Prototype fixtures · these links do not alter evidence</span></nav>`;
+    }
+
+    function trustNotes() {
+      return `<div class="trust-state-note stale"><strong>Historical view.</strong> Activity, budgets, coverage, and claims below are from checkpoint 0197. The monitor cannot rebuild itself.</div>
+      <div class="trust-state-note incomplete"><strong>Evidence debt remains.</strong> Show partial state, denominators, and legal next work; do not issue Standing.</div>
+      <div class="trust-state-note corrupt"><strong>Verification stopped.</strong> Hide decision claims, preserve the failure receipt, and return to the authoritative Workspace verifier.</div>`;
+    }
+
+    function panel(title, body, meta = "") {
+      return `<section class="panel"><header class="panel-head"><h2>${title}</h2>${meta}</header><div class="panel-body">${body}</div></section>`;
+    }
+
+    function budgetBody() {
+      return `<div class="budget-list">${data.budgets.map(([name, used, total]) => {
+        const pct = Math.round(used / total * 100);
+        return `<div class="budget-line"><span>${name}</span><div class="progress-track" style="--progress:${pct}%"><span></span></div><b>${Math.round(used/1000)}k / ${Math.round(total/1000)}k</b></div>`;
+      }).join("")}</div>`;
+    }
+
+    function bandsBody() {
+      return `<div class="band-chart">${data.dimensions.map(d => `<div class="band-row"><span>${d.name}</span><div class="band-track"><span class="band-target" style="--target-start:${d.targetStart}%;--target-width:${d.targetWidth}%"></span><span class="band-interval" style="--interval-start:${d.start}%;--interval-width:${d.width}%"></span></div><b class="band-value">${d.value}</b></div>`).join("")}</div>`;
+    }
+
+    function coverageTable() {
+      return `<table class="coverage-table"><thead><tr><th>Evidence population</th><th>Required</th><th>Valid</th><th>Invalid</th><th>Missing</th></tr></thead><tbody>${data.coverage.map(c => `<tr><td>${c.name}</td><td>${c.required}</td><td>${c.valid}</td><td class="${c.invalid ? "debt" : ""}">${c.invalid}</td><td class="${c.missing ? "debt" : ""}">${c.missing}</td></tr>`).join("")}</tbody></table>`;
+    }
+
+    function receiptsBody(limit = data.receipts.length) {
+      return data.receipts.slice(0, limit).map(([time, title, ref, detail]) => `<div class="receipt-row" id="${ref.replaceAll(":", "-")}"><time>${time}</time><div><strong>${title}</strong><small>${detail}</small><div class="hash">${ref}</div></div>${inspect(ref)}</div>`).join("");
+    }
+
+    function manifestBody() {
+      const m = data.manifest;
+      return `<p>${m.claim}</p><div class="hash">${m.id}</div><ul class="lineage-list">${m.refs.map(ref => `<li><strong>${ref}</strong>content-addressed evidence</li>`).join("")}</ul><div class="tag current">${projectionState === "current" ? m.freshness : projectionState}</div><p class="hash">authority: ${m.authority}</p>`;
+    }
+
+    function sealedBody() {
+      return `<div class="sealed-card"><span class="tag opaque">${data.sealed.exposure}</span><strong>${data.sealed.handle}</strong><p>${data.sealed.visible}. No membership, case, oracle, or result is projected.</p></div>`;
+    }
+
+    function variantA() {
+      const spine = [
+        ["complete", "Workspace verified", "checkpoint:0197"],
+        ["complete", "Standing Episodes", "21 valid · 1 invalid · 2 missing"],
+        ["complete", "Discovery sweeps", "5 / 5 complete"],
+        ["active", "Causal attribution", "attribution B running"],
+        ["", "Counterfactual probe", "queued · policy rotation"],
+        ["", "Target comparison", "waiting for coverage"],
+        ["", "Independent review", "not yet eligible"]
+      ];
+      return `<main class="surface variant-a">${trustNotes()}<aside class="spine" data-current-only><div class="eyebrow">Evidence spine</div><h2>Checkpoint<br>0197</h2>${spine.map(([state, name, detail]) => `<div class="spine-step ${state}"><strong>${name}</strong><span>${detail}</span></div>`).join("")}<div class="spine-lock">Projection ends here<br>No approve · run · retry · rebuild</div></aside>
+      <div class="a-center" data-current-only><section class="work-package"><div class="eyebrow">Current evidence work package · protected diagnostic budget</div><h2>${data.campaign.current.title}</h2><p>${data.campaign.current.purpose}</p><div class="work-progress"><span>${data.campaign.current.units}</span><div class="progress-track" style="--progress:${data.campaign.current.progress}%"><span></span></div><b>${data.campaign.current.progress}% observed</b></div><p class="hash">${data.campaign.current.id} · decides ${data.campaign.current.claim}</p></section>
+      <div class="a-metrics"><div><b class="metric-number">21/24</b><span class="metric-label">valid child assignments</span></div><div><b class="metric-number">1</b><span class="metric-label">invalid, not a failure</span></div><div><b class="metric-number">2</b><span class="metric-label">coverage debt</span></div><div><b class="metric-number">3</b><span class="metric-label">active Incidents</span></div></div>
+      ${panel("Next eligible work", data.campaign.next.map(([p, title, ref]) => `<div class="next-package"><b>${p}</b><span><strong>${title}</strong><span class="hash">${ref}</span></span>${inspect(ref)}</div>`).join(""), '<span class="tag running">scheduled</span>')}
+      ${panel("Target boundaries", bandsBody(), '<span class="tag running">indeterminate</span>')}
+      ${panel("Recent evidence receipts", receiptsBody(3))}</div>
+      <aside class="a-right" data-current-only>${panel("Projection trust", `<div class="metric-number">${projectionState === "current" ? "12/12" : "—"}</div><div class="metric-label">journal heads verified</div><p class="hash">${data.workspace.projectionRef}<br>${data.workspace.checkpoint}<br>rebuilt ${data.workspace.rebuiltAt}</p>${inspect(data.workspace.projectionRef)}`, `<span class="tag ${projectionState}">${projectionState}</span>`)}${panel("Protected budgets", budgetBody())}${panel("Claim Manifest", manifestBody())}${panel("Sealed boundary", sealedBody())}</aside></main>`;
+    }
+
+    function variantB() {
+      const heat = data.heat.map(row => row.map((cell, i) => `<div class="heat-cell ${i ? cell : "label"}">${i ? cell.slice(0,1).toUpperCase() : cell}</div>`).join("")).join("");
+      return `<main class="surface variant-b">${trustNotes()}<section class="plot-header" data-current-only><div class="plot-title"><div class="eyebrow">Coverage-first operational view</div><h2>Can this claim<br>be decided?</h2><div class="hash">${data.manifest.id}</div></div><div class="plot-stat"><b>21</b><span>valid child Episodes</span></div><div class="plot-stat"><b>1</b><span>invalid, preserved separately</span></div><div class="plot-stat"><b>2</b><span>missing assignments</span></div></section>
+      <div class="plot-grid" data-current-only><div>${panel("Standing and diagnostic coverage", `${coverageTable()}<h3 class="eyebrow" style="margin-top:18px">Assignment matrix</h3><div class="coverage-heat"><div class="heat-cell label">Stratum</div>${[1,2,3,4,5,6,7,8].map(x => `<div class="heat-cell label">${x}</div>`).join("")}${heat}</div>`, '<span class="tag running">coverage debt 4</span>')}
+      <div style="height:16px"></div>${panel("Target bands and uncertainty", bandsBody(), '<span class="tag running">not standing</span>')}
+      <div style="height:16px"></div>${panel("Scheduling board", `<div class="schedule-board"><article class="schedule-card current"><span class="eyebrow">Now · P0</span><h3>${data.campaign.current.title}</h3><p>${data.campaign.current.purpose}</p><div class="priority-vector"><span>coverage debt</span><span>causal discrimination</span><span>29k forecast</span></div></article>${data.campaign.next.map(([p,title,ref]) => `<article class="schedule-card"><span class="eyebrow">${p} · queued</span><h3>${title}</h3><p class="hash">${ref}</p><div class="priority-vector"><span>protected envelope</span><span>claim-bound</span></div></article>`).join("")}</div>`, '<span class="tag current">receipt 7db1</span>')}</div>
+      <aside class="plot-side">${panel("Budget envelopes", budgetBody())}${panel("Why this ran next", `<p><strong>Mandatory debt outranks cost.</strong> Attribution B closes an independence requirement for the owning-layer claim. The 29k-token forecast fits the diagnostic envelope.</p><div class="hash">receipt:schedule:7db1<br>priority-vector:[1,1,1,0,0,2,29000]</div>${inspect("receipt:schedule:7db1")}`)}${panel("Claim closure", manifestBody())}${panel("Opaque sealed reserve", sealedBody())}</aside></div></main>`;
+    }
+
+    function variantC() {
+      const selected = data.incidents[0];
+      return `<main class="surface variant-c">${trustNotes()}<aside class="incident-docket" data-current-only><div class="eyebrow">Active incident docket</div><h2>Three open</h2>${data.incidents.map((item, i) => `<article class="docket-item ${i === 0 ? "active" : ""}"><strong>${item.title}</strong><span>${item.id}<br>${item.state}</span></article>`).join("")}<div class="spine-lock">Incidents are analysis<br>not transition authority</div></aside>
+      <section class="bench" data-current-only><div class="eyebrow">Selected Incident · ${selected.state}</div><h2>${selected.title}</h2><div class="hash">${selected.id} · verification complete · comparison side hidden</div><blockquote class="evidence-cite">${selected.evidence}<br><a href="#receipt-sweep-coord-9f20">Trace lens · events 31–66</a></blockquote><div class="bench-columns"><article class="hypothesis"><span class="eyebrow">Attribution A · frozen</span><h3>Collective handoff failure</h3><p>Obligation was public, evidence was reachable, and locally plausible actions failed to complete the transfer.</p><div class="cause-row"><span>Supporting spans</span><b>7</b></div><div class="cause-row"><span>Counterevidence</span><b>2</b></div></article><article class="hypothesis alt"><span class="eyebrow">Attribution B · in progress</span><h3>Seat design interaction</h3><p>Responsibility may remain implicit enough that the same failure follows the Seat rather than the policy.</p><div class="cause-row"><span>Expanded spans</span><b>4/5</b></div><div class="cause-row"><span>Exposure conflict</span><b>none</b></div></article></div>
+      <h3 class="eyebrow" style="margin-top:22px">Causal candidates · never averaged</h3>${selected.causes.map(([name,score]) => `<div class="cause-row"><span>${name}</span><b>${score}</b></div>`).join("")}<article class="probe-ticket"><span class="eyebrow">Next discriminating Evidence Work Package</span><h3>Policy rotation</h3><p>${selected.nextProbe}</p><div class="hash">ewp:contrast:006 · counterfactual budget · 41k forecast</div></article>
+      <div style="height:16px"></div>${panel("Profile effect remains indeterminate", bandsBody())}</section>
+      <aside class="workbench-rail" data-current-only>${panel("Current work", `<div class="tag running">${data.campaign.current.progress}% observed</div><h3 class="incident-title">Attribution B</h3><p>${data.campaign.current.units}</p><div class="progress-track" style="--progress:${data.campaign.current.progress}%"><span></span></div><p class="hash">${data.campaign.current.id}</p>`)}${panel("Evidence lineage", `<ul class="lineage-list"><li><strong>checkpoint:0197</strong>verified Workspace</li><li><strong>episodes:child:standing</strong>21 valid · 1 invalid · 2 missing</li><li><strong>incident:17</strong>two-sweep corroboration</li><li><strong>attribution:a</strong>frozen independently</li><li><strong>attribution:b</strong>active isolated context</li><li><strong>claim-manifest:0197</strong>Standing indeterminate</li></ul>`)}${panel("Scheduling receipt", receiptsBody(1))}${panel("Protected budgets", budgetBody())}${panel("Sealed boundary", sealedBody())}</aside></main>`;
+    }
+
+    function switcher() {
+      const keys = Object.keys(variants);
+      const index = keys.indexOf(variant);
+      const go = delta => {
+        const next = keys[(index + delta + keys.length) % keys.length];
+        const q = new URLSearchParams({variant: next, state: projectionState});
+        location.search = q;
+      };
+      window.addEventListener("keydown", event => {
+        const target = event.target;
+        if (target.matches("input, textarea, [contenteditable]")) return;
+        if (event.key === "ArrowLeft") go(-1);
+        if (event.key === "ArrowRight") go(1);
+      });
+      return `<div class="prototype-switcher" role="group" aria-label="Prototype variant switcher"><button type="button" id="previous-variant" aria-label="Previous variant">←</button><div class="switcher-label">${variant} — ${variants[variant]}</div><button type="button" id="next-variant" aria-label="Next variant">→</button></div><div class="prototype-flag">Throwaway prototype</div>`;
+    }
+
+    const views = {A: variantA, B: variantB, C: variantC};
+    document.querySelector("#app").innerHTML = masthead() + views[variant]() + switcher();
+    document.querySelector("#previous-variant").addEventListener("click", () => {
+      const keys = Object.keys(variants); const i = keys.indexOf(variant); const q = new URLSearchParams({variant: keys[(i + 2) % 3], state: projectionState}); location.search = q;
+    });
+    document.querySelector("#next-variant").addEventListener("click", () => {
+      const keys = Object.keys(variants); const i = keys.indexOf(variant); const q = new URLSearchParams({variant: keys[(i + 1) % 3], state: projectionState}); location.search = q;
+    });
+    if (!(["localhost", "127.0.0.1"].includes(location.hostname))) {
+      document.querySelector(".prototype-switcher").hidden = true;
+      document.querySelector(".prototype-flag").hidden = true;
+    }
+  </script>
+</body>
+</html>
