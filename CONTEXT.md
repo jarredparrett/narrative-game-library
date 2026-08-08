@@ -291,6 +291,12 @@ Checkpoint remains the authorized head, `stale` when any source Journal has
 advanced, and `invalid` when its derivation or source closure fails verification.
 _Avoid_: unversioned dashboard, last-modified freshness, plausible stale report.
 
+An **Operator Evidence Monitor** is a read-only family of Evidence Projections
+rooted in one Workspace Checkpoint that exposes trust, work, budgets, coverage,
+uncertainty, Incidents, scheduling, and claim lineage. It may navigate exact
+evidence references but has no scheduling, review, rebuild, or transition
+authority. _Avoid_: control plane, live truth, admin dashboard.
+
 An **Evidence Event** is the canonical Journal envelope containing its event
 schema, Journal identity, sequence, prior hash, event type, Actor and Authority,
 idempotency identity, causal event references, Evidence Object and Lineage Edge
