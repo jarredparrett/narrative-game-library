@@ -1,0 +1,116 @@
+{
+  "schema_version": "task-hardening-outer-loop.prototype.1",
+  "panel_ref": "evaluation-panel:facilitated-investigation-v1",
+  "instrument_ref": "analysis-instrument:facilitated-investigation-v1",
+  "atlas_ref": "published-failure-atlas:v1",
+  "target_contract_ref": "difficulty-target:coordination-challenge-v1",
+  "source_failure_class_ref": "failure-class:coordination.uncompleted-handoff:v1",
+  "source_failure_class_stage": "promoted",
+  "eligible_hardening_layers": [
+    "agent-capability",
+    "coordination"
+  ],
+  "repair_only_layers": [
+    "game",
+    "runtime",
+    "provider",
+    "evaluator",
+    "artifact"
+  ],
+  "required_lineage": [
+    "baseline-release->baseline-panel-application",
+    "baseline-panel-application->baseline-episodes",
+    "baseline-episodes->baseline-difficulty-profile",
+    "baseline-episodes->incident",
+    "incident->semantic-interpretation",
+    "semantic-interpretation->attribution-a",
+    "semantic-interpretation->attribution-b",
+    "attribution-a->counterfactual-plan",
+    "attribution-b->counterfactual-plan",
+    "counterfactual-plan->contrast-a",
+    "counterfactual-plan->contrast-b",
+    "contrast-a->owning-layer-finding",
+    "contrast-b->owning-layer-finding",
+    "owning-layer-finding->promoted-failure-class",
+    "promoted-failure-class->task-hardening-requirement",
+    "task-hardening-requirement->generation-intent",
+    "generation-intent->child-release",
+    "child-release->challenge-admission",
+    "child-release->child-panel-application",
+    "child-panel-application->child-episodes",
+    "child-episodes->child-difficulty-profile",
+    "baseline-difficulty-profile->release-comparison",
+    "child-difficulty-profile->release-comparison",
+    "release-comparison->sealed-receipt",
+    "sealed-receipt->independent-review",
+    "independent-review->hardening-transition"
+  ],
+  "task_hardening_requirement": {
+    "challenge_mechanism": "Two proof-critical fragments begin with different Seats and resolution requires an explicit, authorized corroborated handoff.",
+    "answer_safe_capability_demand": "The team must transfer and corroborate complementary evidence before submitting a resolution.",
+    "allowed_mutation_surface": [
+      "evidence_distribution",
+      "dependency_topology",
+      "role_obligations"
+    ],
+    "protected_invariants": [
+      "canonical_coherence",
+      "authorized_reachability",
+      "two-independent-solver-solvability",
+      "oracle_validity",
+      "bounded_acceptable_answers",
+      "no_answer_or_shortcut_leakage",
+      "artifact_realism",
+      "narrative_quality"
+    ],
+    "forbidden_mutations": [
+      "contradiction",
+      "ambiguity",
+      "impossibility",
+      "hidden-required-action",
+      "authorization-gap",
+      "answer-bearing-hint",
+      "runtime-degradation",
+      "evaluator-change"
+    ],
+    "expected_manifestation": "proof-critical handoff omission increases under the fixed panel",
+    "non_manifesting_control": "same facts and oracle with both fragments initially available to one authorized Seat"
+  },
+  "admission_gates": [
+    "canonical-compilation",
+    "coherence",
+    "authorization",
+    "reachability",
+    "solver-a-valid-solution",
+    "solver-b-valid-solution",
+    "oracle-validation",
+    "bounded-acceptable-answers",
+    "leakage-review",
+    "shortcut-review",
+    "matched-non-manifesting-control",
+    "artifact-realism",
+    "narrative-quality"
+  ],
+  "comparison_rule": {
+    "same_panel_and_instrument": true,
+    "complete_precommitted_assignments": true,
+    "invalid_episodes_never_count_as_failures": true,
+    "targeted_metric": "proof-critical-handoff-failure-rate",
+    "targeted_delta_direction": "increase",
+    "targeted_delta_interval_must_exclude_zero": true,
+    "resolution_reliability_target_band": [0.55, 0.75],
+    "proof_critical_handoff_failure_target_band": [0.20, 0.45],
+    "episode_validity_floor": 0.99,
+    "integrity_floor": 0.99,
+    "required_sealed_result": "pass",
+    "weighted_compensation": "forbidden"
+  },
+  "principals": {
+    "challenge_designer": "principal:challenge-designer",
+    "admission_solver_a": "principal:solver-a",
+    "admission_solver_b": "principal:solver-b",
+    "leakage_reviewer": "principal:leakage-reviewer",
+    "independent_reviewer": "principal:hardening-reviewer",
+    "sealed_suite_curator": "principal:sealed-curator"
+  }
+}
