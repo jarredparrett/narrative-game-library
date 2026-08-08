@@ -262,6 +262,52 @@ integrity, progress, dependence, coordination, effort, and bottlenecks for one
 Release under one Evaluation Panel. It is diagnostic evidence, not reward or
 Standing. _Avoid_: difficulty score, leaderboard result.
 
+Its seven canonical **Profile Dimensions** are Episode validity, resolution
+reliability, progress and effort, proof robustness, coordination quality,
+recovery dependence, and sensitivity or brittleness. Each remains a
+distribution with exact Episode references and experimental slices; no weighted
+overall difficulty scalar is canonical. Artifact realism and human-play evidence
+retain their independent measurement systems. _Avoid_: composite reward,
+realism-adjusted difficulty, model-human average.
+
+An **Uncertainty Envelope** binds a profile statistic to exact observations,
+valid, invalid, and missing counts, coverage, the independent sampling unit,
+correlation groups, point and interval methods, and matched-comparison identity.
+Binary rates use 95% Wilson intervals; count and continuous diagnostics use
+median, interquartile range, and stratified 95% bootstrap intervals only with at
+least eight independent assignments. Smaller samples are `insufficient`.
+_Avoid_: turn-level sample size, omitted denominator, false precision.
+
+A **Difficulty Target Contract** is the profile-specific, versioned declaration
+of required Panel coverage, minimum independent assignments, eligibility gates,
+dimension and condition bands, brittleness tolerances, classification rules,
+and descriptive-only measures. An Experiment pins it before execution; changing
+the Contract starts a new target series and cannot reclassify historical
+Profiles in place. _Avoid_: universal difficulty threshold, mutable target.
+
+A **Difficulty Classification** is `too-easy`, `too-hard`, `brittle`,
+`provisionally-target-band`, `supported-target-band`, or `indeterminate` under
+one Difficulty Target Contract. Conclusive easy or hard claims require the 95%
+interval outside the relevant band; supported target claims require gating
+intervals inside it. Point estimates may support only provisional target status,
+and incomplete or invalid required coverage is indeterminate.
+_Avoid_: pass or fail, point-estimate standing, missing run as failure.
+
+A **Calibration Suite** is the frozen set of independently authored easy,
+target-shaped, hard, and brittle reference Releases used to derive and validate
+one Difficulty Target Contract. The Panel and Instrument applied to it match
+candidate measurement; the derivation must separate the controls before the
+Contract can support Standing. Candidate results never recalibrate their own
+target. _Avoid_: guessed threshold, candidate-relative target, live tuning.
+
+**Target Dominance** is the non-scalar Selection rule between matched Release
+Profiles. A child must preserve integrity and completeness, move no gating
+dimension or required slice conclusively farther from band, and move at least
+one declared repair target closer under paired uncertainty. Only trade-offs
+frozen in the Target Contract are permitted; otherwise neither Release
+dominates and the Selection remains indeterminate.
+_Avoid_: weighted winner, post-hoc trade-off, narrative selection.
+
 A **Failure Signal** is one trace-addressable observation of an unmet
 constraint, milestone, or expected state transition. It states what happened
 without claiming why. _Avoid_: root cause, model critique.
