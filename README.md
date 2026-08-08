@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.29.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.30.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -134,6 +134,17 @@ research remains append-only until an eligible class revision passes independent
 review and a deterministic publication transition. Challenge Admission records
 independent solvers and adversarial review, while immutable Suite Bindings and
 single-use sealed cohorts prevent visible cases from manufacturing Standing.
+
+Version 0.30 connects that evidence to the existing generation-and-climb path.
+Hardening routes now fail closed to `harden`, `repair`, or `quarantine`; an
+answer-safe Task Hardening Requirement becomes the existing generator's typed
+Requirements rather than a second generator. Thirteen content-addressed
+transitions require independent generation, two-solver preflight, every exact
+Verismill Artifact Attestation, matched Panel and Instrument measurement,
+paired target movement, a non-manifesting control, immutable Generated Challenge
+Admission, sealed governance, independent review, and complete lineage closure.
+The provider-backed real-agent hardening demonstration remains explicitly
+unclaimed until its live evidence is available.
 
 ## Multi-agent RL episodes with Harbor
 

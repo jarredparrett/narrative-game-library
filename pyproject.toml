@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.29.0"
+version = "0.30.0"
 description = "Deterministic narrative game building with agentic, inspectable hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
