@@ -1525,7 +1525,7 @@ wheels = [
 
 [[package]]
 name = "narrative-game-library"
-version = "0.25.0"
+version = "0.26.0"
 source = { editable = "." }
 dependencies = [
     { name = "pypdf" },
@@ -1533,6 +1533,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+analysis = [
+    { name = "openai" },
+]
 forge = [
     { name = "mattermill" },
     { name = "verismill" },
@@ -1554,12 +1557,13 @@ dev = [
 requires-dist = [
     { name = "harbor", marker = "python_full_version >= '3.12' and extra == 'harbor'", specifier = ">=0.20" },
     { name = "mattermill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?subdirectory=libs%2Fmattermill&rev=94a88e73a82ec442496fd4d7f9550454f9c60caf" },
+    { name = "openai", marker = "extra == 'analysis'", specifier = ">=2,<3" },
     { name = "pypdf", specifier = ">=5,<7" },
     { name = "reportlab", specifier = ">=4,<5" },
     { name = "verifiers", marker = "extra == 'prime'", specifier = "==0.3.0" },
     { name = "verismill", marker = "extra == 'forge'", git = "https://github.com/jarredparrett/verismill-lean.git?rev=94a88e73a82ec442496fd4d7f9550454f9c60caf" },
 ]
-provides-extras = ["forge", "harbor", "prime"]
+provides-extras = ["analysis", "forge", "harbor", "prime"]
 
 [package.metadata.requires-dev]
 dev = [

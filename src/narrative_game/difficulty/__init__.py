@@ -14,7 +14,28 @@ from .contracts import (
 from .derivations import (
     build_discovery_view,
     build_episode_evidence_package,
+    derive_discovery_materials,
+    derive_factual_graphs,
     expectation_is_satisfied,
+)
+from .instrument import (
+    ASSIGNMENTS,
+    VIEW_CONTRACTS,
+    AnalysisEvidenceView,
+    AnalysisInstrumentApplication,
+    AnalysisInstrumentDefinition,
+    AssignmentApplication,
+    AssignmentDefinition,
+    EvidenceGrant,
+    analysis_instrument_v1,
+    apply_instrument,
+    build_analysis_view,
+    compose_prompt,
+)
+from .transitions import (
+    EligibilityFinding,
+    EligibilityResult,
+    evaluate_analysis_eligibility,
 )
 
 __all__ = [
@@ -27,7 +48,24 @@ __all__ = [
     "NormativeContractCatalog",
     "SemanticFixtureExpectation",
     "VerificationStatus",
+    "ASSIGNMENTS",
+    "VIEW_CONTRACTS",
+    "AnalysisEvidenceView",
+    "AnalysisInstrumentApplication",
+    "AnalysisInstrumentDefinition",
+    "AssignmentApplication",
+    "AssignmentDefinition",
+    "EligibilityFinding",
+    "EligibilityResult",
+    "EvidenceGrant",
+    "analysis_instrument_v1",
+    "apply_instrument",
+    "build_analysis_view",
     "build_discovery_view",
     "build_episode_evidence_package",
+    "compose_prompt",
+    "derive_discovery_materials",
+    "derive_factual_graphs",
+    "evaluate_analysis_eligibility",
     "expectation_is_satisfied",
 ]

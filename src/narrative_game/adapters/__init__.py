@@ -11,9 +11,11 @@ from .harbor import (
     expand_trainable_rollouts,
     write_trial_artifacts,
 )
+from .openai_analysis import OpenAIResponsesAnalysisDriver
 
 __all__ = [
     "HarborTaskExporter",
+    "OpenAIResponsesAnalysisDriver",
     "TrainerRollout",
     "VerismillArtifactForge",
     "VerismillArtifactSuiteImporter",
