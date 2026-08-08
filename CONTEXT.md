@@ -158,6 +158,26 @@ used to interpret preserved Episodes. Changing it creates a new analysis series
 without changing or rerunning the Evaluation Panel. _Avoid_: panel rubric,
 self-judging agents.
 
+An **Analysis Authority** is one named responsibility in that Instrument:
+Incident Discoverer, Semantic Interpreter, Attribution Analyst, Atlas Curator,
+Challenge Designer, or Independent Reviewer. Authorities may communicate when
+the communication is exposed, but independently occupied authorities cannot
+receive one another's conclusions before freezing their own. _Avoid_: analyst,
+omniscient judge.
+
+An **Evidence View** is the exact content-addressed projection an Analysis
+Authority may inspect. Its **Analysis Receipt** binds that view and Exposure
+Ledger to the occupying principal, model configuration, structured conclusion,
+trace citations, alternatives, confidence, and upstream receipts without
+requiring private chain-of-thought. _Avoid_: context dump, judge transcript.
+
+An **Analysis Lineage** is the dependency path from one Episode through its
+Signals, Incident, interpretations, Attributions, and any resulting Atlas or
+Challenge proposal. Principal conflicts are enforced within a Lineage so no
+agent analyzes, validates, classifies, or reviews its own contribution; a
+principal may be reused on an unrelated Lineage. _Avoid_: globally unique
+agent, authority identifier alone.
+
 A **Release Comparison** is the auditable relationship between baseline and
 candidate Panel Applications under one Evaluation Panel and one Analysis
 Instrument. It names whether model identity is exactly or operationally matched
