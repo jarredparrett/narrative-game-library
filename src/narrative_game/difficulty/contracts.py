@@ -102,8 +102,8 @@ DIFFICULTY_CONTRACT_CATALOG = NormativeContractCatalog(
         NormativeContract(
             "difficulty.acceptance-matrix",
             "docs/acceptance-matrix.md",
-            "sha256:ea86b7be6cedc07957aea1798a90197de339117b71a2d23013aa1022f93f954a",
-            "0.30.0",
+            "sha256:5189df921812459d28ed6b93d209ffd473f3dc86e50acfed39b03ff3bdf62729",
+            "0.31.0",
         ),
         NormativeContract(
             "difficulty.analysis-instrument",

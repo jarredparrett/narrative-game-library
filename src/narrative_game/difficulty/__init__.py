@@ -139,6 +139,19 @@ from .hardening import (
     route_failure,
     run_hardening_demonstration,
 )
+from .operator import (
+    FORBIDDEN_OPERATOR_COMMANDS,
+    PROJECTION_STATES,
+    REPRODUCIBILITY_STATES,
+    SEALED_HANDLE_FIELDS,
+    OperatorEvidenceProjection,
+    OperatorProjectionSource,
+    build_operator_projection,
+    build_release_claim_capsule,
+    reference_operator_projection,
+    render_operator_html,
+    verify_release_claim_capsule_bytes,
+)
 
 __all__ = [
     "DIFFICULTY_CONTRACT_CATALOG",
@@ -256,4 +269,15 @@ __all__ = [
     "review_atlas_proposal",
     "route_failure",
     "run_hardening_demonstration",
+    "FORBIDDEN_OPERATOR_COMMANDS",
+    "PROJECTION_STATES",
+    "REPRODUCIBILITY_STATES",
+    "SEALED_HANDLE_FIELDS",
+    "OperatorEvidenceProjection",
+    "OperatorProjectionSource",
+    "build_operator_projection",
+    "build_release_claim_capsule",
+    "reference_operator_projection",
+    "render_operator_html",
+    "verify_release_claim_capsule_bytes",
 ]

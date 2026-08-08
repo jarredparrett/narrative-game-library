@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.30.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.31.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -145,6 +145,32 @@ paired target movement, a non-manifesting control, immutable Generated Challenge
 Admission, sealed governance, independent review, and complete lineage closure.
 The provider-backed real-agent hardening demonstration remains explicitly
 unclaimed until its live evidence is available.
+
+Version 0.31 makes the difficulty evidence legible and portable without granting
+the display authority. The Operator Evidence Monitor derives an Evidence Spine,
+Coverage Plot, and Incident Workbench from one named Workspace Checkpoint. It
+distinguishes current-incomplete from stale evidence and removes derived
+conclusions entirely when verification is corrupt. Every visible conclusion
+resolves to a Claim Manifest or Scheduling Receipt; sealed cohorts expose only
+opaque allowlisted handles; and the static reference renderer contains no
+transition commands. A Release Claim Capsule wraps one Claim Capsule with the
+exact operator projection, schema bundle, component lock, and a standard-library
+offline verifier so an unfamiliar operator can relocate and recheck the result.
+
+Build and inspect the deterministic worked monitor without a service or network:
+
+```python
+from pathlib import Path
+from narrative_game.difficulty import reference_operator_projection, render_operator_html
+
+projection = reference_operator_projection("current")
+Path("operator-monitor.json").write_bytes(projection.to_bytes())
+Path("operator-monitor.html").write_bytes(render_operator_html(projection))
+```
+
+The accepted trust states are `current-complete`, `current-incomplete`, `stale`,
+and `invalid`. The monitor is an inspection surface only: generation, scheduling,
+approval, and transition commands remain in their owning authorities.
 
 ## Multi-agent RL episodes with Harbor
 

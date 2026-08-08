@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrative-game-library"
-version = "0.30.0"
+version = "0.31.0"
 description = "Deterministic narrative game building with agentic, inspectable hill-climb lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,6 +51,7 @@ narrative-game-playtest-review = "narrative_game.playtest.review:main"
 narrative-game-codex-judge-driver = "narrative_game.playtest.codex_driver:main"
 narrative-game-release-qualify = "narrative_game.stage12_qualification:main"
 narrative-game-harbor-verify = "narrative_game.adapters.harbor:main"
+narrative-game-operator-example = "narrative_game.stage_d6_fixture:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
