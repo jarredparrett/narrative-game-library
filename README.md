@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.28.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.29.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -124,6 +124,16 @@ and supported uncertainty; and target-dominance decisions require paired
 uncertainty rather than point estimates. Frozen Standing samples remain separate
 from adaptive diagnostics, whose complete evidence packages, protected budgets,
 sealed cohorts, deterministic priorities, and reservation receipts are auditable.
+
+Version 0.29 implements the governed D4 evidence lifecycle. Five truth-blind
+Discovery Sweeps retain complete, partial, and conflicting coverage; Incident
+corroboration cannot be self-certified. Two isolated Causal Hypothesis Sets may
+prioritize a test, but owning-layer findings require independently interpreted
+orthogonal Counterfactual Contrasts or a deterministic reproduction. Atlas
+research remains append-only until an eligible class revision passes independent
+review and a deterministic publication transition. Challenge Admission records
+independent solvers and adversarial review, while immutable Suite Bindings and
+single-use sealed cohorts prevent visible cases from manufacturing Standing.
 
 ## Multi-agent RL episodes with Harbor
 
