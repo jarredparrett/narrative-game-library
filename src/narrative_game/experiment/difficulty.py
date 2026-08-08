@@ -473,10 +473,22 @@ def _aggregate_material(
     category: str,
     object_refs: tuple[str, ...],
 ) -> tuple[EvidenceGrant, Mapping[str, Any]]:
+    # A bundle is the authority boundary presented to the next assignment.  The
+    # referenced objects must therefore be materialized inside that admitted
+    # object; a list of opaque hashes is provenance, not usable evidence.  Keep
+    # both so the consumer can inspect the content and the Claim Manifest can
+    # still walk the exact upstream object graph.
+    bundled_objects = {
+        ref: workspace.store.read_json(ref) for ref in sorted(object_refs)
+    }
     ref = workspace.put_evidence_object(
         object_kind="analysis_material_bundle",
         object_schema="analysis-material-bundle.1",
-        value={"category": category, "object_refs": list(object_refs)},
+        value={
+            "category": category,
+            "object_refs": list(object_refs),
+            "objects": bundled_objects,
+        },
         producer="analysis-lineage-coordinator.1",
         verifier="analysis-material-bundle-verifier.1",
     )

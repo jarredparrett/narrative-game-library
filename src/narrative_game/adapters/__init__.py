@@ -12,10 +12,12 @@ from .harbor import (
     write_trial_artifacts,
 )
 from .openai_analysis import OpenAIResponsesAnalysisDriver
+from .codex_analysis import CodexCLIAnalysisDriver
 
 __all__ = [
     "HarborTaskExporter",
     "OpenAIResponsesAnalysisDriver",
+    "CodexCLIAnalysisDriver",
     "TrainerRollout",
     "VerismillArtifactForge",
     "VerismillArtifactSuiteImporter",

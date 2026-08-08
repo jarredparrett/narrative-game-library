@@ -335,19 +335,25 @@ def derive_discovery_materials(
     span_ids = tuple(item.source_span_id for item in view.spans)
     objects: dict[str, Mapping[str, Any]] = {}
     grants: dict[str, EvidenceGrant] = {}
+    shared_categories = tuple(
+        category for category in DISCOVERY_ALLOW if category != "assigned_factual_graphs"
+    )
+    shared_value = {
+        "schema_version": "analysis-material.1",
+        "category": "answer_safe_discovery_evidence",
+        "categories": list(shared_categories),
+        "episode_package_ref": package.package_id,
+        "discovery_view_ref": view.manifest_id,
+        "spans": [item.to_mapping() for item in view.spans],
+    }
+    shared_ref = digest_json(shared_value)
+    objects[shared_ref] = shared_value
     for category in DISCOVERY_ALLOW:
-        value: Mapping[str, Any]
         if category == "assigned_factual_graphs":
-            value = graphs.to_mapping()
+            value: Mapping[str, Any] = graphs.to_mapping()
+            object_ref = digest_json(value)
+            objects[object_ref] = value
         else:
-            value = {
-                "schema_version": "analysis-material.1",
-                "category": category,
-                "episode_package_ref": package.package_id,
-                "discovery_view_ref": view.manifest_id,
-                "spans": [item.to_mapping() for item in view.spans],
-            }
-        object_ref = digest_json(value)
-        objects[object_ref] = value
+            object_ref = shared_ref
         grants[category] = EvidenceGrant(category, object_ref, span_ids)
     return grants, objects

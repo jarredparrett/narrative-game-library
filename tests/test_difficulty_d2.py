@@ -22,6 +22,7 @@ from narrative_game.experiment.difficulty import (
     AnalysisModelResponse,
     AnalysisTransportError,
     EvidenceAccessSession,
+    _aggregate_material,
     run_analysis_assignment,
     run_analysis_lineage,
 )
@@ -87,6 +88,28 @@ def _base_lineage(application):
         "no_finding_claim": False,
         "corroboration_claim": True,
     }
+
+
+def test_analysis_material_bundles_admit_content_not_only_opaque_references(tmp_path):
+    """difficulty.d2.bundle-content: downstream agents can inspect upstream outputs."""
+    workspace = Workspace.create(tmp_path / "bundle", workspace_id="bundle")
+    upstream_ref = workspace.put_evidence_object(
+        object_kind="analysis_structured_output",
+        object_schema="discovery-sweep.1",
+        value={"status": "complete", "signals": ["signal:one"]},
+        producer="fixture",
+        verifier="fixture",
+    )
+    grant, value = _aggregate_material(
+        workspace,
+        category="frozen_discovery_outputs",
+        object_refs=(upstream_ref,),
+    )
+    assert grant.object_ref == workspace.store.put_json(value)
+    assert value["value"]["object_refs"] == [upstream_ref]
+    assert value["value"]["objects"][upstream_ref] == workspace.store.read_json(
+        upstream_ref
+    )
 
 
 def _valid_sweep(receipt_ref: str = "analysis-receipt:pending"):
