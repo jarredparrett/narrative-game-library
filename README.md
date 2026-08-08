@@ -12,7 +12,7 @@ applications consume those projections without owning game or authority rules.
 
 ## Status
 
-Version `0.25.0` remains in the experimental contract epoch. Stages 0-12 form one
+Version `0.26.0` remains in the experimental contract epoch. Stages 0-12 form one
 working path: public Artifact Forge boundary, content-addressed Workspace,
 pure Kernel and Facilitated Investigation profile, deterministic compiler,
 authorized Session runtime, deterministic Physical Export, and a native
@@ -100,6 +100,15 @@ six. Claim Manifests bind complete object, schema, and verifier closures, and a
 deterministic Claim Capsule carries those objects plus Journal proofs for
 offline relocation. Workspace 0.1 evidence migrates through append-only receipts
 rather than in-place rewriting, and imported archives record their own receipt.
+
+Version 0.26 implements the mechanical core of frozen agentic failure analysis.
+Analysis Instrument v1 now has content-addressed Definition and provider-resolved
+Application identities, twelve isolated assignments, least-authority Evidence
+Views, deterministic factual graphs, auditable evidence access, and fail-closed
+eligibility. Every transport or schema attempt receives a durable receipt;
+semantic and best-of retries are forbidden. An optional OpenAI Responses driver
+pins the exact Sol/Terra model settings. This is analysis infrastructure, not a
+claim that the required two-Episode live falsifier has passed.
 
 ## Multi-agent RL episodes with Harbor
 

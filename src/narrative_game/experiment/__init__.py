@@ -22,6 +22,14 @@ from .migration import (
     seal_external_evidence,
     seal_verismill_experiment,
 )
+from .difficulty import (
+    AnalysisAttemptResult,
+    AnalysisModelDriver,
+    AnalysisModelResponse,
+    AnalysisTransportError,
+    EvidenceAccessSession,
+    run_analysis_assignment,
+)
 
 __all__ = [
     "CompletePackage",
@@ -29,6 +37,11 @@ __all__ = [
     "ExperimentSpine",
     "EfficiencyController",
     "AUTHORIZATION_BOUNDARIES",
+    "AnalysisAttemptResult",
+    "AnalysisModelDriver",
+    "AnalysisModelResponse",
+    "AnalysisTransportError",
+    "EvidenceAccessSession",
     "migrate_winter_observatory_candidate_6",
     "GameProfileAdapter",
     "HumanPanelMember",
@@ -43,4 +56,5 @@ __all__ = [
     "ScoreAggregator",
     "seal_external_evidence",
     "seal_verismill_experiment",
+    "run_analysis_assignment",
 ]

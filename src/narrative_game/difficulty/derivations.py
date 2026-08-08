@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+import json
 from typing import Any, Mapping
 
 from narrative_game.compiler import GameRelease
-from narrative_game.contracts.canonical import digest_bytes
+from narrative_game.contracts.canonical import canonical_json, digest_bytes, digest_json
 from narrative_game.simulation import EpisodeArchive, verify_episode
 
 from .contracts import (
@@ -17,6 +19,7 @@ from .contracts import (
     SemanticFixtureExpectation,
     VerificationStatus,
 )
+from .instrument import DISCOVERY_ALLOW, EvidenceGrant
 
 
 DISCOVERY_DENIED_FIELDS = (
@@ -234,3 +237,117 @@ def expectation_is_satisfied(
         and _contains(span.content, expectation.required_content)
         for span in package.spans
     )
+
+
+@dataclass(frozen=True)
+class FactualGraphs:
+    """Deterministic structural graphs derived before any agent sees an Episode."""
+
+    episode_package_ref: str
+    actor_action_resource: tuple[Mapping[str, Any], ...]
+    knowledge_state: tuple[Mapping[str, Any], ...]
+    milestone_obligation: tuple[Mapping[str, Any], ...]
+    claimed_vs_verified: tuple[Mapping[str, Any], ...]
+    schema_version: str = "factual-graphs.1"
+
+    @property
+    def graphs_ref(self) -> str:
+        return digest_json(self.to_mapping())
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "episode_package_ref": self.episode_package_ref,
+            "actor_action_resource": [dict(item) for item in self.actor_action_resource],
+            "knowledge_state": [dict(item) for item in self.knowledge_state],
+            "milestone_obligation": [dict(item) for item in self.milestone_obligation],
+            "claimed_vs_verified": [dict(item) for item in self.claimed_vs_verified],
+        }
+
+
+def _public_content(value: Mapping[str, Any]) -> dict[str, Any]:
+    content, _ = _redact(
+        value,
+        path="",
+        denied=frozenset(DISCOVERY_DENIED_FIELDS),
+        replacements={},
+    )
+    return json.loads(canonical_json(content))
+
+
+def derive_factual_graphs(package: EpisodeEvidencePackage) -> FactualGraphs:
+    """Derive fact-only adjacency lists without causal or correctness judgments."""
+    actor_action_resource = []
+    knowledge_state = []
+    milestone_obligation = []
+    claimed_vs_verified = []
+    for span in sorted(package.spans, key=lambda item: item.span_id):
+        content = _public_content(span.content)
+        actor = content.get("actor_id") or content.get("actor")
+        event_type = content.get("event_type") or content.get("kind")
+        payload = content.get("payload") if isinstance(content.get("payload"), Mapping) else {}
+        tool = content.get("tool_call") if isinstance(content.get("tool_call"), Mapping) else {}
+        resource = (
+            payload.get("resource_id")
+            or tool.get("arguments", {}).get("resource_id")
+            if isinstance(tool.get("arguments"), Mapping)
+            else payload.get("resource_id")
+        )
+        actor_action_resource.append(
+            {
+                "span_ref": span.span_id,
+                "actor": actor,
+                "action": event_type or tool.get("name"),
+                "resource": resource,
+            }
+        )
+        if event_type in {"evidence-inspected", "evidence-shared", "resource-disclosed"}:
+            knowledge_state.append(
+                {"span_ref": span.span_id, "actor": actor, "event": event_type, "resource": resource}
+            )
+        if event_type in {"phase-advanced", "resolution-submitted", "session-ended"}:
+            milestone_obligation.append(
+                {"span_ref": span.span_id, "event": event_type, "payload": dict(payload)}
+            )
+        if event_type in {"message", "said", "broadcast", "resolution-submitted"}:
+            claimed_vs_verified.append(
+                {
+                    "span_ref": span.span_id,
+                    "claim": payload.get("text") or payload.get("explanation"),
+                    "verification_status": package.verification.status,
+                }
+            )
+    return FactualGraphs(
+        package.package_id,
+        tuple(actor_action_resource),
+        tuple(knowledge_state),
+        tuple(milestone_obligation),
+        tuple(claimed_vs_verified),
+    )
+
+
+def derive_discovery_materials(
+    package: EpisodeEvidencePackage,
+) -> tuple[Mapping[str, EvidenceGrant], Mapping[str, Mapping[str, Any]]]:
+    """Return content-addressed category grants and their materialized objects."""
+    view = build_discovery_view(package)
+    graphs = derive_factual_graphs(package)
+    span_ids = tuple(item.source_span_id for item in view.spans)
+    objects: dict[str, Mapping[str, Any]] = {}
+    grants: dict[str, EvidenceGrant] = {}
+    for category in DISCOVERY_ALLOW:
+        value: Mapping[str, Any]
+        if category == "assigned_factual_graphs":
+            value = graphs.to_mapping()
+        else:
+            value = {
+                "schema_version": "analysis-material.1",
+                "category": category,
+                "episode_package_ref": package.package_id,
+                "discovery_view_ref": view.manifest_id,
+                "spans": [item.to_mapping() for item in view.spans],
+            }
+        object_ref = digest_json(value)
+        objects[object_ref] = value
+        grants[category] = EvidenceGrant(category, object_ref, span_ids)
+    return grants, objects
