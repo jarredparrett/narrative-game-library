@@ -141,13 +141,33 @@ _Avoid_: combined score, ensemble verdict.
 
 ## Simulation-evaluation language
 
-An **Evaluation Panel** is the exact version-locked set of model policies,
-prompts, tools, sampling settings, host policies, behavioral conditions, and
-episode seeds used to measure game Releases. _Avoid_: agent team, benchmark.
+An **Evaluation Panel** is the release-independent, version-locked measuring
+population and complete Episode matrix: model policies, prompts, tools,
+sampling settings, host policies, behavioral conditions, role rotations,
+seeds, scheduling, and evaluation-only context rules. It describes the test,
+not where a run happens. _Avoid_: agent team, benchmark, game-specific lineup.
 
-A **Difficulty Experiment** applies one Evaluation Panel and one classification
-rubric to one or more immutable Releases. Changing the Panel or rubric starts a
-new experiment series rather than extending an existing comparison.
+A **Panel Application** binds one Evaluation Panel to one immutable Release and
+proves that every required role, tool, condition, and Episode assignment remains
+compatible. It does not change Panel identity. _Avoid_: configured panel,
+release-specific benchmark.
+
+An **Analysis Instrument** is the independently versioned set of analysis-agent
+roles, prompts, Failure Atlas, rubric, attribution rules, and aggregation rules
+used to interpret preserved Episodes. Changing it creates a new analysis series
+without changing or rerunning the Evaluation Panel. _Avoid_: panel rubric,
+self-judging agents.
+
+A **Release Comparison** is the auditable relationship between baseline and
+candidate Panel Applications under one Evaluation Panel and one Analysis
+Instrument. It names whether model identity is exactly or operationally matched
+and preserves all missing and invalid Episodes; an incomplete comparison may be
+inspected but cannot support a release-selection claim. _Avoid_: score delta,
+winner.
+
+A **Difficulty Experiment** applies one Evaluation Panel and one Analysis
+Instrument to one or more immutable Releases. Changing either starts a new
+experiment series rather than extending an existing primary comparison.
 _Avoid_: training run, simulation batch.
 
 A **Difficulty Profile** is the trace-derived distribution of outcomes,
