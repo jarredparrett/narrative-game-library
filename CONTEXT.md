@@ -139,6 +139,165 @@ measurement and Playtest Runs for the same Candidate and Instrument. It is
 diagnostic evidence; it does not average humans and models into one voice.
 _Avoid_: combined score, ensemble verdict.
 
+## Persistence language
+
+An **Evidence Object** is immutable, content-addressed authoritative material
+such as a Release, Episode, analysis, receipt, profile, Atlas revision, suite,
+contract, or sealed external payload. Its identity is its canonical bytes, not
+its filename or current location. _Avoid_: output file, mutable record, path ID.
+
+An **Evidence Journal** is an append-only hash-chained history of authorized
+domain events. Each event binds its actor, causal parent, idempotency identity,
+and referenced Evidence Objects; the Journal orders authority but does not copy
+or mutate object content. _Avoid_: audit log as cache, editable event stream.
+
+An **Evidence Projection** is a disposable, rebuildable view derived entirely
+from verified Journals and the transitive Evidence Object graph. It may support
+monitoring, search, current Standing, and reports but cannot support a claim by
+itself. _Avoid_: authoritative dashboard, current file as evidence.
+
+A **Claim Manifest** is the immutable root of evidence for one reportable claim.
+It names the claim and status, its exact typed Evidence Object roots, governing
+contracts and schema versions, Journal authorization event, and required replay
+verifiers. Its transitive object graph must verify without relying on a path or
+Projection. _Avoid_: workspace archive as claim, link list, current head.
+
+**Evidence Object Granularity** follows independent versioning and authority: a
+Panel, Instrument, Episode Archive, Discovery Sweep, Incident, Attribution,
+Counterfactual Plan, Difficulty Profile, Atlas Revision, Challenge Case,
+Scheduling Receipt, or Standing Attestation is independently addressable. A
+whole Workspace is not one object, and fields without independent identity are
+not fragmented into separate objects. _Avoid_: monolithic evidence blob,
+object-per-field.
+
+The **Minimum Evidence Catalog** preserves every input and output at an
+authority boundary. It includes frozen Release, Panel, Instrument, authority,
+sampling, suite, target, and cost contracts; assignments, Episode Archives,
+verification, prompts, model and tool receipts, and runtime outcomes; Evidence
+Views, Sweeps, Signals, Incidents, hypotheses, Attributions, Counterfactuals,
+Profiles, uncertainty, Atlas and Challenge objects, and Scheduling Receipts;
+and Reviews, Transitions, Selections, Standing Attestations, and Claim Manifests.
+Rejected, refuted, invalid, and incomplete objects remain in lineage.
+_Avoid_: success-only archive, discarded proposal, summarized failure.
+
+**Re-verification** reruns pinned deterministic verifiers over the exact stored
+objects and must reproduce a Claim Manifest's status. **Re-execution** asks the
+same provider or policy to act again and is best-effort because stochastic or
+retired services may produce another trajectory. Provider-native requests and
+responses may be sealed as external Evidence Objects for diagnosis, but the
+canonical Episode Archive remains authoritative and inaccessible hidden
+reasoning is neither required nor claimed. _Avoid_: model repeatability as
+replay, provider log as Episode truth, fabricated thought trace.
+
+The **User Data Root** is the operator-owned location outside source control
+that contains Experiment Workspaces. An explicit user path wins, followed by a
+dedicated configuration override, then the platform application-data default.
+A repository-local ignored Workspace is opt-in rather than default. Credentials
+belong to a separate secret authority and never enter Evidence Objects or
+exports. _Avoid_: committed experiment, implicit current directory, archived
+API key.
+
+A **Workspace Archive** is the deterministic portable closure of one complete
+Experiment Workspace: its Journals, every reachable Evidence Object, and a
+canonical inventory. A **Claim Capsule** is the minimal portable closure of one
+Claim Manifest plus required Journal inclusion proofs, schemas, and verifiers.
+Both exclude credentials, absolute paths, locks, caches, and Projections and are
+fully verified before import exposes a view. _Avoid_: copied folder, partial
+claim ZIP, trusted archive path.
+
+An **Evidence Schema Identity** independently versions one stable Evidence
+Object kind, its canonicalization, producer component, and verifier contract.
+Breaking interpretation changes advance that kind's major schema; compatible
+additions advance its minor schema. Object, Journal, archive, and Projection
+formats evolve independently rather than inheriting the package version.
+_Avoid_: one global schema number, package version as evidence meaning, implicit
+canonicalization.
+
+An **Evidence Migration** is an append-only deterministic conversion from one
+Evidence Object to another. Its Migration Receipt binds source and destination,
+migrator identity, schema change, warnings, and loss declaration. A lossless
+format conversion may preserve claim meaning; semantic reinterpretation starts
+a new analysis or claim lineage under normal review. Unknown schemas remain
+preservable and exportable even when not currently interpretable.
+_Avoid_: in-place upgrade, silent coercion, migration as reanalysis.
+
+A **Verifier Bundle** is the content-addressed offline runtime needed to
+re-verify a Claim Manifest: verifier entry points, exact library artifacts,
+dependency lock, supported runtime, and integrity hashes. Standing, Atlas and
+framework promotion, and release claims require one in their portable closure;
+a source commit or package name alone is insufficient. Model or provider access
+is unnecessary because verification replays recorded evidence.
+_Avoid_: install latest, network-required replay, verifier by convention.
+
+**Durable Evidence** is any object reachable from an Evidence Journal or Claim
+Manifest. It is retained by default and never automatically collected. An
+explicit operator prune requires a verified replacement archive and appends an
+**Evidence Tombstone** naming removed hashes, reason, archive identity, and
+affected claims; any missing required object makes those claims
+non-reverifiable. Caches, locks, partial downloads, and unsealed intermediates
+are ephemeral. Consumed sealed cases remain durable under a changed access
+state. _Avoid_: age-based evidence deletion, silent prune, sealed-case erasure.
+
+A **Lineage Edge** is an immutable typed relation between Evidence Objects. Its
+families cover identity (`applies-to`, `occupies`, `measured-under`), evidence
+(`observes`, `supports`, `refutes`, `invalidates`), derivation (`derived-from`,
+`generated-from`, `aggregates`), experiment (`controls`, `contrasts-with`,
+`replicates`), authority (`proposed-by`, `reviewed-by`, `authorized-by`),
+versioning (`supersedes`, `migrates-from`, `deprecates`), suites (`member-of`,
+`exposed-from`, `retired-to`), and selection (`compares`, `selects`, `rejects`).
+Historical and derivation subgraphs are acyclic; disagreement uses opposing
+edges rather than mutation. _Avoid_: generic parent, inferred filename edge,
+overwritten conflict.
+
+A **Workspace Checkpoint** is an immutable coherent snapshot that pins the
+verified heads of the separate lineage, operations and scheduling, climb and
+analysis, qualification, and access and exposure Journals. Claim Manifests bind
+one Checkpoint. A partial cross-Journal update cannot displace the previous
+Checkpoint until every intended head and object verifies. _Avoid_: one global
+journal, latest file from each stream, assumed cross-file transaction.
+
+**Logical Evidence Order** comes from Journal sequence, prior hash, causal event
+references, and Workspace Checkpoint rather than wall-clock time. Timing matters
+only when a caller supplies a hashed Time Observation with its clock source and
+uncertainty; the library never samples a clock implicitly to define evidence
+identity or causality. _Avoid_: timestamp order, render time as evidence,
+implicit now.
+
+**External Evidence Portability** requires exact third-party bytes needed by a
+qualifying claim to be sealed as Evidence Objects. Source URI, provider ID,
+media type, and acquisition receipt remain provenance, not storage. Evidence
+that cannot be captured makes its claim `externally-dependent` and ineligible
+for offline-verifiable Standing. _Avoid_: URL as evidence, provider lookup as
+replay, path-only attachment.
+
+A **Reproducibility Status** is `complete` when the Claim Manifest closure,
+Checkpoint, schemas, and Verifier Bundle all verify; `degraded` when optional
+diagnostic attachments are unavailable; `externally-dependent` when required
+bytes remain remote; `unsupported` when preserved evidence lacks a runnable
+schema or verifier; or `corrupt` when integrity fails. Only `complete` may
+support offline-verifiable Standing. _Avoid_: warning-only missing evidence,
+unknown means pass, archive present means reproducible.
+
+An **Evidence Import** verifies an Archive or Capsule in quarantine, deduplicates
+Evidence Objects by hash, and appends an Import Receipt that binds the source
+Workspace identity, source Checkpoint, archive inventory, and destination
+authorization. Source Journals retain their own identities and are never
+spliced into a destination sequence. _Avoid_: merged event stream, trusted ZIP,
+copied object without provenance.
+
+**Projection Freshness** binds every Evidence Projection to its exact Workspace
+Checkpoint and derivation contract. A Projection is `current` only when that
+Checkpoint remains the authorized head, `stale` when any source Journal has
+advanced, and `invalid` when its derivation or source closure fails verification.
+_Avoid_: unversioned dashboard, last-modified freshness, plausible stale report.
+
+An **Evidence Event** is the canonical Journal envelope containing its event
+schema, Journal identity, sequence, prior hash, event type, Actor and Authority,
+idempotency identity, causal event references, Evidence Object and Lineage Edge
+references, and event hash. Authoritative domain content remains in referenced
+objects rather than mutable event payload copies. _Avoid_: event as object dump,
+untyped audit message, timestamp-only causality.
+
 ## Simulation-evaluation language
 
 An **Evaluation Panel** is the release-independent, version-locked measuring
